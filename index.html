@@ -102,6 +102,8 @@ footer p{margin:0;color:var(--muted);font-size:15px}footer strong{font-family:va
 .owner{background:none;border:0;color:var(--muted);font:inherit;font-size:13px;text-decoration:underline;cursor:pointer;padding:10px 0;margin-top:2px}
 .admin{position:fixed;left:20px;bottom:calc(20px + env(safe-area-inset-bottom,0px));z-index:70;max-width:min(320px,calc(100vw - 100px));background:#070C18;color:#fff;border-radius:16px;padding:14px 16px;box-shadow:0 12px 36px rgba(7,12,24,.4);font-size:14px;display:grid;gap:8px}
 .admin small{color:#c3cbe0;word-break:break-all}
+.admin{max-height:calc(100vh - 40px);overflow-y:auto}
+.admin input[type=url]{width:100%;height:40px;padding:0 12px;border-radius:10px;border:1px solid rgba(255,255,255,.35);background:#0f172a;color:#fff;font:inherit;font-size:14px}
 .admin label{display:flex;align-items:center;gap:10px;cursor:pointer;min-height:44px;font-weight:600}
 .admin input{width:20px;height:20px;accent-color:var(--gold)}
 .admin button{font:inherit;font-size:14px;color:#fff;background:none;border:1px solid rgba(255,255,255,.35);border-radius:999px;min-height:40px;cursor:pointer}
@@ -156,7 +158,7 @@ section{padding:64px 0}}
 <a class="brand" href="#home">Frederick Espinosa</a>
 <button id="menu" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="nav">☰</button>
 <nav id="nav" aria-label="Main"><ul>
-<li><a href="#home">Home</a></li><li><a href="#services">Services</a></li><li><a href="#training">Training</a></li><li><a href="#tools">Research tools</a></li><li><a href="#toolkit">Toolkit</a></li><li><a href="#process">How I work</a></li><li><a href="#faq">FAQ</a></li><li><a href="#contact">Contact</a></li>
+<li><a href="#home">Home</a></li><li><a href="#services">Services</a></li><li><a href="#training">Training</a></li><li><a href="#tools">Research tools</a></li><li><a href="#toolkit">Toolkit</a></li><li><a href="#process">How I work</a></li><li><a href="#faq">FAQ</a></li><li class="hire-cta"><a href="#contact">Contact</a></li>
 </ul></nav>
 </div></header>
 
@@ -269,7 +271,7 @@ section{padding:64px 0}}
 </div>
 </section>
 
-<section id="contact">
+<section id="contact" class="hire-cta">
 <div class="wrap">
 <div class="panel on-dark">
 <h2>Ready to Work Together?</h2>
@@ -297,7 +299,7 @@ section{padding:64px 0}}
 </ul>
 </div></footer>
 
-<div class="admin" id="admin" hidden><strong>Owner panel</strong><small id="adminEmail"></small><label><input type="checkbox" id="hireToggle" checked> Show “Hire Me” button</label><button type="button" id="adminOut">Sign out</button></div>
+<div class="admin" id="admin" hidden><strong>Owner panel</strong><small id="adminEmail"></small><label><input type="checkbox" id="hireToggle" checked> Show “Hire Me” button and Contact section</label><strong style="font-size:13px;color:#c3cbe0">Chatbot automation (n8n / Make)</strong><input type="url" id="hookUrl" placeholder="https://your-webhook-url" aria-label="Automation webhook URL" autocomplete="off"><label><input type="checkbox" id="hookOn"> Use automation for chatbot replies</label><button type="button" id="hookSave">Save automation settings</button><button type="button" id="adminOut">Sign out</button></div>
 <button type="button" class="chat-btn" id="chatBtn" aria-label="Open chat assistant" aria-expanded="false" aria-controls="chat"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3h16a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H9l-5 4v-4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/></svg></button>
 <div class="chat" id="chat" role="dialog" aria-label="Portfolio assistant chat">
 <div class="chat-h"><div><strong>Portfolio Assistant</strong><small>Automated answers about Frederick</small></div><button type="button" id="chatClose" aria-label="Close chat">×</button></div>
@@ -316,7 +318,7 @@ document.getElementById('close').addEventListener('click',()=>lb.close());
 lb.addEventListener('click',e=>{if(e.target===lb)lb.close()});
 const bt=document.getElementById('chatBtn'),cp=document.getElementById('chat'),ms=document.getElementById('msgs'),ci=document.getElementById('chatInput');
 const MAIL='mailto:frederickespinosa.onlinejob@gmail.com?subject=Hiring%20inquiry';
-const HIRE=`You can <a href="${MAIL}" target="_blank" rel="noopener">email Frederick</a>, message him on <a href="https://wa.me/639052912208" target="_blank" rel="noopener noreferrer">WhatsApp</a>, or use the LinkedIn, OnlineJobs.ph and Upwork icons in the <a href="#contact">Contact</a> section.`;
+const HIRE=`You can <a href="${MAIL}" target="_blank" rel="noopener">email Frederick</a>, message him on <a href="https://wa.me/639052912208" target="_blank" rel="noopener noreferrer">WhatsApp</a>, or use the LinkedIn, OnlineJobs.ph and Upwork icons on this page.`;
 const KB=[
 {k:['fba','fbm','fulfill'],a:`His hands-on training covered FBA (Fulfillment by Amazon) only, so FBA research is where he is strongest. He hasn’t trained in FBM, and he would rather say so upfront than promise something he hasn’t practiced.`},
 {k:['service','offer','what do you do','what can you do','help with'],a:`Frederick offers online arbitrage research, supplier and sourcing research, Keepa and sales-rank analysis, deal evaluation, deal sheets and documentation, AI workflow automation, and customer service. See the <a href="#services">Services</a> section for details.`},
@@ -342,7 +344,19 @@ if(/^\s*(hi|hello|hey)\b/i.test(q))return WELCOME;
 if(/\b(thanks|thank you)\b/.test(s))return `You’re welcome! ${HIRE}`;
 let best=null,top=0;for(const e of KB){let n=0;for(const k of e.k)if(s.includes(k))n++;if(n>top){top=n;best=e}}
 return best?best.a:FALLBACK}
-function ask(q){q=q.trim();if(!q)return;add(q,'me');setTimeout(()=>add(answer(q),'bot',true),350)}
+const SID=Math.random().toString(36).slice(2),HIST=[];
+async function viaHook(q){const c=new AbortController(),t=setTimeout(()=>c.abort(),20000);
+try{const r=await fetch(window.chatHook,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:q,sessionId:SID,history:HIST.slice(-10),page:location.href}),signal:c.signal});
+if(!r.ok)throw 0;const ct=r.headers.get('content-type')||'';let x=ct.includes('json')?await r.json():await r.text();
+if(Array.isArray(x))x=x[0];if(x&&typeof x==='object')x=x.reply??x.output??x.text??x.message??x.response;
+if(typeof x!=='string'||!x.trim())throw 0;return x.trim()}finally{clearTimeout(t)}}
+function esc(s){return s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+async function ask(q){q=q.trim();if(!q)return;add(q,'me');HIST.push({role:'user',content:q});
+if(window.chatHook){const w=document.createElement('div');w.className='m bot';w.textContent='…';ms.appendChild(w);ms.scrollTop=ms.scrollHeight;
+try{const a=await viaHook(q);w.innerHTML=esc(a).replace(/(https?:\/\/[^\s<]+)/g,'<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>').replace(/\n/g,'<br>');HIST.push({role:'assistant',content:a})}
+catch(e){const a=answer(q);w.innerHTML=a;HIST.push({role:'assistant',content:a})}
+ms.scrollTop=ms.scrollHeight;return}
+setTimeout(()=>add(answer(q),'bot',true),350)}
 function setChat(o){cp.classList.toggle('open',o);bt.setAttribute('aria-expanded',o);bt.setAttribute('aria-label',o?'Close chat assistant':'Open chat assistant');if(o){if(!ms.children.length)add(WELCOME,'bot');ci.focus()}}
 bt.addEventListener('click',()=>setChat(!cp.classList.contains('open')));
 document.getElementById('chatClose').addEventListener('click',()=>{setChat(false);bt.focus()});
@@ -361,12 +375,14 @@ const {initializeApp}=await import(B+'firebase-app.js');
 const {getAuth,GoogleAuthProvider,signInWithPopup,signOut,onAuthStateChanged}=await import(B+'firebase-auth.js');
 const {getFirestore,doc,onSnapshot,setDoc}=await import(B+'firebase-firestore.js');
 const app=initializeApp(FIREBASE_CONFIG),auth=getAuth(app),ref=doc(getFirestore(app),'settings','site');
-const $=id=>document.getElementById(id),hire=document.querySelectorAll('.hire-cta'),login=$('ownerLogin'),panel=$('admin'),cb=$('hireToggle');
+const $=id=>document.getElementById(id),hire=document.querySelectorAll('.hire-cta'),login=$('ownerLogin'),panel=$('admin'),cb=$('hireToggle'),hookUrl=$('hookUrl'),hookOn=$('hookOn');
 login.hidden=false;
-onSnapshot(ref,s=>{const on=!s.exists()||s.data().hireEnabled!==false;hire.forEach(e=>e.hidden=!on);cb.checked=on},()=>{});
+onSnapshot(ref,s=>{const d=s.exists()?s.data():{};const on=d.hireEnabled!==false;hire.forEach(e=>e.hidden=!on);cb.checked=on;window.chatHook=d.chatAuto&&d.chatWebhook?d.chatWebhook:'';hookUrl.value=d.chatWebhook||'';hookOn.checked=!!d.chatAuto},()=>{});
 login.addEventListener('click',()=>{const p=new GoogleAuthProvider();p.setCustomParameters({login_hint:OWNER});signInWithPopup(auth,p).catch(()=>{})});
 cb.addEventListener('change',()=>setDoc(ref,{hireEnabled:cb.checked,updatedAt:Date.now()},{merge:true}).catch(()=>{alert('Could not save the setting. Please check your Firestore rules.');cb.checked=!cb.checked}));
 $('adminOut').addEventListener('click',()=>signOut(auth));
+$('hookSave').addEventListener('click',()=>{const u=hookUrl.value.trim();if(u&&!u.startsWith('https://')){alert('The webhook URL must start with https://');return}
+setDoc(ref,{chatWebhook:u,chatAuto:hookOn.checked&&!!u,updatedAt:Date.now()},{merge:true}).then(()=>alert('Chatbot automation settings saved.')).catch(()=>alert('Could not save. Please check your Firestore rules.'))});
 onAuthStateChanged(auth,u=>{const ok=!!u&&u.email===OWNER&&u.emailVerified;
 if(u&&!ok){signOut(auth);alert('This account is not authorized.');return}
 panel.hidden=!ok;login.hidden=ok;if(ok)$('adminEmail').textContent=u.email});
