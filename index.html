@@ -37,7 +37,7 @@ nav a:hover{background:#ece2cc}
 .hero .txt{align-self:center}
 .hero h1{color:#fff;font-size:clamp(40px,5.6vw,66px);margin-bottom:8px}
 .role{color:var(--gold);font-weight:600;font-size:19px;margin-bottom:24px}
-.intro{max-width:600px;line-height:1.85;color:#dfe4f0}
+.intro{max-width:600px;line-height:1.85;color:#dfe4f0;text-align:justify;text-justify:inter-word;hyphens:auto}
 .cta{display:flex;flex-wrap:wrap;gap:12px;margin:28px 0}
 .icons{display:flex;flex-wrap:wrap;gap:10px;list-style:none;margin:0;padding:0}
 .icons a{display:grid;place-items:center;width:46px;height:46px;border-radius:50%;border:1px solid var(--line);color:var(--navy);transition:.2s}
@@ -107,13 +107,29 @@ footer p{margin:0;color:var(--muted);font-size:15px}footer strong{font-family:va
 .admin label{display:flex;align-items:center;gap:10px;cursor:pointer;min-height:44px;font-weight:600}
 .admin input{width:20px;height:20px;accent-color:var(--gold)}
 .admin button{font:inherit;font-size:14px;color:#fff;background:none;border:1px solid rgba(255,255,255,.35);border-radius:999px;min-height:40px;cursor:pointer}
-.intro{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:center}
+.vintro{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:center}
 .itxt h2::after{content:"";display:block;width:48px;height:3px;background:var(--gold);margin-top:18px}
 .itxt p{color:var(--muted);margin:18px 0 0;max-width:460px}
 .vid{justify-self:center;width:100%;max-width:640px;aspect-ratio:16/9;border-radius:20px;overflow:hidden;border:1px solid var(--line);background:#070C18;box-shadow:0 18px 40px rgba(7,12,24,.18)}
 .vid.v{max-width:340px;aspect-ratio:9/16}
 .vid iframe{width:100%;height:100%;border:0;display:block}
-@media(max-width:820px){.intro{grid-template-columns:1fr;gap:28px}.vid.v{max-width:300px}}
+@media(max-width:820px){.vintro{grid-template-columns:1fr;gap:28px}.vid.v{max-width:300px}}
+@media(max-width:480px){.hero .intro{text-align:left}}
+.hero.lt{color:#2b3550}.hero.lt h1{color:var(--navy)}.hero.lt .intro{color:var(--ink)}.hero.lt .btn.ghost{color:var(--navy);border-color:rgba(20,33,61,.4)}.hero.lt .btn.ghost:hover{background:rgba(20,33,61,.08)}.hero.lt .icons.light a{color:var(--navy);border-color:rgba(20,33,61,.35)}
+.tgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px}
+.tcard{margin:0;background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:28px;display:flex;flex-direction:column;justify-content:space-between;gap:18px}
+.tcard blockquote{margin:0;font-family:var(--serif);font-size:19px;line-height:1.55;color:var(--navy)}
+.tcard blockquote::before{content:"“";display:block;font-size:48px;line-height:.6;color:var(--gold);margin-bottom:8px}
+.tcard figcaption{color:var(--muted);font-size:15px;border-top:1px solid var(--line);padding-top:14px}.tcard figcaption strong{color:var(--navy)}
+.admin{width:min(340px,calc(100vw - 100px))}
+.admin .ah{font-size:13px;color:#c3cbe0;border-top:1px solid rgba(255,255,255,.18);padding-top:10px}
+.admin label.fld{display:grid;gap:4px;min-height:0;font-weight:500;font-size:13px;color:#c3cbe0;cursor:default}
+.admin .fld input[type=text],.admin .fld textarea,.admin .fld select{width:100%;padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.35);background:#0f172a;color:#fff;font:inherit;font-size:14px}
+.admin .fld input[type=text]{height:40px}.admin .fld textarea{resize:vertical;line-height:1.5}
+.admin .fld input[type=color]{width:100%;height:44px;padding:2px;background:none;border-radius:10px;border:1px solid rgba(255,255,255,.35);cursor:pointer}
+.admin .amin{border:0;padding:0;min-height:32px;text-align:left;font-weight:600;font-size:16px}
+.amin::after{content:" ▾"}.admin.min .amin::after{content:" ▸"}
+.admin.min>*:not(.amin){display:none}.admin.min{width:auto}
 .chat-btn{position:fixed;right:20px;bottom:calc(20px + env(safe-area-inset-bottom,0px));z-index:70;width:58px;height:58px;border-radius:50%;border:0;background:var(--gold);color:var(--navy);cursor:pointer;display:grid;place-items:center;box-shadow:0 8px 24px rgba(7,12,24,.35);transition:transform .2s}
 .chat-btn:hover{transform:scale(1.06)}.chat-btn svg{width:26px;height:26px;fill:currentColor}
 .chat{position:fixed;right:20px;bottom:calc(92px + env(safe-area-inset-bottom,0px));z-index:70;width:min(380px,calc(100vw - 32px));height:min(560px,calc(100vh - 150px));display:none;flex-direction:column;background:var(--paper);border:1px solid var(--line);border-radius:20px;overflow:hidden;box-shadow:0 18px 50px rgba(7,12,24,.35)}
@@ -190,7 +206,7 @@ section{padding:64px 0}}
 </section>
 
 <section id="intro" class="alt" hidden>
-<div class="wrap intro">
+<div class="wrap vintro">
 <div class="itxt"><h2>Meet Frederick</h2><p>Prefer to hear it from me? Watch my short self-introduction.</p></div>
 <div class="vid" id="introBox"><iframe id="introFrame" title="Self-introduction video of Frederick Espinosa" allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" loading="lazy"></iframe></div>
 </div>
@@ -267,6 +283,13 @@ section{padding:64px 0}}
 </div>
 </section>
 
+<section id="testimonials" hidden>
+<div class="wrap">
+<div class="head"><h2>Testimonials</h2><p>What others say about working with me.</p></div>
+<div class="tgrid" id="tGrid"></div>
+</div>
+</section>
+
 <section id="faq" class="alt">
 <div class="wrap">
 <div class="head"><h2>Frequently Asked Questions</h2><p>Quick answers about how I approach Amazon online arbitrage product research.</p></div>
@@ -313,7 +336,10 @@ section{padding:64px 0}}
 </ul>
 </div></footer>
 
-<div class="admin" id="admin" hidden><strong>Owner panel</strong><small id="adminEmail"></small><label><input type="checkbox" id="hireToggle" checked> Show “Hire Me” button and Contact section</label><strong style="font-size:13px;color:#c3cbe0">Self-introduction video</strong><label><input type="checkbox" id="introOn" checked> Show video section</label><input type="url" id="introUrl" placeholder="YouTube or Loom link" aria-label="Video link (YouTube or Loom)" autocomplete="off"><button type="button" id="introSave">Save video settings</button><strong style="font-size:13px;color:#c3cbe0">Chatbot automation (n8n / Make)</strong><input type="url" id="hookUrl" placeholder="https://your-webhook-url" aria-label="Automation webhook URL" autocomplete="off"><label><input type="checkbox" id="hookOn"> Use automation for chatbot replies</label><button type="button" id="hookSave">Save automation settings</button><button type="button" id="adminOut">Sign out</button></div>
+<div class="admin" id="admin" hidden><button type="button" class="amin" id="adminMin" aria-expanded="true">Owner panel</button><small id="adminEmail"></small><label><input type="checkbox" id="hireToggle" checked> Show “Hire Me” button and Contact section</label><strong class="ah">Hero appearance</strong><label class="fld">Background color<input type="color" id="heroC1" value="#070c18"></label><label><input type="checkbox" id="heroG"> Use gradient</label><label class="fld">Second gradient color<input type="color" id="heroC2" value="#1b2a4e"></label><label class="fld">Gradient direction<select id="heroAng"><option value="135">Diagonal (top-left to bottom-right)</option><option value="45">Diagonal (bottom-left to top-right)</option><option value="180">Top to bottom</option><option value="90">Left to right</option></select></label>
+<label class="fld">Hero title (name)<input type="text" id="heroH1" maxlength="60"></label><label class="fld">Job title<input type="text" id="heroRole" maxlength="90"></label><label class="fld">Hero text<textarea id="heroTxt" rows="7" maxlength="900"></textarea></label><button type="button" id="heroSave">Save hero settings</button><button type="button" id="heroReset">Reset hero to default</button>
+<strong class="ah">Testimonials</strong><label><input type="checkbox" id="tOn"> Show testimonials section</label><label class="fld">One per line: Quote | Name, role<textarea id="tTxt" rows="6" maxlength="2500" placeholder="Quote text here | Client name, company"></textarea></label><button type="button" id="tSave">Save testimonials</button>
+<strong class="ah">Self-introduction video</strong><label><input type="checkbox" id="introOn" checked> Show video section</label><input type="url" id="introUrl" placeholder="YouTube or Loom link" aria-label="Video link (YouTube or Loom)" autocomplete="off"><button type="button" id="introSave">Save video settings</button><strong style="font-size:13px;color:#c3cbe0">Chatbot automation (n8n / Make)</strong><input type="url" id="hookUrl" placeholder="https://your-webhook-url" aria-label="Automation webhook URL" autocomplete="off"><label><input type="checkbox" id="hookOn"> Use automation for chatbot replies</label><button type="button" id="hookSave">Save automation settings</button><button type="button" id="adminOut">Sign out</button></div>
 <button type="button" class="chat-btn" id="chatBtn" aria-label="Open chat assistant" aria-expanded="false" aria-controls="chat"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3h16a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H9l-5 4v-4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/></svg></button>
 <div class="chat" id="chat" role="dialog" aria-label="Portfolio assistant chat">
 <div class="chat-h"><div><strong>Portfolio Assistant</strong><small>Automated answers about Frederick</small></div><button type="button" id="chatClose" aria-label="Close chat">×</button></div>
@@ -388,6 +414,21 @@ window.setIntro=(u,on)=>{window.__introSet=true;const s=document.getElementById(
 if(!p){s.hidden=true;f.removeAttribute('src');return}
 b.classList.toggle('v',p.v);if(f.getAttribute('src')!==p.src)f.src=p.src;s.hidden=false};
 setTimeout(()=>{if(!window.__introSet)window.setIntro(window.DEF_INTRO,true)},1200);
+window.applySite=d=>{const $=id=>document.getElementById(id),h=document.querySelector('.hero'),t=h.querySelector('h1'),r=h.querySelector('.role'),p=h.querySelector('.intro');
+if(!window.DEFH)window.DEFH={t:t.textContent,r:r.textContent,p:p.textContent};const D=window.DEFH;
+t.textContent=d.heroTitle||D.t;r.textContent=d.heroRole||D.r;p.textContent=d.heroText||D.p;
+const hx=/^#[0-9a-f]{6}$/i,c1=hx.test(d.heroC1||'')?d.heroC1:'#070C18',c2=hx.test(d.heroC2||'')?d.heroC2:'#1b2a4e',g=!!d.heroGrad,ang=['45','90','135','180'].includes(String(d.heroAng))?String(d.heroAng):'135';
+h.style.background=g?`linear-gradient(${ang}deg,${c1},${c2})`:c1;
+const L=c=>{const n=parseInt(c.slice(1),16);return(0.2126*(n>>16&255)+0.7152*(n>>8&255)+0.0722*(n&255))/255};
+h.classList.toggle('lt',(g?(L(c1)+L(c2))/2:L(c1))>0.6);
+$('heroC1').value=c1;$('heroC2').value=c2;$('heroG').checked=g;$('heroAng').value=ang;$('heroH1').value=t.textContent;$('heroRole').value=r.textContent;$('heroTxt').value=p.textContent;
+const items=(d.testiText||'').split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{const i=l.lastIndexOf('|');return i>0?{q:l.slice(0,i).trim(),n:l.slice(i+1).trim()}:{q:l,n:''}}).filter(x=>x.q);
+const on=d.testiEnabled===true,grid=$('tGrid');grid.textContent='';
+items.slice(0,9).forEach(x=>{const f=document.createElement('figure'),b=document.createElement('blockquote');f.className='tcard';b.textContent=x.q;f.appendChild(b);if(x.n){const c=document.createElement('figcaption'),s=document.createElement('strong');s.textContent=x.n;c.appendChild(s);f.appendChild(c)}grid.appendChild(f)});
+$('testimonials').hidden=!(on&&items.length);$('tOn').checked=on;$('tTxt').value=d.testiText||'';
+try{localStorage.setItem('siteCfg',JSON.stringify(d))}catch(e){}};
+try{const c=JSON.parse(localStorage.getItem('siteCfg')||'null');if(c)window.applySite(c)}catch(e){}
+document.getElementById('adminMin').addEventListener('click',e=>{const m=document.getElementById('admin').classList.toggle('min');e.currentTarget.setAttribute('aria-expanded',!m)});
 </script>
 <script type="module">
 // Paste your Firebase web config between the braces to turn on owner login. Leave as null to keep it off.
@@ -401,10 +442,14 @@ const {getFirestore,doc,onSnapshot,setDoc}=await import(B+'firebase-firestore.js
 const app=initializeApp(FIREBASE_CONFIG),auth=getAuth(app),ref=doc(getFirestore(app),'settings','site');
 const $=id=>document.getElementById(id),hire=document.querySelectorAll('.hire-cta'),login=$('ownerLogin'),panel=$('admin'),cb=$('hireToggle'),hookUrl=$('hookUrl'),hookOn=$('hookOn'),introOn=$('introOn'),introUrl=$('introUrl');
 login.hidden=false;
-onSnapshot(ref,s=>{const d=s.exists()?s.data():{};const on=d.hireEnabled!==false;hire.forEach(e=>e.hidden=!on);cb.checked=on;window.chatHook=d.chatAuto&&d.chatWebhook?d.chatWebhook:'';hookUrl.value=d.chatWebhook||'';hookOn.checked=!!d.chatAuto;const iu=d.introUrl||window.DEF_INTRO,ie=d.introEnabled!==false;introOn.checked=ie;introUrl.value=iu;window.setIntro(iu,ie)},()=>{});
+onSnapshot(ref,s=>{const d=s.exists()?s.data():{};const on=d.hireEnabled!==false;hire.forEach(e=>e.hidden=!on);cb.checked=on;window.chatHook=d.chatAuto&&d.chatWebhook?d.chatWebhook:'';hookUrl.value=d.chatWebhook||'';hookOn.checked=!!d.chatAuto;const iu=d.introUrl||window.DEF_INTRO,ie=d.introEnabled!==false;introOn.checked=ie;introUrl.value=iu;window.setIntro(iu,ie);window.applySite(d)},()=>{});
 login.addEventListener('click',()=>{const p=new GoogleAuthProvider();p.setCustomParameters({login_hint:OWNER});signInWithPopup(auth,p).catch(()=>{})});
 cb.addEventListener('change',()=>setDoc(ref,{hireEnabled:cb.checked,updatedAt:Date.now()},{merge:true}).catch(()=>{alert('Could not save the setting. Please check your Firestore rules.');cb.checked=!cb.checked}));
 $('adminOut').addEventListener('click',()=>signOut(auth));
+const save=(o,m)=>setDoc(ref,{...o,updatedAt:Date.now()},{merge:true}).then(()=>alert(m)).catch(()=>alert('Could not save. Please check your Firestore rules.'));
+$('heroSave').addEventListener('click',()=>save({heroC1:$('heroC1').value,heroC2:$('heroC2').value,heroGrad:$('heroG').checked,heroAng:$('heroAng').value,heroTitle:$('heroH1').value.trim(),heroRole:$('heroRole').value.trim(),heroText:$('heroTxt').value.trim()},'Hero settings saved.'));
+$('heroReset').addEventListener('click',()=>{if(confirm('Reset the hero to its original look and text?'))save({heroC1:'#070C18',heroC2:'#1b2a4e',heroGrad:false,heroAng:'135',heroTitle:'',heroRole:'',heroText:''},'Hero reset to default.')});
+$('tSave').addEventListener('click',()=>save({testiEnabled:$('tOn').checked,testiText:$('tTxt').value.trim()},'Testimonials saved.'));
 $('introSave').addEventListener('click',()=>{const u=introUrl.value.trim();if(u&&!window.parseVideo(u)){alert('Please paste a valid YouTube or Loom link, starting with https://');return}
 setDoc(ref,{introUrl:u,introEnabled:introOn.checked,updatedAt:Date.now()},{merge:true}).then(()=>alert('Video settings saved.')).catch(()=>alert('Could not save. Please check your Firestore rules.'))});
 $('hookSave').addEventListener('click',()=>{const u=hookUrl.value.trim();if(u&&!u.startsWith('https://')){alert('The webhook URL must start with https://');return}
