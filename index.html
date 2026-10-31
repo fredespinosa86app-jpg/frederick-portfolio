@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Frederick Espinosa · Amazon Product Researcher &amp; Virtual Assistant</title>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=DM+Sans:wght@400;500;600&family=Playfair+Display:wght@500;600&family=Lora:wght@500;600&family=Inter:wght@400;500;600&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=DM+Sans:wght@400;500;600&family=Playfair+Display:wght@500;600&family=Lora:wght@500;600&family=Inter:wght@400;500;600&family=Poppins:wght@400;500;600&family=Orbitron:wght@500;700&family=Quicksand:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-:root{--cream:#f7f2e8;--paper:#fffdf8;--navy:#14213d;--ink:#2b3550;--muted:#5d6579;--gold:#c8953a;--line:#e3d8c0;--serif:Fraunces,Georgia,serif;
+:root{--alt:#fbf7ee;--hov:#ece2cc;--field:#fff;--tag:#f3e8cf;--tagc:#5a4116;--onacc:#14213d;--deep:#14213d;--hero:#070C18;--cream:#f7f2e8;--paper:#fffdf8;--navy:#14213d;--ink:#2b3550;--muted:#5d6579;--gold:#c8953a;--line:#e3d8c0;--serif:Fraunces,Georgia,serif;
 box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 *,*::before,*::after{box-sizing:inherit}
 html{scroll-behavior:smooth;scroll-padding-top:calc(72px + env(safe-area-inset-top,0px));height:100%}
@@ -21,18 +21,18 @@ section{padding:96px 0}
 .head{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.6fr);gap:48px;margin-bottom:48px;align-items:end}
 .head p{margin:0;color:var(--muted);max-width:640px}
 .head h2::after{content:"";display:block;width:48px;height:3px;background:var(--gold);margin-top:18px}
-header{position:sticky;top:env(safe-area-inset-top,0px);z-index:50;background:rgba(247,242,232,.95);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:50;background:color-mix(in srgb,var(--cream) 94%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
 .bar{display:flex;align-items:center;justify-content:space-between;height:68px;gap:16px}
 .brand{font-family:var(--serif);font-weight:600;font-size:20px;color:var(--navy);text-decoration:none;white-space:nowrap;flex:none}
 nav ul{display:flex;gap:4px;list-style:none;margin:0;padding:0}
 nav a{display:block;padding:10px 12px;border-radius:999px;text-decoration:none;font-size:15px;font-weight:500;white-space:nowrap;transition:background .2s}
-nav a:hover{background:#ece2cc}
+nav a:hover{background:var(--hov)}
 #menu{display:none;background:none;border:1px solid var(--line);border-radius:12px;width:46px;height:46px;font-size:22px;color:var(--navy);cursor:pointer}
 .btn{display:inline-flex;align-items:center;justify-content:center;min-height:50px;padding:0 28px;border-radius:999px;font-weight:600;text-decoration:none;border:1.5px solid var(--navy);transition:transform .2s,background .2s}
-.btn.gold{background:var(--gold);border-color:var(--gold);color:var(--navy)}.btn.gold:hover{transform:translateY(-2px);background:#d9a64a}
+.btn.gold{background:var(--gold);border-color:var(--gold);color:var(--onacc)}.btn.gold:hover{transform:translateY(-2px);background:#d9a64a}
 .btn.ghost{color:#fff;border-color:rgba(255,255,255,.4)}.btn.ghost:hover{background:rgba(255,255,255,.1)}
-.btn.navy{background:var(--navy);color:#fff}.btn.navy:hover{background:#0c1630}
-.hero{background:#070C18;color:#dfe4f0;padding:72px 0;overflow:hidden}
+.btn.navy{background:var(--deep);color:#fff}.btn.navy:hover{background:#0c1630}
+.hero{position:relative;background:var(--hero);color:#dfe4f0;padding:72px 0;overflow:hidden}
 .hero .wrap{display:grid;grid-template-columns:1.15fr .85fr;gap:56px;align-items:center}
 .hero .txt{align-self:center}
 .hero h1{color:#fff;font-size:clamp(40px,5.6vw,66px);margin-bottom:8px}
@@ -41,7 +41,7 @@ nav a:hover{background:#ece2cc}
 .cta{display:flex;flex-wrap:wrap;gap:12px;margin:28px 0}
 .icons{display:flex;flex-wrap:wrap;gap:10px;list-style:none;margin:0;padding:0}
 .icons a{display:grid;place-items:center;width:46px;height:46px;border-radius:50%;border:1px solid var(--line);color:var(--navy);transition:.2s}
-.icons a:hover{background:var(--navy);color:#fff}
+.icons a:hover{background:var(--deep);color:#fff}
 .icons svg{width:21px;height:21px;fill:currentColor}
 .on-dark .icons a,.icons.light a{color:#fff;border-color:rgba(255,255,255,.35)}
 .icons.light a:hover{background:var(--gold);border-color:var(--gold);color:var(--navy)}
@@ -51,7 +51,7 @@ nav a:hover{background:#ece2cc}
 .row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.6fr);gap:48px;padding:30px 0;border-bottom:1px solid var(--line)}
 .row h3{padding-left:18px;border-left:3px solid var(--gold)}
 .row p{margin:0;color:var(--muted)}
-.alt{background:#fbf7ee;border-block:1px solid var(--line)}
+.alt{background:var(--alt);border-block:1px solid var(--line)}
 .train{display:grid;grid-template-columns:1.25fr .75fr;gap:40px;align-items:start}
 .frame{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:10px;margin:0}
 .frame button,.sc button{display:block;width:100%;padding:0;border:0;background:none;cursor:zoom-in;border-radius:10px;overflow:hidden}
@@ -70,7 +70,7 @@ nav a:hover{background:#ece2cc}
 .sc figcaption{font-size:13.5px;color:var(--muted);padding:6px 2px 0}
 .tool>.sc{margin-top:18px}
 .tags{display:flex;flex-wrap:wrap;gap:8px;list-style:none;padding:0;margin:16px 0 0}
-.tags li{font-size:13.5px;padding:4px 12px;border-radius:999px;background:#f3e8cf;color:#5a4116;font-weight:500}
+.tags li{font-size:13.5px;padding:4px 12px;border-radius:999px;background:var(--tag);color:var(--tagc);font-weight:500}
 .note{margin:28px 0 0;padding:18px 22px;border-left:4px solid var(--gold);background:var(--paper);border-radius:0 12px 12px 0;color:var(--muted);font-size:15.5px}
 .kit{border-top:1px solid var(--line)}
 .kit .row{align-items:start;padding:24px 0}
@@ -81,7 +81,7 @@ nav a:hover{background:#ece2cc}
 .steps li{border-top:3px solid var(--gold);padding-top:22px}
 .steps b{font-family:var(--serif);font-weight:500;font-size:44px;color:var(--gold);display:block;line-height:1;margin-bottom:14px}
 .steps h3{margin-bottom:10px}.steps p{color:var(--muted);margin:0}
-.panel{background:var(--navy);color:#dfe4f0;border-radius:28px;padding:68px 40px;text-align:center;position:relative}
+.panel{background:var(--deep);color:#dfe4f0;border-radius:28px;padding:68px 40px;text-align:center;position:relative}
 .panel::before{content:"";position:absolute;inset:12px;border:1px solid rgba(200,149,58,.4);border-radius:20px;pointer-events:none}
 .panel h2{color:#fff;margin-bottom:16px}.panel p{max-width:620px;margin:0 auto 28px}
 .panel .icons{justify-content:center;margin-top:30px}
@@ -96,7 +96,7 @@ footer p{margin:0;color:var(--muted);font-size:15px}footer strong{font-family:va
 .faq summary::-webkit-details-marker{display:none}
 .faq summary::after{content:"+";flex:none;width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:var(--paper);display:grid;place-items:center;font-family:"DM Sans",sans-serif;font-size:22px;color:var(--gold);transition:transform .2s}
 .faq details[open] summary::after{content:"–"}
-.faq summary:hover{color:#0c1630}
+.faq summary:hover{color:var(--gold)}
 .faq details p{margin:0;padding:0 54px 24px 0;color:var(--muted);max-width:760px}
 [hidden]{display:none!important}
 .owner{background:none;border:0;color:var(--muted);font:inherit;font-size:13px;text-decoration:underline;cursor:pointer;padding:10px 0;margin-top:2px}
@@ -145,7 +145,7 @@ main h3{font-size:calc(21px*var(--s,1))}
 .sched .head{grid-template-columns:1fr}
 .mform{display:grid;grid-template-columns:1fr 1fr;gap:18px;background:var(--paper);border:1px solid var(--line);border-radius:20px;padding:32px}
 .mform label{display:grid;gap:6px;font-weight:600;font-size:15px;color:var(--navy)}.mform .full{grid-column:1/-1}.mform .opt{font-weight:400;color:var(--muted)}
-.mform input,.mform select,.mform textarea{font:inherit;font-size:16px;font-weight:400;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--ink);width:100%;min-height:48px}
+.mform input,.mform select,.mform textarea{font:inherit;font-size:16px;font-weight:400;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--field);color:var(--ink);width:100%;min-height:48px}
 .mform textarea{resize:vertical}
 .hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
 .fine{grid-column:1/-1;margin:0;font-size:14px;color:var(--muted)}
@@ -154,12 +154,38 @@ main h3{font-size:calc(21px*var(--s,1))}
 .closedMsg{display:none}#schedule.closed .closedMsg{display:block}#schedule.closed .mform{display:none}
 @media(max-width:640px){.mform{grid-template-columns:1fr;padding:22px}}
 .bdg{background:#e5484d;color:#fff;border-radius:999px;font-size:12px;padding:1px 8px;margin-left:6px;font-weight:600}
-.toast{position:fixed;left:20px;top:calc(84px + env(safe-area-inset-top,0px));z-index:80;background:var(--gold);color:var(--navy);padding:12px 18px;border-radius:14px;font-weight:600;box-shadow:0 10px 30px rgba(7,12,24,.3);cursor:pointer;max-width:min(360px,calc(100vw - 40px))}
+.toast{position:fixed;left:20px;top:calc(84px + env(safe-area-inset-top,0px));z-index:80;background:var(--gold);color:#14213d;padding:12px 18px;border-radius:14px;font-weight:600;box-shadow:0 10px 30px rgba(7,12,24,.3);cursor:pointer;max-width:min(360px,calc(100vw - 40px))}
 .reqs{display:grid;gap:10px;max-height:46vh;overflow-y:auto}#reqEmpty{font-size:13px;color:#c3cbe0;margin:0}
 .req{background:#0f172a;border-radius:12px;padding:12px;display:grid;gap:4px;font-size:13px;color:#dfe4f0}.req.nw{border-left:3px solid var(--gold)}
 .req a{color:#fff;word-break:break-all}.req .rm{margin:4px 0;white-space:pre-wrap;color:#c3cbe0;overflow-wrap:anywhere}
 .req small{color:#8f9ab5}.rb{display:flex;gap:8px;margin-top:6px}.rb button{flex:1;min-height:36px;font-size:13px}
-.chat-btn{position:fixed;right:20px;bottom:calc(20px + env(safe-area-inset-bottom,0px));z-index:70;width:58px;height:58px;border-radius:50%;border:0;background:var(--gold);color:var(--navy);cursor:pointer;display:grid;place-items:center;box-shadow:0 8px 24px rgba(7,12,24,.35);transition:transform .2s}
+body.th-dark{color-scheme:dark;--cream:#0d1220;--paper:#151c2f;--alt:#111829;--ink:#d9deee;--muted:#9ba5bf;--navy:#f2f4fb;--gold:#e0b05a;--line:#28314c;--deep:#26345f;--hov:#1d2742;--field:#0f1526;--tag:#2a3350;--tagc:#e8d3a3;--onacc:#0d1220;--hero:#060a14}
+body.th-vegapunk{color-scheme:dark;--cream:#050a14;--paper:#0a1424;--alt:#08101e;--ink:#cfe9ff;--muted:#7fa3c2;--navy:#7df9ff;--gold:#19e3ff;--line:#103454;--deep:#0b2a47;--hov:#0e2238;--field:#07111f;--tag:#0e2b45;--tagc:#7df9ff;--onacc:#04101c;--hero:linear-gradient(135deg,#050a14,#0b2a47);--serif:Orbitron,sans-serif;--sans:Inter,system-ui,sans-serif}
+body.th-girly{--cream:#fff5f8;--paper:#fff;--alt:#ffeaf1;--ink:#5b3a4a;--muted:#8a6677;--navy:#b02a63;--gold:#d6336c;--line:#f6d0de;--deep:#d6336c;--hov:#ffe0eb;--field:#fff;--tag:#ffd9e6;--tagc:#8f1d4b;--onacc:#fff;--hero:linear-gradient(135deg,#ffd6e5,#ffeef4);--serif:"Playfair Display",Georgia,serif;--sans:Quicksand,system-ui,sans-serif}
+body.th-ocean{--cream:#eef7fa;--paper:#fff;--alt:#e2f1f6;--ink:#1f3a45;--muted:#55707b;--navy:#0b4f6c;--gold:#0e7c8f;--line:#c8e1e8;--deep:#0b4f6c;--hov:#d8ecf2;--field:#fff;--tag:#cfe9ef;--tagc:#0b4f6c;--onacc:#fff;--hero:linear-gradient(135deg,#0b4f6c,#0e7c8f)}
+body.fx-reveal main section:not(.hero){opacity:0;transform:translateY(26px);transition:opacity .7s ease,transform .7s ease}
+body.fx-reveal main section.in{opacity:1;transform:none}
+body.fx-lift :is(.tool,.tcard,.side,.steps li,.frame,.done){transition:transform .25s ease,box-shadow .25s ease}
+body.fx-lift :is(.tool,.tcard,.side,.steps li,.frame):hover{transform:translateY(-6px);box-shadow:0 16px 36px rgba(7,12,24,.16)}
+body.fx-glow :is(.btn.gold,.icons a:hover){box-shadow:0 0 22px color-mix(in srgb,var(--gold) 55%,transparent)}
+body.fx-glow :is(.tool,.tcard,.side,.frame,.mform):hover{box-shadow:0 0 0 1px var(--gold),0 0 28px color-mix(in srgb,var(--gold) 35%,transparent)}
+body.fx-glow .hero h1{text-shadow:0 0 26px color-mix(in srgb,var(--gold) 45%,transparent)}
+body.fx-glass{background-image:radial-gradient(circle at 12% 8%,color-mix(in srgb,var(--gold) 24%,transparent),transparent 42%),radial-gradient(circle at 88% 55%,color-mix(in srgb,var(--navy) 16%,transparent),transparent 46%);background-attachment:fixed}
+body.fx-glass :is(.tool,.tcard,.side,.frame,.mform,.done){background:color-mix(in srgb,var(--paper) 58%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-color:color-mix(in srgb,var(--gold) 28%,var(--line))}
+@media(prefers-reduced-motion:reduce){body.fx-reveal main section:not(.hero){opacity:1;transform:none}}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.m.typing{padding:12px 16px}
+.dots span{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--muted);margin:0 2px;animation:tdot 1.2s infinite ease-in-out}
+.dots span:nth-child(2){animation-delay:.15s}.dots span:nth-child(3){animation-delay:.3s}
+@keyframes tdot{0%,60%,100%{transform:translateY(0);opacity:.35}30%{transform:translateY(-4px);opacity:1}}
+@media(prefers-reduced-motion:reduce){.dots span{animation:none;opacity:.6}}
+.hero .wrap{position:relative;z-index:1}
+.heroimg{position:absolute;left:80%;top:50%;width:40%;height:auto;max-width:none;transform:translate(-50%,-50%);pointer-events:none;user-select:none;z-index:0}
+.heroimg.front{z-index:2}
+.admin .fld input[type=range]{width:100%;height:28px;padding:0}
+.admin .fld input[type=file]{width:100%;height:auto;font-size:13px;color:#c3cbe0}
+.admin small.hint{color:#c3cbe0;font-size:12.5px}
+.chat-btn{position:fixed;right:20px;bottom:calc(20px + env(safe-area-inset-bottom,0px));z-index:70;width:58px;height:58px;border-radius:50%;border:0;background:var(--gold);color:#14213d;cursor:pointer;display:grid;place-items:center;box-shadow:0 8px 24px rgba(7,12,24,.35);transition:transform .2s}
 .chat-btn:hover{transform:scale(1.06)}.chat-btn svg{width:26px;height:26px;fill:currentColor}
 .chat{position:fixed;right:20px;bottom:calc(92px + env(safe-area-inset-bottom,0px));z-index:70;width:min(380px,calc(100vw - 32px));height:min(560px,calc(100vh - 150px));display:none;flex-direction:column;background:var(--paper);border:1px solid var(--line);border-radius:20px;overflow:hidden;box-shadow:0 18px 50px rgba(7,12,24,.35)}
 .chat.open{display:flex}
@@ -169,19 +195,20 @@ main h3{font-size:calc(21px*var(--s,1))}
 .msgs{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;background:var(--cream)}
 .m{max-width:88%;padding:10px 14px;border-radius:16px;font-size:15px;line-height:1.55}
 .m.bot{background:var(--paper);border:1px solid var(--line);color:var(--ink);align-self:flex-start;border-bottom-left-radius:4px}
-.m.me{background:var(--navy);color:#fff;align-self:flex-end;border-bottom-right-radius:4px}
+.m.me{background:var(--deep);color:#fff;align-self:flex-end;border-bottom-right-radius:4px}
 .m a{color:var(--navy);font-weight:600}
-.chips{display:flex;flex-wrap:wrap;gap:8px;padding:0 16px 12px;background:var(--cream)}
+.chips{display:grid;grid-auto-flow:column;grid-template-rows:repeat(2,auto);grid-auto-columns:max-content;gap:8px;padding:0 16px 12px;background:var(--cream);overflow-x:auto;scrollbar-width:thin;-webkit-overflow-scrolling:touch}
+.chips button{white-space:nowrap}
 .chips button{font:inherit;font-size:13.5px;padding:7px 12px;border-radius:999px;border:1px solid var(--gold);background:var(--paper);color:var(--navy);cursor:pointer}
-.chips button:hover{background:#f3e8cf}
+.chips button:hover{background:var(--hov)}
 .chat form{display:flex;gap:8px;padding:12px;border-top:1px solid var(--line);background:var(--paper)}
-.chat input{flex:1;min-width:0;font:inherit;font-size:16px;padding:10px 14px;border:1px solid var(--line);border-radius:999px;background:#fff;color:var(--ink)}
+.chat input{flex:1;min-width:0;font:inherit;font-size:16px;padding:10px 14px;border:1px solid var(--line);border-radius:999px;background:var(--field);color:var(--ink)}
 .chat form button{border:0;border-radius:999px;background:var(--navy);color:#fff;font:inherit;font-weight:600;padding:0 18px;min-height:44px;cursor:pointer}
 @media(max-width:480px){.chat{right:16px;left:16px;width:auto}}
 dialog{border:0;padding:0;background:transparent;max-width:96vw;max-height:94vh;overflow:visible}
 dialog::backdrop{background:rgba(10,16,32,.86)}
 dialog img{display:block;max-width:96vw;max-height:90vh;border-radius:12px;background:#fff}
-dialog button{position:absolute;top:-6px;right:-6px;width:44px;height:44px;border-radius:50%;border:0;background:var(--gold);color:var(--navy);font-size:24px;cursor:pointer}
+dialog button{position:absolute;top:-6px;right:-6px;width:44px;height:44px;border-radius:50%;border:0;background:var(--gold);color:#14213d;font-size:24px;cursor:pointer}
 @media(max-width:960px){.train,.tool.wide,.two{grid-template-columns:1fr}.steps{grid-template-columns:1fr}.head,.row{grid-template-columns:1fr;gap:12px}.head{align-items:start}}
 @media(max-width:1100px){
 #menu{display:block}
@@ -216,6 +243,7 @@ section{padding:64px 0}}
 
 <main id="page">
 <section class="hero" id="home">
+<img class="heroimg" id="heroImg" alt="" aria-hidden="true" hidden>
 <div class="wrap">
 <div class="txt">
 <h1>Frederick Espinosa</h1>
@@ -324,7 +352,7 @@ section{padding:64px 0}}
 <div class="head"><h2>Frequently Asked Questions</h2><p>Quick answers about how I approach Amazon online arbitrage product research.</p></div>
 <div class="faq">
 <details open><summary>What is Amazon online arbitrage product research?</summary><p>I look for products sold at lower prices on online retail stores than they sell for on Amazon, then check whether the resale price leaves a worthwhile profit. The goal is to give you a short list of vetted sourcing opportunities, backed by data, so you can buy with confidence.</p></details>
-<details><summary>Do you support FBA or FBM?</summary><p>My hands-on training covered FBA (Fulfillment by Amazon) only, so that is where my research is strongest. I haven’t trained in FBM (Fulfilled by Merchant), and I would rather say so upfront than promise something I haven’t practiced. If your business is FBA-focused, I’m a good fit. If you also run FBM, let’s talk about whether I can help with that part.</p></details>
+<details><summary>Do you support FBA or FBM?</summary><p>My hands-on training focused on FBA product research, and I only have theoretical knowledge of FBM. I would rather be upfront about that than promise something I haven’t practiced. If your business is FBA-focused, I’m a good fit. If you also run FBM, let’s talk about whether I can help with that part.</p></details>
 <details><summary>Do you research both US and UK Amazon marketplaces?</summary><p>Yes. My training covered both, with separate sourcing criteria and a separate deal sheet for each marketplace.</p></details>
 <details><summary>Which tools do you use?</summary><p>I use SellerAmp SAS for profit, ROI, sales estimates, and listing alerts. I use Keepa for price history and sales-rank trends. I use Coupert and Honey to look for coupons and cashback that can lower the buy cost.</p></details>
 <details><summary>What criteria do you use to qualify a product?</summary><p>I follow your criteria. In my training, a lead had to meet a minimum profit (US$3 or £2) and a 20% ROI, have no more than 20 sellers and at least 30 estimated sales per month, and not be sold by Amazon itself. I also screen out hazmat, IP-risk, private-label, and dangerous-goods products. For the UK, gated brands were acceptable with one lead per brand.</p></details>
@@ -392,6 +420,14 @@ section{padding:64px 0}}
 <button type="button" class="amin" id="adminMin" aria-expanded="true">Owner panel <span class="bdg" id="panelBadge" hidden></span></button>
 <small id="adminEmail"></small>
 <details class="ag" id="grpReq"><summary><span>Meeting requests <span class="bdg" id="reqBadge" hidden></span></span></summary><div class="ab"><p id="reqEmpty">No meeting requests yet.</p><div id="reqList" class="reqs"></div></div></details>
+<details class="ag"><summary>Theme &amp; effects</summary><div class="ab">
+<label class="fld">Theme mode<select id="thSel"><option value="default">Default (cream &amp; navy)</option><option value="dark">Dark mode</option><option value="vegapunk">Vegapunk mode (futuristic)</option><option value="girly">Girly mode (pink)</option><option value="ocean">Ocean mode (blue-teal)</option></select></label>
+<strong class="ah">UI effects</strong>
+<label><input type="checkbox" id="fxReveal"> Fade-in on scroll</label>
+<label><input type="checkbox" id="fxLift"> Hover lift on cards</label>
+<label><input type="checkbox" id="fxGlow"> Soft glow</label>
+<label><input type="checkbox" id="fxGlass"> Glass cards</label>
+<button type="button" id="thSave">Save theme &amp; effects</button><button type="button" id="thReset">Reset to default</button></div></details>
 <details class="ag"><summary>General style</summary><div class="ab">
 <label class="fld">Heading font<select id="gHead"><option value="fr">Fraunces (default)</option><option value="pf">Playfair Display</option><option value="lo">Lora</option><option value="po">Poppins</option><option value="in">Inter</option></select></label>
 <label class="fld">Body font<select id="gBody"><option value="dm">DM Sans (default)</option><option value="in">Inter</option><option value="lo">Lora</option><option value="po">Poppins</option></select></label>
@@ -409,6 +445,16 @@ section{padding:64px 0}}
 <label class="fld">Job title<input type="text" id="heroRole" maxlength="90"></label>
 <label class="fld">Hero text<textarea id="heroTxt" rows="7" maxlength="900"></textarea></label>
 <button type="button" id="heroSave">Save hero settings</button><button type="button" id="heroReset">Reset hero to default</button></div></details>
+<details class="ag"><summary>Hero image</summary><div class="ab">
+<label><input type="checkbox" id="hiOn"> Show hero image</label>
+<label class="fld"><span>Upload image (PNG, JPG or WebP)</span><input type="file" id="hiFile" accept="image/*"></label>
+<label class="fld"><span>Size: <output id="hiWv">40</output>% of hero width</span><input type="range" id="hiW" min="5" max="100" value="40"></label>
+<label class="fld"><span>Horizontal position: <output id="hiXv">80</output>%</span><input type="range" id="hiX" min="0" max="100" value="80"></label>
+<label class="fld"><span>Vertical position: <output id="hiYv">50</output>%</span><input type="range" id="hiY" min="0" max="100" value="50"></label>
+<label class="fld"><span>Opacity: <output id="hiOpv">100</output>%</span><input type="range" id="hiOp" min="10" max="100" value="100"></label>
+<label><input type="checkbox" id="hiFront"> Bring in front of hero text</label>
+<small class="hint">Unchecked = sent backward, behind the hero text so it never blocks it.</small>
+<button type="button" id="hiSave">Save hero image</button><button type="button" id="hiRemove">Remove hero image</button></div></details>
 <details class="ag"><summary>Intro video</summary><div class="ab">
 <label><input type="checkbox" id="introOn" checked> Show video section</label>
 <input type="url" id="introUrl" placeholder="YouTube or Loom link" aria-label="Video link (YouTube or Loom)" autocomplete="off">
@@ -429,7 +475,7 @@ section{padding:64px 0}}
 <div class="chat" id="chat" role="dialog" aria-label="Portfolio assistant chat">
 <div class="chat-h"><div><strong>Portfolio Assistant</strong><small>Automated answers about Frederick</small></div><button type="button" id="chatClose" aria-label="Close chat">×</button></div>
 <div class="msgs" id="msgs" aria-live="polite"></div>
-<div class="chips"><button type="button">What services do you offer?</button><button type="button">FBA or FBM?</button><button type="button">Which tools do you use?</button><button type="button">How can I hire you?</button></div>
+<div class="chips"><button type="button">What services do you offer?</button><button type="button">FBA or FBM?</button><button type="button">Which tools do you use?</button><button type="button">How can I hire you?</button><button type="button">What is your rate?</button><button type="button">When are you available?</button><button type="button">Is my information secure?</button></div>
 <form id="chatForm" autocomplete="off"><input id="chatInput" type="text" placeholder="Type your question…" aria-label="Type your question" maxlength="200"><button type="submit">Send</button></form>
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
@@ -446,7 +492,9 @@ const bt=document.getElementById('chatBtn'),cp=document.getElementById('chat'),m
 const MAIL='mailto:frederickespinosa.onlinejob@gmail.com?subject=Hiring%20inquiry';
 const HIRE=`You can <a href="#schedule">request a meeting</a>, <a href="${MAIL}" target="_blank" rel="noopener">email Frederick</a>, message him on <a href="https://wa.me/639052912208" target="_blank" rel="noopener noreferrer">WhatsApp</a>, or use the LinkedIn, OnlineJobs.ph and Upwork icons on this page.`;
 const KB=[
-{k:['fba','fbm','fulfill'],a:`His hands-on training covered FBA (Fulfillment by Amazon) only, so FBA research is where he is strongest. He hasn’t trained in FBM, and he would rather say so upfront than promise something he hasn’t practiced.`},
+{k:['fba','fbm','fulfill'],a:`Frederick’s hands-on training focused on FBA product research, and he only has theoretical knowledge of FBM. FBA is where his practical experience is.`},
+{k:['secure','secured','security','safe','privacy','confidential','my information','my data','personal info'],a:`Details you send through the meeting request form travel over an encrypted (HTTPS) connection and are stored in a private database that only Frederick’s verified Google account can read. They are used only to reply to your request. The built-in chat doesn’t save your messages, but if Frederick’s AI automation is switched on, your chat messages are sent to that workflow to generate replies. Please don’t share passwords, payment details or other sensitive information here.`},
+{k:['other service','what other','what else','anything else','more services','other things'],a:`Besides online arbitrage product research, Frederick offers supplier and sourcing research, Keepa and sales-rank analysis, deal evaluation and sourcing criteria, deal sheets and documentation, AI workflow automation, and customer service. See the <a href="#services">Services</a> section for details.`},
 {k:['service','offer','what do you do','what can you do','help with'],a:`Frederick offers online arbitrage research, supplier and sourcing research, Keepa and sales-rank analysis, deal evaluation, deal sheets and documentation, AI workflow automation, and customer service. See the <a href="#services">Services</a> section for details.`},
 {k:['marketplace','uk ','usa','united states','united kingdom','us and uk','us or uk'],a:`Yes. His training covered both the US and UK Amazon marketplaces, with separate sourcing criteria and a separate deal sheet for each.`},
 {k:['tool','software','selleramp','keepa','coupert','honey','extension'],a:`He uses SellerAmp SAS for profit, ROI, sales estimates and alerts, Keepa for price history and sales rank, and Coupert and Honey for coupons and cashback. See the <a href="#tools">Product Research Tools</a> and <a href="#toolkit">Toolkit</a> sections.`},
@@ -459,8 +507,9 @@ const KB=[
 {k:['training','certificate','certified','course','learn'],a:`He completed a 6-week intensive Online Arbitrage VA training with The Ultimate VA for Online Arbitrage. See <a href="#training">Hands-on Training &amp; Research Experience</a>.`},
 {k:['communicat','slack','asana','discord','update'],a:`He works through Slack, Asana, Discord or email, whichever you prefer, and shares a status update before you have to ask.`},
 {k:['where','location','based','philippines','bulacan','plaridel'],a:`Frederick is based in Plaridel, Bulacan, Philippines.`},
-{k:['rate','price','how much','fee','salary','available','availability','hours','time zone','timezone'],a:`Rates and availability aren’t listed here. Please message Frederick to discuss your needs. ${HIRE}`},
-{k:['hire','contact','email','whatsapp','reach','message','linkedin','upwork','onlinejobs','book','work with'],a:HIRE}
+{k:[' rate',' price','pricing','how much','charge',' fee','quote','hourly','per hour','budget',' cost'],a:`Rates depend on the service. Online arbitrage product research starts at $3/hour. For automation-related services, the rate depends on the needs of the job. ${HIRE}`},
+{k:['available','availability','what time','schedule','working hours','hours','time zone','timezone','monday','saturday','when can'],a:`Frederick is available Monday to Saturday, 8:00 AM to 9:00 PM Philippine time (PHT, UTC+8). To book a time, <a href="#schedule">request a meeting</a>.`},
+{k:['hire','meeting','contact','email','whatsapp','reach','message','linkedin','upwork','onlinejobs','book','work with'],a:HIRE}
 ];
 const WELCOME=`Hi! I’m the automated assistant for Frederick’s portfolio. Ask me about his services, tools, training or how to hire him.`;
 const FALLBACK=`I’m not sure about that one. I can answer questions about his services, tools, criteria, training and FBA experience. For anything else, ${HIRE}`;
@@ -468,7 +517,7 @@ function add(t,c,h){const d=document.createElement('div');d.className='m '+c;h?d
 function answer(q){const s=' '+q.toLowerCase()+' ';
 if(/^\s*(hi|hello|hey)\b/i.test(q))return WELCOME;
 if(/\b(thanks|thank you)\b/.test(s))return `You’re welcome! ${HIRE}`;
-let best=null,top=0;for(const e of KB){let n=0;for(const k of e.k)if(s.includes(k))n++;if(n>top){top=n;best=e}}
+let best=null,top=0;for(const e of KB){let n=0;for(const k of e.k)if(s.includes(k))n+=k.length>=12?2:1;if(n>top){top=n;best=e}}
 return best?best.a:FALLBACK}
 const SID=Math.random().toString(36).slice(2),HIST=[];
 async function viaHook(q){const c=new AbortController(),t=setTimeout(()=>c.abort(),20000);
@@ -477,12 +526,16 @@ if(!r.ok)throw 0;const ct=r.headers.get('content-type')||'';let x=ct.includes('j
 if(Array.isArray(x))x=x[0];if(x&&typeof x==='object')x=x.reply??x.output??x.text??x.message??x.response;
 if(typeof x!=='string'||!x.trim())throw 0;return x.trim()}finally{clearTimeout(t)}}
 function esc(s){return s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
-async function ask(q){q=q.trim();if(!q)return;add(q,'me');HIST.push({role:'user',content:q});
-if(window.chatHook){const w=document.createElement('div');w.className='m bot';w.textContent='…';ms.appendChild(w);ms.scrollTop=ms.scrollHeight;
-try{const a=await viaHook(q);w.innerHTML=esc(a).replace(/(https?:\/\/[^\s<]+)/g,'<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>').replace(/\n/g,'<br>');HIST.push({role:'assistant',content:a})}
-catch(e){const a=answer(q);w.innerHTML=a;HIST.push({role:'assistant',content:a})}
-ms.scrollTop=ms.scrollHeight;return}
-setTimeout(()=>add(answer(q),'bot',true),350)}
+let chain=Promise.resolve();
+const wait=t=>new Promise(r=>setTimeout(r,t));
+function typing(){const w=document.createElement('div');w.className='m bot typing';w.innerHTML='<span class="dots" aria-hidden="true"><span></span><span></span><span></span></span><span class="sr">Typing\u2026</span>';ms.appendChild(w);ms.scrollTop=ms.scrollHeight;return w}
+async function reply(q){const w=typing();let a=null,html=true;
+if(window.chatHook){try{a=await viaHook(q);html=false}catch(e){}}
+if(a==null){if(!window.chatHook)await wait(2000+Math.random()*2000);a=answer(q);html=true}
+w.classList.remove('typing');
+if(html)w.innerHTML=a;else w.innerHTML=esc(a).replace(/(https?:\/\/[^\s<]+)/g,'<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>').replace(/\n/g,'<br>');
+HIST.push({role:'assistant',content:html?w.textContent:a});ms.scrollTop=ms.scrollHeight}
+function ask(q){q=q.trim();if(!q)return;add(q,'me');HIST.push({role:'user',content:q});chain=chain.then(()=>reply(q)).catch(()=>{})}
 function setChat(o){cp.classList.toggle('open',o);bt.setAttribute('aria-expanded',o);bt.setAttribute('aria-label',o?'Close chat assistant':'Open chat assistant');if(o){if(!ms.children.length)add(WELCOME,'bot');ci.focus()}}
 bt.addEventListener('click',()=>setChat(!cp.classList.contains('open')));
 document.getElementById('chatClose').addEventListener('click',()=>{setChat(false);bt.focus()});
@@ -500,25 +553,34 @@ window.setIntro=(u,on)=>{window.__introSet=true;const s=document.getElementById(
 if(!p){s.hidden=true;f.removeAttribute('src');return}
 b.classList.toggle('v',p.v);if(f.getAttribute('src')!==p.src)f.src=p.src;s.hidden=false};
 setTimeout(()=>{if(!window.__introSet)window.setIntro(window.DEF_INTRO,true)},1200);
+window.applyLook=(th,fx)=>{const TH={dark:0,vegapunk:0,girly:1,ocean:0},b=document.body,id=Object.hasOwn(TH,th)?th:'default';
+[...b.classList].forEach(c=>{if(c.startsWith('th-'))b.classList.remove(c)});if(id!=='default')b.classList.add('th-'+id);
+const f=Array.isArray(fx)?fx:String(fx||'').split(',');['reveal','lift','glow','glass'].forEach(k=>b.classList.toggle('fx-'+k,f.includes(k)));
+if(!window.__cust)document.querySelector('.hero').classList.toggle('lt',!!TH[id]);
+if(f.includes('reveal')&&!window.__io){window.__io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting||e.boundingClientRect.top<0){e.target.classList.add('in');window.__io.unobserve(e.target)}}),{threshold:.08});document.querySelectorAll('main section:not(.hero)').forEach(s=>window.__io.observe(s))}};
 window.applySite=d=>{const $=id=>document.getElementById(id),h=document.querySelector('.hero'),t=h.querySelector('h1'),r=h.querySelector('.role'),p=h.querySelector('.intro');
 if(!window.DEFH)window.DEFH={t:t.textContent,r:r.textContent,p:p.textContent};const D=window.DEFH;
 t.textContent=d.heroTitle||D.t;r.textContent=d.heroRole||D.r;p.textContent=d.heroText||D.p;
 const hx=/^#[0-9a-f]{6}$/i,c1=hx.test(d.heroC1||'')?d.heroC1:'#070C18',c2=hx.test(d.heroC2||'')?d.heroC2:'#1b2a4e',g=!!d.heroGrad,ang=['45','90','135','180'].includes(String(d.heroAng))?String(d.heroAng):'135';
-h.style.background=g?`linear-gradient(${ang}deg,${c1},${c2})`:c1;
+const cust=g||(hx.test(d.heroC1||'')&&d.heroC1.toLowerCase()!=='#070c18');window.__cust=cust;h.style.background=cust?(g?`linear-gradient(${ang}deg,${c1},${c2})`:c1):'';
 const L=c=>{const n=parseInt(c.slice(1),16);return(0.2126*(n>>16&255)+0.7152*(n>>8&255)+0.0722*(n&255))/255};
-h.classList.toggle('lt',(g?(L(c1)+L(c2))/2:L(c1))>0.6);
+if(cust)h.classList.toggle('lt',(g?(L(c1)+L(c2))/2:L(c1))>0.6);
+window.applyLook(d.theme,d.fx);{const fxs=String(d.fx||'').split(',');$('thSel').value=['dark','vegapunk','girly','ocean'].includes(d.theme)?d.theme:'default';$('fxReveal').checked=fxs.includes('reveal');$('fxLift').checked=fxs.includes('lift');$('fxGlow').checked=fxs.includes('glow');$('fxGlass').checked=fxs.includes('glass')}
 $('heroC1').value=c1;$('heroC2').value=c2;$('heroG').checked=g;$('heroAng').value=ang;$('heroH1').value=t.textContent;$('heroRole').value=r.textContent;$('heroTxt').value=p.textContent;
 const items=(d.testiText||'').split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{const i=l.lastIndexOf('|');return i>0?{q:l.slice(0,i).trim(),n:l.slice(i+1).trim()}:{q:l,n:''}}).filter(x=>x.q);
 const on=d.testiEnabled===true,grid=$('tGrid');grid.textContent='';
 items.slice(0,9).forEach(x=>{const f=document.createElement('figure'),b=document.createElement('blockquote');f.className='tcard';b.textContent=x.q;f.appendChild(b);if(x.n){const c=document.createElement('figcaption'),s=document.createElement('strong');s.textContent=x.n;c.appendChild(s);f.appendChild(c)}grid.appendChild(f)});
 $('testimonials').hidden=!(on&&items.length);$('tOn').checked=on;$('tTxt').value=d.testiText||'';
-const R=document.documentElement.style,HF={fr:'Fraunces,Georgia,serif',pf:'"Playfair Display",Georgia,serif',lo:'Lora,Georgia,serif',po:'Poppins,system-ui,sans-serif',in:'Inter,system-ui,sans-serif'},BF={dm:'"DM Sans",system-ui,sans-serif',in:'Inter,system-ui,sans-serif',lo:'Lora,Georgia,serif',po:'Poppins,system-ui,sans-serif'};
+const R=document.body.style,HF={fr:'Fraunces,Georgia,serif',pf:'"Playfair Display",Georgia,serif',lo:'Lora,Georgia,serif',po:'Poppins,system-ui,sans-serif',in:'Inter,system-ui,sans-serif'},BF={dm:'"DM Sans",system-ui,sans-serif',in:'Inter,system-ui,sans-serif',lo:'Lora,Georgia,serif',po:'Poppins,system-ui,sans-serif'};
 const gh=HF[d.gHead]?d.gHead:'fr',gb=BF[d.gBody]?d.gBody:'dm',gs=['0.92','1','1.1','1.2'].includes(String(d.gSize))?String(d.gSize):'1',hc=hx.test(d.gHeadC||''),tc=hx.test(d.gTextC||'');
-R.setProperty('--serif',HF[gh]);R.setProperty('--sans',BF[gb]);
+if(gh!=='fr')R.setProperty('--serif',HF[gh]);else R.removeProperty('--serif');if(gb!=='dm')R.setProperty('--sans',BF[gb]);else R.removeProperty('--sans');
 if(hc)R.setProperty('--hc',d.gHeadC);else R.removeProperty('--hc');
 if(tc){R.setProperty('--ink',d.gTextC);R.setProperty('--muted','color-mix(in srgb,'+d.gTextC+' 80%,#fff)')}else{R.removeProperty('--ink');R.removeProperty('--muted')}
 if(gs==='1')R.removeProperty('--s');else R.setProperty('--s',gs);
 $('gHead').value=gh;$('gBody').value=gb;$('gSize').value=gs;$('gCol').checked=hc||tc;$('gHeadC').value=hc?d.gHeadC:'#14213d';$('gTextC').value=tc?d.gTextC:'#2b3550';
+{const hi=$('heroImg'),nm=(v,df,a,b)=>{v=Number(v);return Number.isFinite(v)?Math.min(b,Math.max(a,v)):df},img=typeof d.heroImg==='string'&&d.heroImg.startsWith('data:image/')?d.heroImg:'',on=!!d.heroImgOn&&!!img,w=nm(d.heroImgW,40,5,100),x=nm(d.heroImgX,80,0,100),y=nm(d.heroImgY,50,0,100),o=nm(d.heroImgOp,100,10,100);
+window.__heroImgData=img;hi.hidden=!on;if(on){if(hi.getAttribute('src')!==img)hi.src=img;hi.style.width=w+'%';hi.style.left=x+'%';hi.style.top=y+'%';hi.style.opacity=o/100;hi.classList.toggle('front',!!d.heroImgFront)}
+$('hiOn').checked=on;$('hiW').value=w;$('hiX').value=x;$('hiY').value=y;$('hiOp').value=o;$('hiFront').checked=!!d.heroImgFront;$('hiWv').textContent=w;$('hiXv').textContent=x;$('hiYv').textContent=y;$('hiOpv').textContent=o}
 document.getElementById('schedule').classList.toggle('closed',d.hireEnabled===false);
 try{localStorage.setItem('siteCfg',JSON.stringify(d))}catch(e){}};
 try{const c=JSON.parse(localStorage.getItem('siteCfg')||'null');if(c)window.applySite(c)}catch(e){}
@@ -540,6 +602,18 @@ function route(){const s=location.hash==='#schedule';document.getElementById('pa
 if(s){mf.hidden=false;document.getElementById('mDone').hidden=true;window.scrollTo(0,0);document.title='Schedule a Meeting \u00b7 Frederick Espinosa'}
 else{document.title=ORIG;if(location.hash.length>1){const t=document.getElementById(location.hash.slice(1));if(t)t.scrollIntoView()}}}
 addEventListener('hashchange',route);route();
+{const g=i=>document.getElementById(i),hiI=g('heroImg');
+window.hiPrev=()=>{const v={on:g('hiOn').checked,w:+g('hiW').value,x:+g('hiX').value,y:+g('hiY').value,o:+g('hiOp').value,f:g('hiFront').checked};
+g('hiWv').textContent=v.w;g('hiXv').textContent=v.x;g('hiYv').textContent=v.y;g('hiOpv').textContent=v.o;
+if(window.__heroImgData){if(hiI.getAttribute('src')!==window.__heroImgData)hiI.src=window.__heroImgData;hiI.hidden=!v.on;hiI.style.width=v.w+'%';hiI.style.left=v.x+'%';hiI.style.top=v.y+'%';hiI.style.opacity=v.o/100;hiI.classList.toggle('front',v.f)}else hiI.hidden=true};
+['hiOn','hiW','hiX','hiY','hiOp','hiFront'].forEach(i=>g(i).addEventListener('input',window.hiPrev));
+g('hiFile').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const u=URL.createObjectURL(f),im=new Image();
+im.onload=()=>{let out='';for(const mw of [1200,1000,800,600,450]){const sc=Math.min(1,mw/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.max(1,Math.round(im.width*sc));c.height=Math.max(1,Math.round(im.height*sc));c.getContext('2d').drawImage(im,0,0,c.width,c.height);out=c.toDataURL('image/webp',.85);if(out.length<=900000)break}
+URL.revokeObjectURL(u);if(out.length>900000){alert('This image is too large. Please choose a smaller image.');return}
+window.__heroImgData=out;g('hiOn').checked=true;window.hiPrev()};
+im.onerror=()=>{URL.revokeObjectURL(u);alert('Could not read this image file.')};im.src=u})}
+{const fxl=()=>[['fxReveal','reveal'],['fxLift','lift'],['fxGlow','glow'],['fxGlass','glass']].filter(x=>document.getElementById(x[0]).checked).map(x=>x[1]);
+['thSel','fxReveal','fxLift','fxGlow','fxGlass'].forEach(i=>document.getElementById(i).addEventListener('change',()=>window.applyLook(document.getElementById('thSel').value,fxl())))}
 document.querySelectorAll('.ag').forEach(d=>d.addEventListener('toggle',()=>{if(d.open)document.querySelectorAll('.ag').forEach(o=>{if(o!==d)o.open=false})}));
 document.getElementById('adminMin').addEventListener('click',e=>{const m=document.getElementById('admin').classList.toggle('min');e.currentTarget.setAttribute('aria-expanded',!m)});
 </script>
@@ -565,6 +639,11 @@ $('heroReset').addEventListener('click',()=>{if(confirm('Reset the hero to its o
 $('tSave').addEventListener('click',()=>save({testiEnabled:$('tOn').checked,testiText:$('tTxt').value.trim()},'Testimonials saved.'));
 $('gSave').addEventListener('click',()=>{const c=$('gCol').checked;save({gHead:$('gHead').value,gBody:$('gBody').value,gSize:$('gSize').value,gHeadC:c?$('gHeadC').value:'',gTextC:c?$('gTextC').value:''},'Style saved.')});
 $('gReset').addEventListener('click',()=>{if(confirm('Reset fonts, text size and colors to the original style?'))save({gHead:'fr',gBody:'dm',gSize:'1',gHeadC:'',gTextC:''},'Style reset to default.')});
+const fxv=()=>[['fxReveal','reveal'],['fxLift','lift'],['fxGlow','glow'],['fxGlass','glass']].filter(x=>$(x[0]).checked).map(x=>x[1]).join(',');
+$('thSave').addEventListener('click',()=>save({theme:$('thSel').value,fx:fxv()},'Theme and effects saved.'));
+$('thReset').addEventListener('click',()=>{if(confirm('Reset the theme and effects to default?'))save({theme:'default',fx:''},'Theme and effects reset.')});
+$('hiSave').addEventListener('click',()=>{const img=window.__heroImgData||'';save({heroImg:img,heroImgOn:$('hiOn').checked&&!!img,heroImgW:+$('hiW').value,heroImgX:+$('hiX').value,heroImgY:+$('hiY').value,heroImgOp:+$('hiOp').value,heroImgFront:$('hiFront').checked},'Hero image saved.')});
+$('hiRemove').addEventListener('click',()=>{if(confirm('Remove the hero image?'))save({heroImg:'',heroImgOn:false},'Hero image removed.')});
 $('introSave').addEventListener('click',()=>{const u=introUrl.value.trim();if(u&&!window.parseVideo(u)){alert('Please paste a valid YouTube or Loom link, starting with https://');return}
 setDoc(ref,{introUrl:u,introEnabled:introOn.checked,updatedAt:Date.now()},{merge:true}).then(()=>alert('Video settings saved.')).catch(()=>alert('Could not save. Please check your Firestore rules.'))});
 $('hookSave').addEventListener('click',()=>{const u=hookUrl.value.trim();if(u&&!u.startsWith('https://')){alert('The webhook URL must start with https://');return}
