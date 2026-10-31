@@ -140,6 +140,25 @@ main h2,main h3{color:var(--hc,var(--navy))}
 main h2{font-size:calc(clamp(30px,4vw,42px)*var(--s,1))}
 main h3{font-size:calc(21px*var(--s,1))}
 .hero h1{font-size:calc(clamp(40px,5.6vw,66px)*var(--s,1))}
+.sched{max-width:760px}#schedule section{padding:56px 0 96px}
+.back{display:inline-block;margin-bottom:24px;color:var(--muted);text-decoration:none;font-weight:500}.back:hover{color:var(--navy)}
+.sched .head{grid-template-columns:1fr}
+.mform{display:grid;grid-template-columns:1fr 1fr;gap:18px;background:var(--paper);border:1px solid var(--line);border-radius:20px;padding:32px}
+.mform label{display:grid;gap:6px;font-weight:600;font-size:15px;color:var(--navy)}.mform .full{grid-column:1/-1}.mform .opt{font-weight:400;color:var(--muted)}
+.mform input,.mform select,.mform textarea{font:inherit;font-size:16px;font-weight:400;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--ink);width:100%;min-height:48px}
+.mform textarea{resize:vertical}
+.hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+.fine{grid-column:1/-1;margin:0;font-size:14px;color:var(--muted)}
+#mStatus{grid-column:1/-1;margin:0;min-height:1.5em;font-weight:500}#mStatus.err{color:#b3261e}#mStatus a{color:inherit}
+.done{background:var(--paper);border:1px solid var(--line);border-radius:20px;padding:40px;text-align:center}.done p{color:var(--muted)}
+.closedMsg{display:none}#schedule.closed .closedMsg{display:block}#schedule.closed .mform{display:none}
+@media(max-width:640px){.mform{grid-template-columns:1fr;padding:22px}}
+.bdg{background:#e5484d;color:#fff;border-radius:999px;font-size:12px;padding:1px 8px;margin-left:6px;font-weight:600}
+.toast{position:fixed;left:20px;top:calc(84px + env(safe-area-inset-top,0px));z-index:80;background:var(--gold);color:var(--navy);padding:12px 18px;border-radius:14px;font-weight:600;box-shadow:0 10px 30px rgba(7,12,24,.3);cursor:pointer;max-width:min(360px,calc(100vw - 40px))}
+.reqs{display:grid;gap:10px;max-height:46vh;overflow-y:auto}#reqEmpty{font-size:13px;color:#c3cbe0;margin:0}
+.req{background:#0f172a;border-radius:12px;padding:12px;display:grid;gap:4px;font-size:13px;color:#dfe4f0}.req.nw{border-left:3px solid var(--gold)}
+.req a{color:#fff;word-break:break-all}.req .rm{margin:4px 0;white-space:pre-wrap;color:#c3cbe0;overflow-wrap:anywhere}
+.req small{color:#8f9ab5}.rb{display:flex;gap:8px;margin-top:6px}.rb button{flex:1;min-height:36px;font-size:13px}
 .chat-btn{position:fixed;right:20px;bottom:calc(20px + env(safe-area-inset-bottom,0px));z-index:70;width:58px;height:58px;border-radius:50%;border:0;background:var(--gold);color:var(--navy);cursor:pointer;display:grid;place-items:center;box-shadow:0 8px 24px rgba(7,12,24,.35);transition:transform .2s}
 .chat-btn:hover{transform:scale(1.06)}.chat-btn svg{width:26px;height:26px;fill:currentColor}
 .chat{position:fixed;right:20px;bottom:calc(92px + env(safe-area-inset-bottom,0px));z-index:70;width:min(380px,calc(100vw - 32px));height:min(560px,calc(100vh - 150px));display:none;flex-direction:column;background:var(--paper);border:1px solid var(--line);border-radius:20px;overflow:hidden;box-shadow:0 18px 50px rgba(7,12,24,.35)}
@@ -195,14 +214,14 @@ section{padding:64px 0}}
 </ul></nav>
 </div></header>
 
-<main>
+<main id="page">
 <section class="hero" id="home">
 <div class="wrap">
 <div class="txt">
 <h1>Frederick Espinosa</h1>
 <p class="role">Amazon Product Researcher &amp; Virtual Assistant</p>
 <p class="intro">I help Amazon sellers identify profitable products opportunities through data-driven product research and online arbitrage analysis. Using SellerAmp SAS and Keepa, I assess pricing, sales performance, competition, and potential ROI — so every sourcing decision is backed by numbers, not guesswork. My goal is to help you maximize profits and minimize risk in your Amazon business.</p>
-<div class="cta"><a class="btn gold hire-cta" href="#contact">Hire Me</a><a class="btn ghost" href="#services">View My Services</a></div>
+<div class="cta"><a class="btn gold hire-cta" href="#schedule">Hire Me</a><a class="btn ghost" href="#services">View My Services</a></div>
 <ul class="icons light" aria-label="Contact and social links">
 <li><a href="https://www.linkedin.com/in/frederick-espinosa-4a03b03b9/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile" title="LinkedIn"><svg aria-hidden="true"><use href="#li"/></svg></a></li>
 <li><a href="https://v2.onlinejobs.ph/jobseekers/info/4884720" target="_blank" rel="noopener noreferrer" aria-label="OnlineJobs.ph profile" title="OnlineJobs.ph"><svg aria-hidden="true"><use href="#oj"/></svg></a></li>
@@ -323,8 +342,8 @@ section{padding:64px 0}}
 <div class="panel on-dark">
 <h2>Ready to Work Together?</h2>
 <p>Looking for reliable Amazon product research, online arbitrage analysis, or virtual assistance? Let’s discuss your requirements and how I can help your business make better sourcing decisions.</p>
-<a class="btn gold hire-cta" href="mailto:frederickespinosa.onlinejob@gmail.com?subject=Hiring%20inquiry" target="_blank" rel="noopener">Hire Me</a>
-<span class="alt-mail hire-cta">Email not opening? <a href="https://mail.google.com/mail/?view=cm&fs=1&to=frederickespinosa.onlinejob@gmail.com&su=Hiring%20inquiry" target="_blank" rel="noopener noreferrer">Compose in Gmail</a> or write to frederickespinosa.onlinejob@gmail.com</span>
+<a class="btn gold hire-cta" href="#schedule">Hire Me</a>
+<span class="alt-mail hire-cta">Prefer email? <a href="https://mail.google.com/mail/?view=cm&fs=1&to=frederickespinosa.onlinejob@gmail.com&su=Hiring%20inquiry" target="_blank" rel="noopener noreferrer">Compose in Gmail</a> or write to frederickespinosa.onlinejob@gmail.com</span>
 <ul class="icons light" aria-label="Contact options">
 <li><a href="https://www.linkedin.com/in/frederick-espinosa-4a03b03b9/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile" title="LinkedIn"><svg aria-hidden="true"><use href="#li"/></svg></a></li>
 <li><a href="https://v2.onlinejobs.ph/jobseekers/info/4884720" target="_blank" rel="noopener noreferrer" aria-label="OnlineJobs.ph profile" title="OnlineJobs.ph"><svg aria-hidden="true"><use href="#oj"/></svg></a></li>
@@ -334,6 +353,29 @@ section{padding:64px 0}}
 </div>
 </div>
 </section>
+</main>
+
+<main id="schedule" hidden>
+<section><div class="wrap sched">
+<a class="back" href="#home">← Back to portfolio</a>
+<div class="head"><h2>Schedule a Meeting</h2><p>Tell me a little about what you need and when you are available. I will review your request and reply to you by email.</p></div>
+<p class="closedMsg note">Meeting requests are not being accepted right now. Please check back later.</p>
+<form id="mForm" class="mform" novalidate>
+<label>Full name <input type="text" name="name" autocomplete="name" maxlength="100" required></label>
+<label>Email <input type="email" name="email" autocomplete="email" maxlength="120" required></label>
+<label class="full">Company or business <span class="opt">(optional)</span><input type="text" name="company" autocomplete="organization" maxlength="120"></label>
+<label>Preferred date <input type="date" name="date" required></label>
+<label>Preferred time <input type="time" name="time" required></label>
+<label>Your time zone <input type="text" name="tz" maxlength="60" placeholder="e.g. America/New_York" required></label>
+<label>Preferred platform <select name="platform"><option>No preference</option><option>Google Meet</option><option>Zoom</option><option>Microsoft Teams</option><option>WhatsApp call</option><option>Other</option></select></label>
+<label class="full">What would you like to discuss? <textarea name="message" rows="5" maxlength="2000" required></textarea></label>
+<div class="hp" aria-hidden="true"><label>Leave this field empty <input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>
+<p class="fine">By sending this request you agree that Frederick may contact you by email about it.</p>
+<button class="btn navy full" type="submit" id="mBtn">Send Meeting Request</button>
+<p id="mStatus" role="status" aria-live="polite"></p>
+</form>
+<div class="done" id="mDone" hidden><h3>Request sent</h3><p>Thank you! Your meeting request has been received. I will review it and reply to you by email.</p><a class="btn navy" href="#home">Back to portfolio</a></div>
+</div></section>
 </main>
 
 <footer><div class="wrap">
@@ -347,8 +389,9 @@ section{padding:64px 0}}
 </div></footer>
 
 <div class="admin" id="admin" hidden>
-<button type="button" class="amin" id="adminMin" aria-expanded="true">Owner panel</button>
+<button type="button" class="amin" id="adminMin" aria-expanded="true">Owner panel <span class="bdg" id="panelBadge" hidden></span></button>
 <small id="adminEmail"></small>
+<details class="ag" id="grpReq"><summary><span>Meeting requests <span class="bdg" id="reqBadge" hidden></span></span></summary><div class="ab"><p id="reqEmpty">No meeting requests yet.</p><div id="reqList" class="reqs"></div></div></details>
 <details class="ag"><summary>General style</summary><div class="ab">
 <label class="fld">Heading font<select id="gHead"><option value="fr">Fraunces (default)</option><option value="pf">Playfair Display</option><option value="lo">Lora</option><option value="po">Poppins</option><option value="in">Inter</option></select></label>
 <label class="fld">Body font<select id="gBody"><option value="dm">DM Sans (default)</option><option value="in">Inter</option><option value="lo">Lora</option><option value="po">Poppins</option></select></label>
@@ -389,6 +432,7 @@ section{padding:64px 0}}
 <div class="chips"><button type="button">What services do you offer?</button><button type="button">FBA or FBM?</button><button type="button">Which tools do you use?</button><button type="button">How can I hire you?</button></div>
 <form id="chatForm" autocomplete="off"><input id="chatInput" type="text" placeholder="Type your question…" aria-label="Type your question" maxlength="200"><button type="submit">Send</button></form>
 </div>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 <dialog id="lb" aria-label="Enlarged image"><button type="button" id="close" aria-label="Close enlarged view">×</button><img alt="Enlarged view"></dialog>
 <script>
 const m=document.getElementById('menu'),n=document.getElementById('nav');
@@ -400,7 +444,7 @@ document.getElementById('close').addEventListener('click',()=>lb.close());
 lb.addEventListener('click',e=>{if(e.target===lb)lb.close()});
 const bt=document.getElementById('chatBtn'),cp=document.getElementById('chat'),ms=document.getElementById('msgs'),ci=document.getElementById('chatInput');
 const MAIL='mailto:frederickespinosa.onlinejob@gmail.com?subject=Hiring%20inquiry';
-const HIRE=`You can <a href="${MAIL}" target="_blank" rel="noopener">email Frederick</a>, message him on <a href="https://wa.me/639052912208" target="_blank" rel="noopener noreferrer">WhatsApp</a>, or use the LinkedIn, OnlineJobs.ph and Upwork icons on this page.`;
+const HIRE=`You can <a href="#schedule">request a meeting</a>, <a href="${MAIL}" target="_blank" rel="noopener">email Frederick</a>, message him on <a href="https://wa.me/639052912208" target="_blank" rel="noopener noreferrer">WhatsApp</a>, or use the LinkedIn, OnlineJobs.ph and Upwork icons on this page.`;
 const KB=[
 {k:['fba','fbm','fulfill'],a:`His hands-on training covered FBA (Fulfillment by Amazon) only, so FBA research is where he is strongest. He hasn’t trained in FBM, and he would rather say so upfront than promise something he hasn’t practiced.`},
 {k:['service','offer','what do you do','what can you do','help with'],a:`Frederick offers online arbitrage research, supplier and sourcing research, Keepa and sales-rank analysis, deal evaluation, deal sheets and documentation, AI workflow automation, and customer service. See the <a href="#services">Services</a> section for details.`},
@@ -475,8 +519,27 @@ if(hc)R.setProperty('--hc',d.gHeadC);else R.removeProperty('--hc');
 if(tc){R.setProperty('--ink',d.gTextC);R.setProperty('--muted','color-mix(in srgb,'+d.gTextC+' 80%,#fff)')}else{R.removeProperty('--ink');R.removeProperty('--muted')}
 if(gs==='1')R.removeProperty('--s');else R.setProperty('--s',gs);
 $('gHead').value=gh;$('gBody').value=gb;$('gSize').value=gs;$('gCol').checked=hc||tc;$('gHeadC').value=hc?d.gHeadC:'#14213d';$('gTextC').value=tc?d.gTextC:'#2b3550';
+document.getElementById('schedule').classList.toggle('closed',d.hireEnabled===false);
 try{localStorage.setItem('siteCfg',JSON.stringify(d))}catch(e){}};
 try{const c=JSON.parse(localStorage.getItem('siteCfg')||'null');if(c)window.applySite(c)}catch(e){}
+const mf=document.getElementById('mForm'),ORIG=document.title;
+{const tz=Intl.DateTimeFormat().resolvedOptions().timeZone,t=new Date();if(tz)mf.elements.tz.value=tz;mf.elements.date.min=t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0')}
+mf.addEventListener('submit',async e=>{e.preventDefault();const st=document.getElementById('mStatus'),b=document.getElementById('mBtn'),f=n=>mf.elements[n].value.trim();st.className='';st.textContent='';
+if(f('website'))return;
+const d={name:f('name'),email:f('email'),company:f('company'),date:f('date'),time:f('time'),tz:f('tz'),platform:f('platform'),message:f('message')};
+if(!d.name||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.email)||!d.date||!d.time||!d.tz||!d.message){st.className='err';st.textContent='Please complete all required fields with a valid email address.';return}
+let last=0;try{last=+localStorage.getItem('lastReq')||0}catch(x){}
+if(Date.now()-last<60000){st.className='err';st.textContent='Please wait a minute before sending another request.';return}
+b.disabled=true;st.textContent='Sending\u2026';
+try{if(!window.submitMeeting)throw 0;await Promise.race([window.submitMeeting(d),new Promise((_,j)=>setTimeout(j,15000))]);
+try{localStorage.setItem('lastReq',Date.now())}catch(x){}
+st.textContent='';mf.reset();mf.hidden=true;document.getElementById('mDone').hidden=false}
+catch(x){st.className='err';st.innerHTML='Sorry, your request could not be sent. Please email <a href="mailto:frederickespinosa.onlinejob@gmail.com?subject=Meeting%20request">frederickespinosa.onlinejob@gmail.com</a> instead.'}
+b.disabled=false});
+function route(){const s=location.hash==='#schedule';document.getElementById('page').hidden=s;document.getElementById('schedule').hidden=!s;
+if(s){mf.hidden=false;document.getElementById('mDone').hidden=true;window.scrollTo(0,0);document.title='Schedule a Meeting \u00b7 Frederick Espinosa'}
+else{document.title=ORIG;if(location.hash.length>1){const t=document.getElementById(location.hash.slice(1));if(t)t.scrollIntoView()}}}
+addEventListener('hashchange',route);route();
 document.querySelectorAll('.ag').forEach(d=>d.addEventListener('toggle',()=>{if(d.open)document.querySelectorAll('.ag').forEach(o=>{if(o!==d)o.open=false})}));
 document.getElementById('adminMin').addEventListener('click',e=>{const m=document.getElementById('admin').classList.toggle('min');e.currentTarget.setAttribute('aria-expanded',!m)});
 </script>
@@ -488,7 +551,7 @@ if(FIREBASE_CONFIG){try{
 const B='https://www.gstatic.com/firebasejs/10.12.2/';
 const {initializeApp}=await import(B+'firebase-app.js');
 const {getAuth,GoogleAuthProvider,signInWithPopup,signOut,onAuthStateChanged}=await import(B+'firebase-auth.js');
-const {getFirestore,doc,onSnapshot,setDoc}=await import(B+'firebase-firestore.js');
+const {getFirestore,doc,onSnapshot,setDoc,collection,addDoc,serverTimestamp,query,orderBy,limit,updateDoc,deleteDoc}=await import(B+'firebase-firestore.js');
 const app=initializeApp(FIREBASE_CONFIG),auth=getAuth(app),ref=doc(getFirestore(app),'settings','site');
 const $=id=>document.getElementById(id),hire=document.querySelectorAll('.hire-cta'),login=$('ownerLogin'),panel=$('admin'),cb=$('hireToggle'),hookUrl=$('hookUrl'),hookOn=$('hookOn'),introOn=$('introOn'),introUrl=$('introUrl');
 login.hidden=false;
@@ -506,9 +569,33 @@ $('introSave').addEventListener('click',()=>{const u=introUrl.value.trim();if(u&
 setDoc(ref,{introUrl:u,introEnabled:introOn.checked,updatedAt:Date.now()},{merge:true}).then(()=>alert('Video settings saved.')).catch(()=>alert('Could not save. Please check your Firestore rules.'))});
 $('hookSave').addEventListener('click',()=>{const u=hookUrl.value.trim();if(u&&!u.startsWith('https://')){alert('The webhook URL must start with https://');return}
 setDoc(ref,{chatWebhook:u,chatAuto:hookOn.checked&&!!u,updatedAt:Date.now()},{merge:true}).then(()=>alert('Chatbot automation settings saved.')).catch(()=>alert('Could not save. Please check your Firestore rules.'))});
+const rdb=getFirestore(app);let unsub=null;
+const setBadge=n=>['reqBadge','panelBadge'].forEach(i=>{const b=$(i);b.textContent=n;b.hidden=!n});
+const toast=t=>{const e=$('toast');e.textContent=t+' (click to view)';e.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>{e.hidden=true},9000)};
+$('toast').addEventListener('click',e=>{$('admin').classList.remove('min');$('grpReq').open=true;e.currentTarget.hidden=true});
+window.submitMeeting=d=>addDoc(collection(rdb,'meetingRequests'),{...d,status:'new',createdAt:serverTimestamp()});
+function stopReq(){if(unsub){unsub();unsub=null}$('reqList').textContent='';setBadge(0)}
+function startReq(){if(unsub)return;let init=true;
+unsub=onSnapshot(query(collection(rdb,'meetingRequests'),orderBy('createdAt','desc'),limit(50)),s=>{
+const L=$('reqList');L.textContent='';let n=0;
+s.forEach(d=>{const r=d.data(),nw=r.status==='new';if(nw)n++;
+const c=document.createElement('div');c.className='req'+(nw?' nw':'');
+const add=(tag,txt,cls)=>{const e=document.createElement(tag);e.textContent=txt;if(cls)e.className=cls;c.appendChild(e);return e};
+add('strong',(r.name||'')+(nw?' (new)':''));
+const em=add('a',r.email||'');em.href='mailto:'+(r.email||'');
+add('span',[r.date,r.time,r.tz].filter(Boolean).join(' · '));
+add('span','Platform: '+(r.platform||'-')+(r.company?' · '+r.company:''));
+add('p',r.message||'','rm');
+const tm=r.createdAt&&r.createdAt.toDate?r.createdAt.toDate().toLocaleString():'';if(tm)add('small',tm);
+const row=document.createElement('div');row.className='rb';
+if(nw){const b=document.createElement('button');b.type='button';b.textContent='Mark as read';b.onclick=()=>updateDoc(d.ref,{status:'read'}).catch(()=>{});row.appendChild(b)}
+const x=document.createElement('button');x.type='button';x.textContent='Delete';x.onclick=()=>{if(confirm('Delete this request?'))deleteDoc(d.ref).catch(()=>{})};row.appendChild(x);c.appendChild(row);L.appendChild(c)});
+$('reqEmpty').hidden=s.size>0;setBadge(n);
+if(!init)s.docChanges().forEach(ch=>{if(ch.type==='added'&&!ch.doc.metadata.hasPendingWrites)toast('New meeting request from '+(ch.doc.data().name||'a client'))});
+init=false},()=>{})}
 onAuthStateChanged(auth,u=>{const ok=!!u&&u.email===OWNER&&u.emailVerified;
 if(u&&!ok){signOut(auth);alert('This account is not authorized.');return}
-panel.hidden=!ok;login.hidden=ok;if(ok)$('adminEmail').textContent=u.email});
+panel.hidden=!ok;login.hidden=ok;if(ok){$('adminEmail').textContent=u.email;startReq()}else stopReq()});
 }catch(e){console.warn('Owner login unavailable',e)}}
 </script>
 </body>
