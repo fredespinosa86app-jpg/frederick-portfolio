@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Frederick Espinosa · Amazon Product Researcher &amp; Virtual Assistant</title>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=DM+Sans:wght@400;500;600&family=Playfair+Display:wght@500;600&family=Lora:wght@500;600&family=Inter:wght@400;500;600&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{--cream:#f7f2e8;--paper:#fffdf8;--navy:#14213d;--ink:#2b3550;--muted:#5d6579;--gold:#c8953a;--line:#e3d8c0;--serif:Fraunces,Georgia,serif;
 box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -130,6 +130,16 @@ footer p{margin:0;color:var(--muted);font-size:15px}footer strong{font-family:va
 .admin .amin{border:0;padding:0;min-height:32px;text-align:left;font-weight:600;font-size:16px}
 .amin::after{content:" ▾"}.admin.min .amin::after{content:" ▸"}
 .admin.min>*:not(.amin){display:none}.admin.min{width:auto}
+.ag{border-top:1px solid rgba(255,255,255,.18)}
+.ag summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;min-height:46px;font-weight:600;font-size:15px}
+.ag summary::-webkit-details-marker{display:none}
+.ag summary::after{content:"+";color:var(--gold);font-size:22px}.ag[open] summary::after{content:"\2013"}
+.ab{display:grid;gap:8px;padding:2px 0 14px}
+body{font-family:var(--sans,"DM Sans",system-ui,sans-serif);font-size:calc(17px*var(--s,1))}
+main h2,main h3{color:var(--hc,var(--navy))}
+main h2{font-size:calc(clamp(30px,4vw,42px)*var(--s,1))}
+main h3{font-size:calc(21px*var(--s,1))}
+.hero h1{font-size:calc(clamp(40px,5.6vw,66px)*var(--s,1))}
 .chat-btn{position:fixed;right:20px;bottom:calc(20px + env(safe-area-inset-bottom,0px));z-index:70;width:58px;height:58px;border-radius:50%;border:0;background:var(--gold);color:var(--navy);cursor:pointer;display:grid;place-items:center;box-shadow:0 8px 24px rgba(7,12,24,.35);transition:transform .2s}
 .chat-btn:hover{transform:scale(1.06)}.chat-btn svg{width:26px;height:26px;fill:currentColor}
 .chat{position:fixed;right:20px;bottom:calc(92px + env(safe-area-inset-bottom,0px));z-index:70;width:min(380px,calc(100vw - 32px));height:min(560px,calc(100vh - 150px));display:none;flex-direction:column;background:var(--paper);border:1px solid var(--line);border-radius:20px;overflow:hidden;box-shadow:0 18px 50px rgba(7,12,24,.35)}
@@ -336,10 +346,42 @@ section{padding:64px 0}}
 </ul>
 </div></footer>
 
-<div class="admin" id="admin" hidden><button type="button" class="amin" id="adminMin" aria-expanded="true">Owner panel</button><small id="adminEmail"></small><label><input type="checkbox" id="hireToggle" checked> Show “Hire Me” button and Contact section</label><strong class="ah">Hero appearance</strong><label class="fld">Background color<input type="color" id="heroC1" value="#070c18"></label><label><input type="checkbox" id="heroG"> Use gradient</label><label class="fld">Second gradient color<input type="color" id="heroC2" value="#1b2a4e"></label><label class="fld">Gradient direction<select id="heroAng"><option value="135">Diagonal (top-left to bottom-right)</option><option value="45">Diagonal (bottom-left to top-right)</option><option value="180">Top to bottom</option><option value="90">Left to right</option></select></label>
-<label class="fld">Hero title (name)<input type="text" id="heroH1" maxlength="60"></label><label class="fld">Job title<input type="text" id="heroRole" maxlength="90"></label><label class="fld">Hero text<textarea id="heroTxt" rows="7" maxlength="900"></textarea></label><button type="button" id="heroSave">Save hero settings</button><button type="button" id="heroReset">Reset hero to default</button>
-<strong class="ah">Testimonials</strong><label><input type="checkbox" id="tOn"> Show testimonials section</label><label class="fld">One per line: Quote | Name, role<textarea id="tTxt" rows="6" maxlength="2500" placeholder="Quote text here | Client name, company"></textarea></label><button type="button" id="tSave">Save testimonials</button>
-<strong class="ah">Self-introduction video</strong><label><input type="checkbox" id="introOn" checked> Show video section</label><input type="url" id="introUrl" placeholder="YouTube or Loom link" aria-label="Video link (YouTube or Loom)" autocomplete="off"><button type="button" id="introSave">Save video settings</button><strong style="font-size:13px;color:#c3cbe0">Chatbot automation (n8n / Make)</strong><input type="url" id="hookUrl" placeholder="https://your-webhook-url" aria-label="Automation webhook URL" autocomplete="off"><label><input type="checkbox" id="hookOn"> Use automation for chatbot replies</label><button type="button" id="hookSave">Save automation settings</button><button type="button" id="adminOut">Sign out</button></div>
+<div class="admin" id="admin" hidden>
+<button type="button" class="amin" id="adminMin" aria-expanded="true">Owner panel</button>
+<small id="adminEmail"></small>
+<details class="ag"><summary>General style</summary><div class="ab">
+<label class="fld">Heading font<select id="gHead"><option value="fr">Fraunces (default)</option><option value="pf">Playfair Display</option><option value="lo">Lora</option><option value="po">Poppins</option><option value="in">Inter</option></select></label>
+<label class="fld">Body font<select id="gBody"><option value="dm">DM Sans (default)</option><option value="in">Inter</option><option value="lo">Lora</option><option value="po">Poppins</option></select></label>
+<label class="fld">Text size<select id="gSize"><option value="0.92">Small</option><option value="1">Default</option><option value="1.1">Large</option><option value="1.2">Extra large</option></select></label>
+<label><input type="checkbox" id="gCol"> Use custom text colors</label>
+<label class="fld">Heading color<input type="color" id="gHeadC" value="#14213d"></label>
+<label class="fld">Body text color<input type="color" id="gTextC" value="#2b3550"></label>
+<button type="button" id="gSave">Save style</button><button type="button" id="gReset">Reset style to default</button></div></details>
+<details class="ag"><summary>Hero</summary><div class="ab">
+<label class="fld">Background color<input type="color" id="heroC1" value="#070c18"></label>
+<label><input type="checkbox" id="heroG"> Use gradient</label>
+<label class="fld">Second gradient color<input type="color" id="heroC2" value="#1b2a4e"></label>
+<label class="fld">Gradient direction<select id="heroAng"><option value="135">Diagonal (top-left to bottom-right)</option><option value="45">Diagonal (bottom-left to top-right)</option><option value="180">Top to bottom</option><option value="90">Left to right</option></select></label>
+<label class="fld">Hero title (name)<input type="text" id="heroH1" maxlength="60"></label>
+<label class="fld">Job title<input type="text" id="heroRole" maxlength="90"></label>
+<label class="fld">Hero text<textarea id="heroTxt" rows="7" maxlength="900"></textarea></label>
+<button type="button" id="heroSave">Save hero settings</button><button type="button" id="heroReset">Reset hero to default</button></div></details>
+<details class="ag"><summary>Intro video</summary><div class="ab">
+<label><input type="checkbox" id="introOn" checked> Show video section</label>
+<input type="url" id="introUrl" placeholder="YouTube or Loom link" aria-label="Video link (YouTube or Loom)" autocomplete="off">
+<button type="button" id="introSave">Save video settings</button></div></details>
+<details class="ag"><summary>Testimonials</summary><div class="ab">
+<label><input type="checkbox" id="tOn"> Show testimonials section</label>
+<label class="fld">One per line: Quote | Name, role<textarea id="tTxt" rows="6" maxlength="2500" placeholder="Quote text here | Client name, company"></textarea></label>
+<button type="button" id="tSave">Save testimonials</button></div></details>
+<details class="ag"><summary>Hire Me &amp; Contact</summary><div class="ab">
+<label><input type="checkbox" id="hireToggle" checked> Show “Hire Me” button and Contact section</label></div></details>
+<details class="ag"><summary>Chatbot automation</summary><div class="ab">
+<input type="url" id="hookUrl" placeholder="https://your-webhook-url" aria-label="Automation webhook URL" autocomplete="off">
+<label><input type="checkbox" id="hookOn"> Use automation for chatbot replies</label>
+<button type="button" id="hookSave">Save automation settings</button></div></details>
+<button type="button" id="adminOut">Sign out</button>
+</div>
 <button type="button" class="chat-btn" id="chatBtn" aria-label="Open chat assistant" aria-expanded="false" aria-controls="chat"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3h16a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H9l-5 4v-4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/></svg></button>
 <div class="chat" id="chat" role="dialog" aria-label="Portfolio assistant chat">
 <div class="chat-h"><div><strong>Portfolio Assistant</strong><small>Automated answers about Frederick</small></div><button type="button" id="chatClose" aria-label="Close chat">×</button></div>
@@ -426,8 +468,16 @@ const items=(d.testiText||'').split('\n').map(l=>l.trim()).filter(Boolean).map(l
 const on=d.testiEnabled===true,grid=$('tGrid');grid.textContent='';
 items.slice(0,9).forEach(x=>{const f=document.createElement('figure'),b=document.createElement('blockquote');f.className='tcard';b.textContent=x.q;f.appendChild(b);if(x.n){const c=document.createElement('figcaption'),s=document.createElement('strong');s.textContent=x.n;c.appendChild(s);f.appendChild(c)}grid.appendChild(f)});
 $('testimonials').hidden=!(on&&items.length);$('tOn').checked=on;$('tTxt').value=d.testiText||'';
+const R=document.documentElement.style,HF={fr:'Fraunces,Georgia,serif',pf:'"Playfair Display",Georgia,serif',lo:'Lora,Georgia,serif',po:'Poppins,system-ui,sans-serif',in:'Inter,system-ui,sans-serif'},BF={dm:'"DM Sans",system-ui,sans-serif',in:'Inter,system-ui,sans-serif',lo:'Lora,Georgia,serif',po:'Poppins,system-ui,sans-serif'};
+const gh=HF[d.gHead]?d.gHead:'fr',gb=BF[d.gBody]?d.gBody:'dm',gs=['0.92','1','1.1','1.2'].includes(String(d.gSize))?String(d.gSize):'1',hc=hx.test(d.gHeadC||''),tc=hx.test(d.gTextC||'');
+R.setProperty('--serif',HF[gh]);R.setProperty('--sans',BF[gb]);
+if(hc)R.setProperty('--hc',d.gHeadC);else R.removeProperty('--hc');
+if(tc){R.setProperty('--ink',d.gTextC);R.setProperty('--muted','color-mix(in srgb,'+d.gTextC+' 80%,#fff)')}else{R.removeProperty('--ink');R.removeProperty('--muted')}
+if(gs==='1')R.removeProperty('--s');else R.setProperty('--s',gs);
+$('gHead').value=gh;$('gBody').value=gb;$('gSize').value=gs;$('gCol').checked=hc||tc;$('gHeadC').value=hc?d.gHeadC:'#14213d';$('gTextC').value=tc?d.gTextC:'#2b3550';
 try{localStorage.setItem('siteCfg',JSON.stringify(d))}catch(e){}};
 try{const c=JSON.parse(localStorage.getItem('siteCfg')||'null');if(c)window.applySite(c)}catch(e){}
+document.querySelectorAll('.ag').forEach(d=>d.addEventListener('toggle',()=>{if(d.open)document.querySelectorAll('.ag').forEach(o=>{if(o!==d)o.open=false})}));
 document.getElementById('adminMin').addEventListener('click',e=>{const m=document.getElementById('admin').classList.toggle('min');e.currentTarget.setAttribute('aria-expanded',!m)});
 </script>
 <script type="module">
@@ -450,6 +500,8 @@ const save=(o,m)=>setDoc(ref,{...o,updatedAt:Date.now()},{merge:true}).then(()=>
 $('heroSave').addEventListener('click',()=>save({heroC1:$('heroC1').value,heroC2:$('heroC2').value,heroGrad:$('heroG').checked,heroAng:$('heroAng').value,heroTitle:$('heroH1').value.trim(),heroRole:$('heroRole').value.trim(),heroText:$('heroTxt').value.trim()},'Hero settings saved.'));
 $('heroReset').addEventListener('click',()=>{if(confirm('Reset the hero to its original look and text?'))save({heroC1:'#070C18',heroC2:'#1b2a4e',heroGrad:false,heroAng:'135',heroTitle:'',heroRole:'',heroText:''},'Hero reset to default.')});
 $('tSave').addEventListener('click',()=>save({testiEnabled:$('tOn').checked,testiText:$('tTxt').value.trim()},'Testimonials saved.'));
+$('gSave').addEventListener('click',()=>{const c=$('gCol').checked;save({gHead:$('gHead').value,gBody:$('gBody').value,gSize:$('gSize').value,gHeadC:c?$('gHeadC').value:'',gTextC:c?$('gTextC').value:''},'Style saved.')});
+$('gReset').addEventListener('click',()=>{if(confirm('Reset fonts, text size and colors to the original style?'))save({gHead:'fr',gBody:'dm',gSize:'1',gHeadC:'',gTextC:''},'Style reset to default.')});
 $('introSave').addEventListener('click',()=>{const u=introUrl.value.trim();if(u&&!window.parseVideo(u)){alert('Please paste a valid YouTube or Loom link, starting with https://');return}
 setDoc(ref,{introUrl:u,introEnabled:introOn.checked,updatedAt:Date.now()},{merge:true}).then(()=>alert('Video settings saved.')).catch(()=>alert('Could not save. Please check your Firestore rules.'))});
 $('hookSave').addEventListener('click',()=>{const u=hookUrl.value.trim();if(u&&!u.startsWith('https://')){alert('The webhook URL must start with https://');return}
