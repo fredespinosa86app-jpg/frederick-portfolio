@@ -1,0 +1,32 @@
+/* ==========================================================================
+   responsive.css - breakpoints and reduced-motion
+   ========================================================================== */
+@media(max-width:820px){.vintro{grid-template-columns:1fr;gap:28px}.vid.v{max-width:300px}}
+@media(max-width:480px){.hero .intro{text-align:left}}
+@media(max-width:640px){.mform{grid-template-columns:1fr;padding:22px}}
+@media(prefers-reduced-motion:reduce){body.fx-reveal main section:not(.hero){opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.dots span{animation:none;opacity:.6}}
+@media(max-width:480px){.chat{right:16px;left:16px;width:auto}}
+@media(max-width:960px){.train,.tool.wide,.two{grid-template-columns:1fr}.steps{grid-template-columns:1fr}.head,.row{grid-template-columns:1fr;gap:12px}.head{align-items:start}}
+@media(max-width:1100px){
+#menu{display:block}
+nav{position:absolute;left:0;right:0;top:68px;background:var(--cream);border-bottom:1px solid var(--line);display:none;padding:8px 24px 16px;max-height:calc(100vh - 68px);overflow-y:auto}
+nav.open{display:block}nav ul{flex-direction:column}nav a{padding:14px}}
+@media(max-width:820px){
+#menu{display:block}
+nav{position:absolute;left:0;right:0;top:68px;background:var(--cream);border-bottom:1px solid var(--line);display:none;padding:8px 24px 16px}
+nav.open{display:block}nav ul{flex-direction:column}nav a{padding:14px}
+.hero{padding:48px 0}.hero .wrap{grid-template-columns:1fr;gap:40px}.hero .txt{padding-bottom:0}.photo{max-width:320px}
+section{padding:64px 0}}
+@media(max-width:600px){.btn{width:100%}.panel{padding:52px 22px;border-radius:22px}.s2{grid-template-columns:1fr 110px}.tool{padding:22px}.wrap{padding:0 20px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important}}
+/* ---- Additions: tools grid, header theme selector, responsive hero image ---- */
+@media(max-width:1100px){#menu{order:3}.dm-toggle{order:2;margin-left:auto}}
+@media(max-width:960px){
+  .tools-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .tool-card,.tool-card.wide{grid-column:auto}
+  .tool-card.full{grid-column:1/-1;grid-template-columns:minmax(0,1fr)}
+}
+@media(max-width:820px){.photo{width:min(100%,clamp(240px,72vw,360px))}}
+@media(max-width:600px){.tools-grid{grid-template-columns:minmax(0,1fr)}.brand{font-size:18px}}
+@media(max-height:560px) and (orientation:landscape){.photo img{max-height:70vh}}

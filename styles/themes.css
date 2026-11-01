@@ -1,0 +1,85 @@
+/* ==========================================================================
+   themes.css - design tokens for every theme + visual effects
+   Active theme is set by scripts/theme-switcher.js via <html data-theme="...">
+   Visitor themes: gold-silver (default), nature, outer-space
+   Owner-only themes: classic, dark, vegapunk, girly, ocean
+   ========================================================================== */
+
+:root,
+[data-theme="gold-silver"] {
+  --cream:#eef0f3; --paper:#fbfbfc; --alt:#e3e6ea; --ink:#2a2d35; --muted:#565c69;
+  --navy:#1b1e25; --gold:#8f6712; --role:#7a5810; --line:#cdd1d8; --deep:#22252d;
+  --hov:#dde0e5; --field:#fff; --tag:#efe2bf; --tagc:#5a4210; --onacc:#fff;
+  --hero:linear-gradient(135deg,#f3f4f6 0%,#d5d9df 100%);
+  color-scheme:light;
+}
+[data-theme="nature"] {
+  --cream:#f2f0e4; --paper:#fbfaf2; --alt:#e6ecd9; --ink:#25322a; --muted:#4f6055;
+  --navy:#1d4a2c; --gold:#8a5f17; --role:#e8c46c; --line:#d2d9c1; --deep:#2c5a38;
+  --hov:#dde6cd; --field:#fff; --tag:#dbe7c6; --tagc:#2b4a1f; --onacc:#fff;
+  --hero:linear-gradient(135deg,#1d4a2c 0%,#3b6a3c 100%);
+  color-scheme:light;
+}
+[data-theme="outer-space"] {
+  --cream:#070a18; --paper:#0e1330; --alt:#0a0e24; --ink:#d4daf5; --muted:#98a2cf;
+  --navy:#eef0ff; --gold:#9a86ff; --role:#b9acff; --line:#262d5c; --deep:#2a3170;
+  --hov:#171d45; --field:#090d21; --tag:#1d2352; --tagc:#cbc3ff; --onacc:#0a0d22;
+  --hero:radial-gradient(circle at 18% 22%,rgba(122,104,255,.28),transparent 42%),radial-gradient(circle at 85% 70%,rgba(58,160,255,.18),transparent 45%),linear-gradient(135deg,#04061a,#101647);
+  color-scheme:dark;
+}
+[data-theme="outer-space"] body {
+  background-image:radial-gradient(1px 1px at 20px 30px,rgba(255,255,255,.35),transparent),radial-gradient(1px 1px at 120px 80px,rgba(255,255,255,.28),transparent),radial-gradient(1.5px 1.5px at 70px 130px,rgba(255,255,255,.22),transparent);
+  background-size:200px 200px; background-attachment:fixed;
+}
+
+/* ---- Owner-only themes ---- */
+[data-theme="classic"] {
+  --cream:#f7f2e8; --paper:#fffdf8; --alt:#fbf7ee; --ink:#2b3550; --muted:#5d6579;
+  --navy:#14213d; --gold:#c8953a; --role:#c8953a; --line:#e3d8c0; --deep:#14213d;
+  --hov:#ece2cc; --field:#fff; --tag:#f3e8cf; --tagc:#5a4116; --onacc:#14213d; --hero:#070C18;
+  color-scheme:light;
+}
+[data-theme="dark"] {
+  color-scheme:dark; --cream:#0d1220; --paper:#151c2f; --alt:#111829; --ink:#d9deee; --muted:#9ba5bf;
+  --navy:#f2f4fb; --gold:#e0b05a; --role:#e0b05a; --line:#28314c; --deep:#26345f; --hov:#1d2742;
+  --field:#0f1526; --tag:#2a3350; --tagc:#e8d3a3; --onacc:#0d1220; --hero:#060a14;
+}
+[data-theme="vegapunk"] {
+  color-scheme:dark; --cream:#050a14; --paper:#0a1424; --alt:#08101e; --ink:#cfe9ff; --muted:#7fa3c2;
+  --navy:#7df9ff; --gold:#19e3ff; --role:#7df9ff; --line:#103454; --deep:#0b2a47; --hov:#0e2238;
+  --field:#07111f; --tag:#0e2b45; --tagc:#7df9ff; --onacc:#04101c;
+  --hero:linear-gradient(135deg,#050a14,#0b2a47); --serif:Orbitron,sans-serif; --sans:Inter,system-ui,sans-serif;
+}
+[data-theme="girly"] {
+  --cream:#fff5f8; --paper:#fff; --alt:#ffeaf1; --ink:#5b3a4a; --muted:#8a6677; --navy:#b02a63;
+  --gold:#d6336c; --role:#b02a63; --line:#f6d0de; --deep:#d6336c; --hov:#ffe0eb; --field:#fff;
+  --tag:#ffd9e6; --tagc:#8f1d4b; --onacc:#fff; --hero:linear-gradient(135deg,#ffd6e5,#ffeef4);
+  --serif:"Playfair Display",Georgia,serif; --sans:Quicksand,system-ui,sans-serif;
+}
+[data-theme="ocean"] {
+  --cream:#eef7fa; --paper:#fff; --alt:#e2f1f6; --ink:#1f3a45; --muted:#55707b; --navy:#0b4f6c;
+  --gold:#0e7c8f; --role:#8fe0ec; --line:#c8e1e8; --deep:#0b4f6c; --hov:#d8ecf2; --field:#fff;
+  --tag:#cfe9ef; --tagc:#0b4f6c; --onacc:#fff; --hero:linear-gradient(135deg,#0b4f6c,#0e7c8f);
+}
+
+/* Smooth, subtle theme change (disabled for reduced-motion users in responsive.css) */
+html.theme-fade, html.theme-fade * {
+  transition:background-color .35s ease,color .35s ease,border-color .35s ease,fill .35s ease;
+}
+
+/* ---- Visual effects (owner panel > Theme & effects) ---- */
+.hero.lt{color:#2b3550}
+.hero.lt h1{color:var(--navy)}
+.hero.lt .intro{color:var(--ink)}
+.hero.lt .btn.ghost{color:var(--navy);border-color:rgba(20,33,61,.4)}
+.hero.lt .btn.ghost:hover{background:rgba(20,33,61,.08)}
+.hero.lt .icons.light a{color:var(--navy);border-color:rgba(20,33,61,.35)}
+body.fx-reveal main section:not(.hero){opacity:0;transform:translateY(26px);transition:opacity .7s ease,transform .7s ease}
+body.fx-reveal main section.in{opacity:1;transform:none}
+body.fx-lift :is(.tool,.tcard,.side,.steps li,.frame,.done){transition:transform .25s ease,box-shadow .25s ease}
+body.fx-lift :is(.tool,.tcard,.side,.steps li,.frame):hover{transform:translateY(-6px);box-shadow:0 16px 36px rgba(7,12,24,.16)}
+body.fx-glow :is(.btn.gold,.icons a:hover){box-shadow:0 0 22px color-mix(in srgb,var(--gold) 55%,transparent)}
+body.fx-glow :is(.tool,.tcard,.side,.frame,.mform):hover{box-shadow:0 0 0 1px var(--gold),0 0 28px color-mix(in srgb,var(--gold) 35%,transparent)}
+body.fx-glow .hero h1{text-shadow:0 0 26px color-mix(in srgb,var(--gold) 45%,transparent)}
+body.fx-glass{background-image:radial-gradient(circle at 12% 8%,color-mix(in srgb,var(--gold) 24%,transparent),transparent 42%),radial-gradient(circle at 88% 55%,color-mix(in srgb,var(--navy) 16%,transparent),transparent 46%);background-attachment:fixed}
+body.fx-glass :is(.tool,.tcard,.side,.frame,.mform,.done){background:color-mix(in srgb,var(--paper) 58%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-color:color-mix(in srgb,var(--gold) 28%,var(--line))}
