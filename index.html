@@ -109,7 +109,7 @@
 <ul class="tags"><li>Brand sourcing</li><li>Reverse sourcing</li></ul></div>
 </article>
 <article class="tool-card wide">
-<div class="tmedia two eq"><button type="button" class="zoom" aria-label="Enlarge: Amazon Seller Central Add Products page searching the catalog by product ID"><img src="assets/images/tools/seller-central-add-products.webp" width="1912" height="885" loading="lazy" decoding="async" alt="Amazon Seller Central Add Products page searching the catalog by product ID"></button><button type="button" class="zoom" aria-label="Enlarge: Amazon Seller Central home dashboard with actions, global snapshot, and product performance"><img src="assets/images/tools/seller-central-dashboard.webp" width="1920" height="838" loading="lazy" decoding="async" alt="Amazon Seller Central home dashboard with actions, global snapshot, and product performance"></button></div>
+<div class="tmedia"><button type="button" class="zoom" aria-label="Enlarge: Amazon Seller Central Add Products page searching the catalog by product ID"><img src="assets/images/tools/seller-central-add-products.webp" width="1912" height="885" loading="lazy" decoding="async" alt="Amazon Seller Central Add Products page searching the catalog by product ID"></button></div>
 <div class="tbody"><h3>Amazon Seller Central</h3><p class="purpose">Seller Account and Product Eligibility Verification</p>
 <p>I use Amazon Seller Central to verify product availability and eligibility within the client's seller account. My primary uses include:</p>
 <ul class="points"><li>Checking whether a researched product is already being sold by the client.</li><li>Verifying whether a product is eligible for selling in the client's Amazon seller account.</li><li>Checking gated products that may have potential profitability.</li><li>Reviewing Amazon's specific ungating requirements to determine what documentation or purchasing requirements are needed to request approval.</li></ul>
@@ -234,10 +234,13 @@
 <symbol id="ic-hero" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 15l5-4 4 3 3-2 6 4"/></symbol>
 <symbol id="ic-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></symbol>
 <symbol id="ic-cog" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9L7 7M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></symbol>
+<symbol id="ic-briefcase" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M3 13h18"/></symbol>
+<symbol id="ic-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></symbol>
 <symbol id="ic-menu" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></symbol>
 <symbol id="ic-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
 <symbol id="ic-side" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></symbol>
 </svg>
+<dialog class="dmodal" id="dForm" aria-labelledby="dfTitle"><form id="dfForm" novalidate><div><h2 id="dfTitle"></h2><div class="ab" id="dfFields"></div><p class="ferr" id="dfErr" role="alert"></p><div class="dact-row"><button type="submit" class="dbtn primary" id="dfOk">Save</button><button type="button" class="dbtn" id="dfCancel">Cancel</button></div></div></form></dialog>
 <button type="button" class="dash-open" id="dashOpen" hidden aria-haspopup="dialog">Dashboard <span class="dbadge" id="dashOpenBadge" hidden>0</span></button>
 <div class="dtoasts" id="dtoasts" aria-live="polite"></div>
 <div class="dash" id="dash" role="dialog" aria-modal="true" aria-labelledby="dtitle" hidden>
@@ -252,6 +255,8 @@
 <button type="button" data-page="questions"><svg aria-hidden="true"><use href="#ic-help"/></svg><span class="dlabel">Question history</span><span class="nbadge" id="nbQ" hidden>0</span></button>
 <button type="button" data-page="marcus"><svg aria-hidden="true"><use href="#ic-chat"/></svg><span class="dlabel">Marcus configuration</span></button>
 <h2>Content</h2>
+<button type="button" data-page="services"><svg aria-hidden="true"><use href="#ic-briefcase"/></svg><span class="dlabel">Services</span></button>
+<button type="button" data-page="toolkit"><svg aria-hidden="true"><use href="#ic-grid"/></svg><span class="dlabel">Toolkit</span></button>
 <button type="button" data-page="testimonials"><svg aria-hidden="true"><use href="#ic-doc"/></svg><span class="dlabel">Testimonials</span></button>
 <button type="button" data-page="video"><svg aria-hidden="true"><use href="#ic-video"/></svg><span class="dlabel">Intro video</span></button>
 <h2>Appearance</h2>
@@ -300,6 +305,19 @@
 <button type="button" class="dbtn" id="qfClear">Clear filters</button></div>
 <div id="qList"></div></div>
 </section>
+
+<section class="dpage" id="dp-services" hidden><div class="dcard"><h2>Services</h2>
+<p class="dhelp">Add, edit, reorder or hide the cards in the public Services section. Edits preview on the site behind this panel and go live when you publish.</p>
+<div class="dact-row"><button type="button" class="dbtn primary" id="svcAdd">Add service</button></div>
+<div class="mlist" id="svcList"></div>
+<p class="dhelp" id="svcState" role="status"></p>
+<div class="dact-row"><button type="button" class="dbtn primary" id="svcPublish" disabled>Publish changes</button><button type="button" class="dbtn" id="svcDiscard" disabled>Discard changes</button></div></div></section>
+<section class="dpage" id="dp-toolkit" hidden><div class="dcard"><h2>Toolkit</h2>
+<p class="dhelp">Organise tools into categories, reorder them, add logos or hide individual tools. Edits preview on the site and go live when you publish.</p>
+<div class="dact-row"><button type="button" class="dbtn primary" id="tkAddCat">Add category</button></div>
+<div class="mlist" id="tkList"></div>
+<p class="dhelp" id="tkState" role="status"></p>
+<div class="dact-row"><button type="button" class="dbtn primary" id="tkPublish" disabled>Publish changes</button><button type="button" class="dbtn" id="tkDiscard" disabled>Discard changes</button></div></div></section>
 
 <section class="dpage" id="dp-marcus" hidden><div class="dcard"><h2>Marcus - Assistant: n8n / Make replies</h2><p class="dhelp">Optional. When enabled, visitor messages are sent to your workflow and its answer is shown. If it fails, Marcus falls back to the built-in answers.</p><div class="ab">
 <input type="url" id="hookUrl" placeholder="https://your-webhook-url" aria-label="Automation webhook URL" autocomplete="off">
@@ -377,6 +395,7 @@
 <dialog id="lb" aria-label="Enlarged image"><button type="button" id="close" aria-label="Close enlarged view">×</button><img alt="Enlarged view"></dialog>
 <script src="scripts/settings.js"></script>
 <script src="scripts/contacts.js"></script>
+<script src="scripts/content.js"></script>
 <script src="scripts/main.js"></script>
 <script src="scripts/chatbot.js"></script>
 <script src="scripts/video-section.js"></script>
@@ -385,6 +404,7 @@
 <script src="scripts/meeting-form.js"></script>
 <script src="scripts/owner-ui.js"></script>
 <script src="scripts/owner-dashboard.js"></script>
+<script src="scripts/owner-content.js"></script>
 <script type="module" src="scripts/owner-panel.js"></script>
 </body>
 </html>

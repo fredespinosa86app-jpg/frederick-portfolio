@@ -11,7 +11,7 @@
   if (!dash || !openBtn) return;
 
   const TITLES = { dashboard: 'Dashboard', inbox: 'Inbox: meeting requests', questions: 'Chatbot question history', marcus: 'Marcus configuration',
-    testimonials: 'Testimonials', video: 'Intro video', theme: 'Theme & effects', hero: 'Hero', social: 'Social media & contact', general: 'General settings' };
+    services: 'Services', toolkit: 'Toolkit', testimonials: 'Testimonials', video: 'Intro video', theme: 'Theme & effects', hero: 'Hero', social: 'Social media & contact', general: 'General settings' };
   const REQ_STATUS = { new: 'New', pending: 'Pending', confirmed: 'Confirmed', completed: 'Completed', cancelled: 'Cancelled' };
   const Q_STATUS = { new: 'New', reviewed: 'Reviewed', addressed: 'Addressed', archived: 'Archived' };
   const normReq = s => REQ_STATUS[s] ? s : (s === 'read' ? 'pending' : 'new');
@@ -53,6 +53,8 @@
     });
   }
 
+  window.dashKit = { el, notify, confirmBox };   // shared with owner-content.js
+
   /* ---------- navigation ---------- */
   function go(page) {
     if (!$('dp-' + page)) page = 'dashboard';
@@ -62,13 +64,14 @@
     dash.classList.remove('drawer');
     try { sessionStorage.setItem('dash-page', page); } catch (e) { /* ignore */ }
     $('dbody').scrollTop = 0;
+    document.dispatchEvent(new CustomEvent('dash:page', { detail: page }));
   }
   function openDash() {
     dash.hidden = false; document.body.classList.add('dash-lock');
     let p = 'dashboard'; try { p = sessionStorage.getItem('dash-page') || p; } catch (e) { /* ignore */ }
     go(p); $('dtitle').focus();
   }
-  function closeDash() { dash.hidden = true; document.body.classList.remove('dash-lock'); if (!openBtn.hidden) openBtn.focus(); }
+  function closeDash() { dash.hidden = true; document.body.classList.remove('dash-lock'); document.dispatchEvent(new Event('dash:closed')); if (!openBtn.hidden) openBtn.focus(); }
   document.querySelectorAll('.dnav [data-page]').forEach(b => b.addEventListener('click', () => go(b.dataset.page)));
   document.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => go(b.dataset.go)));
   openBtn.addEventListener('click', openDash);
@@ -281,6 +284,7 @@
 
   /* ---------- events from other scripts ---------- */
   document.addEventListener('site:applied', () => { renderDashboard(); fillSocial(); });
+  document.addEventListener('content:applied', renderDashboard);
   document.addEventListener('own:auth', e => {
     const ok = e.detail.ok;
     openBtn.hidden = !ok;

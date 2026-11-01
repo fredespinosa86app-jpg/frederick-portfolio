@@ -84,3 +84,19 @@ dialog.dmodal::backdrop{background:rgba(10,16,32,.6)}.dmodal>div{padding:22px}.d
 /* neutralise public element rules (section, header) inside the dashboard */
 .dash .dpage{padding:0}
 .dash .dtop{position:static;backdrop-filter:none;-webkit-backdrop-filter:none}
+
+/* ---- content management lists ---- */
+.mlist{display:grid;gap:10px}
+.mrow{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;border:1px solid var(--d-line);border-radius:12px;padding:10px 12px;background:#fff}
+.mrow.off{opacity:.6}
+.mthumb{width:40px;height:40px;border-radius:8px;object-fit:contain;background:#eef1f8;flex:none}
+.mthumb.ph{display:grid;place-items:center;font-weight:700;color:#5b6578}
+.mmain{min-width:0}.mmain strong,.mmain small{display:block;overflow-wrap:anywhere}.mmain small{color:var(--d-muted)}
+.mctl{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:flex-end}
+.mcat{border:1px solid var(--d-line);border-radius:14px;padding:14px;background:#f9fafd;display:grid;gap:10px}
+.mcat-h{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+.mdirty{color:var(--d-warn);font-weight:600}
+.imgfield{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.dmodal form>div{padding:22px}
+.dash .fld label{font-weight:600}
+@media(max-width:700px){.mrow{grid-template-columns:auto minmax(0,1fr)}.mctl{grid-column:1/-1;justify-content:flex-start}}

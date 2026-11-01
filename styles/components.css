@@ -156,3 +156,7 @@ dialog img{display:block;max-width:96vw;max-height:90vh;border-radius:12px;backg
 .m.bot .ts{text-align:left;color:var(--muted)}.m.me .ts{text-align:right;color:rgba(255,255,255,.85)}
 .m.typing .mt{display:none}
 .alt-mail[data-empty="1"]{display:none}
+
+/* ---- Services / Toolkit icons (optional, owner-uploaded) ---- */
+.svc-ico{width:32px;height:32px;object-fit:contain;vertical-align:middle;margin-right:10px;border-radius:6px}
+.badges span .tool-ico{width:18px;height:18px;object-fit:contain;vertical-align:-3px;margin-right:6px}

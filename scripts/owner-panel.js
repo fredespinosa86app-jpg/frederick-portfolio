@@ -43,6 +43,9 @@ return setDoc(doc(rdb,'chatUnanswered',sid+'_'+hash(q.toLowerCase())),{question:
 /* Owner dashboard bridge (every call is checked by the Firestore rules, not by the UI) */
 window.OWN={db:rdb,ref,save,fs:{collection,addDoc,doc,setDoc,updateDoc,deleteDoc,onSnapshot,query,orderBy,limit,serverTimestamp},
 log:text=>addDoc(collection(rdb,'activity'),{text:String(text).slice(0,200),createdAt:serverTimestamp()}).catch(()=>{})};
+/* Public content (defaults live in scripts/content.js; the owner's published edits override them) */
+onSnapshot(doc(rdb,'content','services'),s=>{if(s.exists()&&Array.isArray(s.data().items)&&window.contentApi)window.contentApi.setServices(s.data().items)},()=>{});
+onSnapshot(doc(rdb,'content','toolkit'),s=>{if(s.exists()&&Array.isArray(s.data().categories)&&window.contentApi)window.contentApi.setToolkit(s.data().categories)},()=>{});
 onAuthStateChanged(auth,u=>{const ok=!!u&&u.email===OWNER&&u.emailVerified;
 if(u&&!ok){signOut(auth);notify('This account is not authorized.','error');return}
 login.hidden=ok;document.dispatchEvent(new CustomEvent('own:auth',{detail:{ok,email:ok?u.email:''}}))});

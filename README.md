@@ -30,6 +30,12 @@ Load order matters: `settings.js` first, `owner-panel.js` (type="module") last.
 - Marcus records a visitor question only when it shows its fallback answer (one record per distinct question per visit).
   Review them in Dashboard > Chatbot question history; nothing is added to Marcus automatically.
 
+## Services and Toolkit content
+- The original services and toolkit are the defaults in `scripts/content.js`.
+- Dashboard > Services / Toolkit lets the owner add, edit, delete, reorder, hide and add icons or logos. Edits preview on the
+  site and go live with **Publish changes** (stored in Firestore `content/services` and `content/toolkit`, owner-write only).
+- A section with nothing enabled is hidden. Everything is re-validated before it is rendered on the public page.
+
 ## Themes
 - Visitors choose **Gold & Silver** (default), **Nature** or **Outer Space** in the header.
   The choice is saved in `localStorage` (`portfolio-theme`).
@@ -90,6 +96,10 @@ service cloud.firestore {
     }
     match /activity/{id} {
       allow read, create, delete: if isOwner();
+    }
+    match /content/{doc} {
+      allow read: if true;
+      allow write: if isOwner();
     }
   }
 }
