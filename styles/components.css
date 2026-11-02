@@ -266,3 +266,6 @@ dialog.vplayer{width:min(960px,96vw);background:#0b1020;border-radius:16px;overf
 .tblock{padding:0}
 .tcat-sum,.tcat-more{font-family:var(--sans,"DM Sans",system-ui,sans-serif)}
 .tcat-sum{font-weight:400}.tcat-more{font-weight:600}
+/* training details must never be hidden by the scroll-reveal / glass effects */
+#tcatGrid .tpanel,#tcatGrid .tblock,#tcatGrid .tblock-b{opacity:1!important;transform:none!important;visibility:visible}
+#tcatGrid .tpanel[hidden]{display:none}
