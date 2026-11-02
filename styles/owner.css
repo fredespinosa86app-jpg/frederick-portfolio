@@ -142,3 +142,8 @@ dialog.dmodal form>div{display:grid;gap:12px}
 .cp-win{flex:1;min-width:230px;max-width:340px;border-radius:12px;overflow:hidden;border:1px solid #d5dbe8;background:#fff}.cp-h{background:#070C18;color:#fff;padding:10px 14px;display:flex;gap:10px;align-items:center}.cp-h img{width:34px;height:34px;border-radius:50%;object-fit:cover}.cp-h small{display:block;color:#c3cbe0;font-size:12px}
 .cp-b{padding:12px 14px;font-size:14px;line-height:1.5;background:#faf7f0}
 .kbprev{margin-top:6px}.kbbubble{margin-top:4px;padding:10px 12px;background:#fff;border:1px solid #d5dbe8;border-radius:12px;font-size:14px;white-space:pre-wrap;overflow-wrap:anywhere}
+/* Phase 6 */
+.sfprev{margin-top:8px}.sfp{display:block!important;background:#fff!important;color:#1b2333!important;border:1px solid var(--d-line)!important;border-radius:12px!important;padding:14px!important}
+.sfp label,.sfp legend,.sfp .sfl{color:#1b2333!important}.sfp input,.sfp select,.sfp textarea{font:inherit;padding:8px 10px;border:1px solid #c9d0de;border-radius:8px;background:#fff;color:#1b2333;max-width:100%}
+.sfp .sfq{margin-bottom:12px}.sfp .opt{font-weight:400;color:#5b6578}.sfp .sfo{display:flex;gap:8px;align-items:center;font-weight:400}.sfp .sfo input{width:auto}
+.chip.svc{background:#e8eefc;color:#1f3a8a;display:inline-block;margin-bottom:4px;max-width:100%;overflow-wrap:anywhere}

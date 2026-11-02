@@ -2,7 +2,7 @@
    themes.css - design tokens for every theme + visual effects
    Active theme is set by scripts/theme-switcher.js via <html data-theme="...">
    Visitor themes: gold-silver (default), nature, outer-space
-   Owner-only themes: classic, dark, vegapunk, girly, ocean
+   Owner-only themes: classic, dark, vegapunk, girly, ocean, matrix, netflix
    ========================================================================== */
 
 :root,
@@ -61,6 +61,31 @@
   --gold:#0e7c8f; --role:#8fe0ec; --line:#c8e1e8; --deep:#0b4f6c; --hov:#d8ecf2; --field:#fff;
   --tag:#cfe9ef; --tagc:#0b4f6c; --onacc:#fff; --hero:linear-gradient(135deg,#0b4f6c,#0e7c8f);
 }
+
+/* ---- Phase 6: Dark Mode - Matrix and Dark Mode - Netflix (additional themes) ---- */
+[data-theme="matrix"] {
+  color-scheme:dark; --cream:#030a05; --paper:#08130b; --alt:#050e07; --ink:#c9f7d3; --muted:#8dbd9b;
+  --navy:#e2ffe9; --gold:#00e05a; --role:#4dff93; --line:#17452a; --deep:#0b4a22; --hov:#0d2616;
+  --field:#04100a; --tag:#0e3a1e; --tagc:#8dffb3; --onacc:#00140a;
+  --hero:linear-gradient(135deg,#010503 0%,#062a12 100%);
+}
+[data-theme="matrix"] nav a:hover{box-shadow:inset 0 -2px 0 var(--gold)}
+[data-theme="matrix"] .btn.gold:hover{box-shadow:0 0 0 2px rgba(0,224,90,.35)}
+[data-theme="matrix"] :is(.mform input,.mform select,.mform textarea):focus{border-color:var(--gold)}
+[data-theme="netflix"] {
+  color-scheme:dark; --cream:#141414; --paper:#1f1f1f; --alt:#181818; --ink:#e5e5e5; --muted:#b8b8b8;
+  --navy:#ffffff; --gold:#e50914; --role:#ff5a62; --line:#363636; --deep:#b20710; --hov:#2b2b2b;
+  --field:#101010; --tag:#3b1215; --tagc:#ff9298; --onacc:#ffffff;
+  --hero:linear-gradient(135deg,#000000 0%,#1c0508 100%);
+}
+/* red is used for fills and borders; text that sits on dark surfaces uses a lighter red for readable contrast */
+[data-theme="netflix"] :is(.steps b,.tcard blockquote::before,.tbody .purpose,.faq-btn:hover,.tstars,.tcat-btn:hover .tcat-title,.tcat-more,.tsteps li::before,.vcard:hover .vtitle,.vcard:focus-visible .vtitle,.ratesline){color:#ff5a62}
+[data-theme="netflix"] nav a:hover{box-shadow:inset 0 -2px 0 var(--gold)}
+[data-theme="netflix"] .btn.gold:hover{background:#f6121d}
+[data-theme="netflix"] :is(.mform input,.mform select,.mform textarea):focus{border-color:var(--gold)}
+/* the dashboard keeps its light layout; only its accent colour follows these two themes */
+[data-theme="matrix"] .dash{--d-accent:#0a7a35}[data-theme="matrix"] .dnav button[aria-current=page]{background:#0f4a24}[data-theme="matrix"] .dbtn.primary:hover:not(:disabled){background:#07612a}
+[data-theme="netflix"] .dash{--d-accent:#b20710}[data-theme="netflix"] .dnav button[aria-current=page]{background:#7d0a10}[data-theme="netflix"] .dbtn.primary:hover:not(:disabled){background:#8f0a10}
 
 /* Smooth, subtle theme change (disabled for reduced-motion users in responsive.css) */
 html.theme-fade, html.theme-fade * {

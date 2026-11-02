@@ -10,7 +10,7 @@
   const dash = $('dash'), openBtn = $('dashOpen');
   if (!dash || !openBtn) return;
 
-  const TITLES = { seo: 'SEO & social preview', chatid: 'Chatbot appearance & filter', chatkb: 'Chatbot knowledge base', visitors: 'Visitors', integrations: 'Integrations', domain: 'Custom domain', experience: 'Experience', booking: 'Availability, rates & capacity', clients: 'Clients & invoices', training: 'Training categories', videos: 'How I Work videos', faq: 'FAQ', secbg: 'Section backgrounds', dashboard: 'Dashboard', inbox: 'Inbox: meeting requests', questions: 'Chatbot question history', marcus: 'Marcus configuration',
+  const TITLES = { seo: 'SEO & social preview', svcforms: 'Service forms', chatid: 'Chatbot appearance & filter', chatkb: 'Chatbot knowledge base', visitors: 'Visitors', integrations: 'Integrations', domain: 'Custom domain', experience: 'Experience', booking: 'Availability, rates & capacity', clients: 'Clients & invoices', training: 'Training categories', videos: 'How I Work videos', faq: 'FAQ', secbg: 'Section backgrounds', dashboard: 'Dashboard', inbox: 'Inbox: meeting requests', questions: 'Chatbot question history', marcus: 'Marcus configuration',
     services: 'Services', toolkit: 'Toolkit', testimonials: 'Testimonials', video: 'Intro video', theme: 'Theme & effects', hero: 'Hero', social: 'Social media & contact', general: 'General settings' };
   const REQ_STATUS = { new: 'New', pending: 'Pending', confirmed: 'Confirmed', completed: 'Completed', cancelled: 'Cancelled' };
   const Q_STATUS = { new: 'New', reviewed: 'Reviewed', addressed: 'Addressed', archived: 'Archived' };
@@ -189,7 +189,7 @@
       .map(([l, n]) => el('div', { class: 'stat' }, el('span', { class: 'stat-n' }, S.loaded.req ? n : '…'), el('span', { class: 'stat-l' }, l))));
     const root = $('inboxList'), st = stateFor('req', S.req.length, 'No meeting requests yet. New client inquiries will appear here.');
     if (st) return root.replaceChildren(st);
-    const rows = filterList(S.req, F.req, r => [r.name, r.email, r.company], normReq);
+    const rows = filterList(S.req, F.req, r => [r.name, r.email, r.company, r.service], normReq);
     if (!rows.length) return root.replaceChildren(el('p', { class: 'dstate' }, 'No requests match your filters.'));
     root.replaceChildren(el('div', { class: 'twrap' }, el('table', { class: 'dtable' },
       el('thead', {}, el('tr', {}, ...['Client', 'Purpose / message', 'Requested', 'Submitted', 'Status', 'Actions'].map(h => el('th', { scope: 'col' }, h)))),
@@ -197,7 +197,7 @@
         const s = normReq(r.status), msg = String(r.message || '');
         return el('tr', { class: s === 'new' ? 'unread' : '' },
           el('td', { 'data-label': 'Client' }, el('strong', {}, r.name || '-'), el('br'), el('small', {}, r.email || '')),
-          el('td', { 'data-label': 'Purpose' }, msg.slice(0, 80) + (msg.length > 80 ? '…' : '')),
+          el('td', { 'data-label': 'Purpose' }, r.service ? el('span', { class: 'chip svc' }, String(r.service).slice(0, 60)) : '', r.service ? el('br') : '', msg.slice(0, 80) + (msg.length > 80 ? '…' : '')),
           el('td', { 'data-label': 'Requested' }, [r.date, r.time].filter(Boolean).join(' '), el('br'), el('small', {}, r.tz || '')),
           el('td', { 'data-label': 'Submitted' }, fmt(toDate(r.createdAt))),
           el('td', { 'data-label': 'Status' }, chip(REQ_STATUS[s], s)),
@@ -220,11 +220,18 @@
   };
   const setReq0 = (r, status) => update(r.ref, { status }, 'Meeting request from ' + (r.name || 'a client') + ' marked ' + REQ_STATUS[status], 'Request marked ' + REQ_STATUS[status] + '.');
 
+  /* answers to a service-specific form are stored as a JSON text; parse defensively and show as plain text only */
+  function answerRows(r) {
+    if (!r.answers) return [];
+    try { const a = JSON.parse(r.answers); if (!Array.isArray(a)) return [];
+      return a.slice(0, 20).map(x => [String(x && x.q || '').slice(0, 160), el('span', { class: 'pre' }, String(x && x.a || '').slice(0, 1000))]).filter(x => x[0]); }
+    catch (e) { return [['Answers', el('span', { class: 'pre' }, String(r.answers).slice(0, 1000))]]; }
+  }
   function openRequest(id) {
     const r = S.req.find(x => x.id === id); if (!r) return;
     const d = $('dDetail'), s = normReq(r.status);
     const rows = [['Name', r.name], ['Email', el('a', { href: 'mailto:' + (r.email || '') }, r.email)], ['Company', r.company || '-'], ['Preferred date', r.date], ['Preferred time', r.time],
-      ['Time zone', r.tz], ['Platform', r.platform || '-'], ['Submitted', fmt(toDate(r.createdAt))], ['Status', chip(REQ_STATUS[s], s)], ['Message', el('span', { class: 'pre' }, r.message || '-')]];
+      ['Service', r.service || '-'], ...(r.formName ? [['Form used', r.formName]] : []), ...answerRows(r), ['Time zone', r.tz], ['Platform', r.platform || '-'], ['Submitted', fmt(toDate(r.createdAt))], ['Status', chip(REQ_STATUS[s], s)], ['Message', el('span', { class: 'pre' }, r.message || '-')]];
     $('ddBody').replaceChildren(el('dl', { class: 'ddl' }, ...rows.flatMap(([k, v]) => [el('dt', {}, k), el('dd', {}, v == null ? '-' : v)])));
     $('ddActs').replaceChildren(
       ...[['new', 'Mark as New'], ['pending', 'Mark as Pending'], ['confirmed', 'Confirm Meeting'], ['completed', 'Mark as Completed'], ['cancelled', 'Cancel Request']].map(([k, l]) =>

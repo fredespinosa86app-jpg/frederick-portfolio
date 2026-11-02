@@ -91,7 +91,7 @@ service cloud.firestore {
     }
     match /settings/site { allow read: if true; allow write: if isOwner(); }
     match /meetingRequests/{id} {
-      allow create: if request.resource.data.keys().hasOnly(['name','email','company','date','time','tz','platform','message','status','createdAt'])
+      allow create: if request.resource.data.keys().hasOnly(['name','email','company','date','time','tz','platform','message','status','createdAt','service','formId','formName','answers'])
         && request.resource.data.keys().hasAll(['name','email','company','date','time','tz','platform','message','status','createdAt'])
         && request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 100
         && request.resource.data.email is string && request.resource.data.email.size() > 4 && request.resource.data.email.size() <= 120
@@ -101,6 +101,10 @@ service cloud.firestore {
         && request.resource.data.date is string && request.resource.data.date.size() <= 20
         && request.resource.data.time is string && request.resource.data.time.size() <= 20
         && request.resource.data.tz is string && request.resource.data.tz.size() <= 60
+        && (!('service' in request.resource.data) || (request.resource.data.service is string && request.resource.data.service.size() <= 60))
+        && (!('formId' in request.resource.data) || (request.resource.data.formId is string && request.resource.data.formId.size() <= 40))
+        && (!('formName' in request.resource.data) || (request.resource.data.formName is string && request.resource.data.formName.size() <= 100))
+        && (!('answers' in request.resource.data) || (request.resource.data.answers is string && request.resource.data.answers.size() <= 4000))
         && request.resource.data.status == 'new'
         && request.resource.data.createdAt == request.time
         && slotFree();
@@ -183,3 +187,10 @@ No Firestore rule change is needed (new documents live under `content/{doc}`: pu
 - **Language filter**: runs before anything is forwarded. Profanity (English and common Filipino words, configurable lists in the owner page) gets a polite warning the first time; a second profane message in the same browser-tab session hides the chatbot until the tab is closed (counter kept in `sessionStorage`). Threats and sexual requests are refused politely, are not counted as profanity and never reach the webhook. Ordinary criticism is never flagged. Limit: spaced-out letters ("f u c k") are not detected.
 - **Idle message**: after 5 minutes without interaction while the chat is open, once per idle period; not sent after the chat is closed or while a reply is running.
 - **Webhook security review**: see Owner Panel > Marcus configuration, and `server/` for a ready proxy. Finding: the webhook address is stored in `settings/site`, which visitors can read, and is called from the browser, so it is publicly visible. On the free Spark plan nothing inside Firebase can hide it, so the fix is the free Cloudflare Worker in `server/` (keeps the real URL and secret, checks origin, size, format and rate). **Replace the old webhook URL in n8n/Make** once the proxy is in use.
+
+## Phase 6 (themes and service-specific forms)
+**Publish the updated rules again.** The `meetingRequests` create rule now also accepts the optional `service`, `formId`, `formName` and `answers` fields (size-limited). Until then, a meeting request sent with the service-forms switch ON is rejected by Firestore, so publish the rules before enabling the switch.
+- **Themes**: `Dark Mode - Matrix` (green accents) and `Dark Mode - Netflix` (red accents) were added to Owner Panel > Theme & effects. Existing themes are unchanged; the preview is the same instant preview as for the other themes, and Save stores it in `settings/site.theme` like before. The dashboard keeps its light layout; only its accent colour follows these two themes. No animation was added.
+- **Service forms**: Owner Panel > Service forms. Data lives in `content/serviceForms` {enabled, services[], forms[]} (questions only, public read like the other content documents). The master switch is OFF by default; while off, the meeting request form is exactly the old one.
+- **Submissions**: the normal request fields plus `service`, `formId`, `formName` and `answers` (JSON text of question/answer pairs, up to 4,000 characters). The question text is copied into every submission, so editing, deactivating or deleting a form never changes old inquiries. They appear in Owner Panel > Inbox with the service shown and the answers in the detail view; only the owner can read them.
+- **Not included**: the File Upload field, because Firebase Storage needs a paid plan. Spam protection is the existing honeypot, 60-second throttle and size-limited rules; a hard rate limit needs App Check or a server.

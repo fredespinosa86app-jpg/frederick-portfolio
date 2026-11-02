@@ -6,7 +6,7 @@
    ========================================================================== */
 (function () {
   'use strict';
-  const THEMES = ['gold-silver', 'nature', 'outer-space', 'classic', 'dark', 'vegapunk', 'girly', 'ocean'];
+  const THEMES = ['gold-silver', 'nature', 'outer-space', 'classic', 'dark', 'vegapunk', 'girly', 'ocean', 'matrix', 'netflix'];
   const LIGHT_HERO = { 'gold-silver': true, girly: true };   // themes whose hero is light (dark text)
   const KEY = 'portfolio-dark';
   const root = document.documentElement;

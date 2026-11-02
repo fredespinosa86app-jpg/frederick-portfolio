@@ -46,19 +46,38 @@ drawCal();drawSlots();if(!sel)set('','')}
 A.onChange(refresh);refresh();
 return{reset:()=>{sel='';selTime='';view='';set('','');refresh()},valid:()=>{const s=sel&&selTime&&A.daySlots(sel).find(x=>x.time===selTime);return!!s&&s.state==='free'}}})();
 mf.elements.tz.value=window.availApi.cfg().tz;
+/* service type + service-specific questions (Phase 6). Hidden unless the owner switches the feature on. */
+const SF=window.serviceFormsApi,svcWrap=document.getElementById('svcWrap'),svcSel=document.getElementById('svcSel'),svcBox=document.getElementById('svcBox');
+let svcHandle=null,svcForm=null,svcOn=false;
+function drawService(){
+if(!SF)return;svcHandle=null;svcForm=null;const f=SF.formFor(svcSel.value);
+if(!SF.enabled()||!f){svcBox.hidden=true;document.getElementById('svcFields').replaceChildren();return}
+svcForm=f;document.getElementById('svcLegend').textContent=f.name;const d=document.getElementById('svcDesc');d.textContent=f.description;d.hidden=!f.description;
+svcHandle=SF.render(document.getElementById('svcFields'),f,'sf');svcBox.hidden=false}
+function syncService(){
+if(!SF)return;const on=SF.enabled(),st=SF.get(),keep=svcSel.value;svcOn=on;svcWrap.hidden=!on;svcSel.disabled=!on;svcSel.required=on;
+if(!on){svcBox.hidden=true;document.getElementById('svcFields').replaceChildren();svcSel.replaceChildren();svcHandle=null;svcForm=null;return}
+svcSel.replaceChildren(Object.assign(document.createElement('option'),{value:'',textContent:'Select a service'}),...st.services.map(s=>Object.assign(document.createElement('option'),{value:s.id,textContent:s.name})));
+svcSel.value=st.services.some(s=>s.id===keep)?keep:'';drawService()}
+if(SF){svcSel.addEventListener('change',drawService);SF.onChange(syncService);syncService()}
 mf.addEventListener('submit',async e=>{e.preventDefault();const st=document.getElementById('mStatus'),b=document.getElementById('mBtn'),f=n=>mf.elements[n].value.trim();st.className='';st.textContent='';
 if(f('website'))return;
 const d={name:f('name'),email:f('email'),company:f('company'),date:f('date'),time:f('time'),tz:window.availApi.cfg().tz,platform:f('platform'),message:f('message')};
 if(!d.name||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.email)||!d.message){st.className='err';st.textContent='Please complete all required fields with a valid email address.';return}
 if(!d.date||!d.time){st.className='err';st.textContent='Please choose an available date and time.';return}
 if(!pick.valid()){st.className='err';st.textContent='That time is no longer available. Please choose another one.';return}
+if(svcOn){const sid=svcSel.value,sv=SF.get().services.find(s=>s.id===sid);
+if(!sv){st.className='err';st.textContent='Please choose a service type.';return}
+d.service=sv.name.slice(0,60);
+if(svcHandle&&svcForm){const r=svcHandle.validate();if(!r.ok){st.className='err';st.textContent=r.error;return}
+d.formId=svcForm.id.slice(0,40);d.formName=svcForm.name.slice(0,100);if(r.answers.length)d.answers=JSON.stringify(r.answers)}}
 if(VTZ)d.message=(d.message+'\n\n[Visitor time zone: '+VTZ+']').slice(0,2000);
 let last=0;try{last=+localStorage.getItem('lastReq')||0}catch(x){}
 if(Date.now()-last<60000){st.className='err';st.textContent='Please wait a minute before sending another request.';return}
 b.disabled=true;st.textContent='Sending…';
 try{if(!window.submitMeeting)throw 0;await Promise.race([window.submitMeeting(d),new Promise((_,j)=>setTimeout(j,15000))]);
 try{localStorage.setItem('lastReq',Date.now())}catch(x){}
-st.textContent='';mf.reset();pick.reset();mf.hidden=true;document.getElementById('mDone').hidden=false}
+st.textContent='';mf.reset();pick.reset();syncService();mf.hidden=true;document.getElementById('mDone').hidden=false}
 catch(x){st.className='err';st.textContent='Sorry, your request could not be sent. The time may have just been taken, or the connection failed.';const em=window.contactsApi&&window.contactsApi.get('email');if(em){const a=document.createElement('a');a.href=em.href+'?subject=Meeting%20request';a.textContent=em.value;st.append(' Please email ',a,' instead.')}}
 b.disabled=false});
 function route(){const s=location.hash==='#schedule';document.getElementById('page').hidden=s;document.getElementById('schedule').hidden=!s;

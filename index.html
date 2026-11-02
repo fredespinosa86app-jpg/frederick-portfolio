@@ -34,11 +34,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=DM+Sans:wght@400;500;600&family=Playfair+Display:wght@500;600&family=Lora:wght@500;600&family=Inter:wght@400;500;600&family=Poppins:wght@400;500;600&family=Orbitron:wght@500;700&family=Quicksand:wght@400;500;600&display=swap" rel="stylesheet">
 <script>try{if(localStorage.getItem('portfolio-dark')==='1')document.documentElement.setAttribute('data-theme','dark')}catch(e){}</script>
-<link rel="stylesheet" href="styles/main.css?v=p5">
-<link rel="stylesheet" href="styles/components.css?v=p5">
-<link rel="stylesheet" href="styles/owner.css?v=p5">
-<link rel="stylesheet" href="styles/themes.css?v=p5">
-<link rel="stylesheet" href="styles/responsive.css?v=p5">
+<link rel="stylesheet" href="styles/main.css?v=p6">
+<link rel="stylesheet" href="styles/components.css?v=p6">
+<link rel="stylesheet" href="styles/owner.css?v=p6">
+<link rel="stylesheet" href="styles/themes.css?v=p6">
+<link rel="stylesheet" href="styles/responsive.css?v=p6">
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -241,6 +241,8 @@
 <label>Full name <input type="text" name="name" autocomplete="name" maxlength="100" required></label>
 <label>Email <input type="email" name="email" autocomplete="email" maxlength="120" required></label>
 <label class="full">Company or business <span class="opt">(optional)</span><input type="text" name="company" autocomplete="organization" maxlength="120"></label>
+<label class="full" id="svcWrap" hidden>Service type <select name="service" id="svcSel" aria-describedby="svcHelp"></select></label>
+<fieldset class="full svcq" id="svcBox" hidden><legend id="svcLegend"></legend><p class="tzline" id="svcDesc"></p><div id="svcFields"></div></fieldset>
 <fieldset class="full pick"><legend>Choose a date and time</legend>
 <p class="tzline" id="mTz"></p>
 <div class="cal" id="mCal"></div>
@@ -315,6 +317,7 @@
 <button type="button" data-page="video"><svg aria-hidden="true"><use href="#ic-video"/></svg><span class="dlabel">Intro video</span></button>
 <h2>Business</h2>
 <button type="button" data-page="booking"><svg aria-hidden="true"><use href="#ic-cog"/></svg><span class="dlabel">Availability, rates &amp; capacity</span></button>
+<button type="button" data-page="svcforms"><svg aria-hidden="true"><use href="#ic-doc"/></svg><span class="dlabel">Service forms</span></button>
 <button type="button" data-page="clients"><svg aria-hidden="true"><use href="#ic-inbox"/></svg><span class="dlabel">Clients &amp; invoices</span></button>
 <button type="button" data-page="visitors"><svg aria-hidden="true"><use href="#ic-grid"/></svg><span class="dlabel">Visitors</span></button>
 <button type="button" data-page="integrations"><svg aria-hidden="true"><use href="#ic-link"/></svg><span class="dlabel">Integrations</span></button>
@@ -423,7 +426,7 @@
 <button type="button" class="dbtn primary" id="introSave">Save video settings</button></div></div></section>
 <section class="dpage" id="dp-theme" hidden>
 <div class="dcard"><h2>Theme &amp; effects</h2><p class="dhelp">Changes preview instantly on the site behind this panel. Save to publish them for every visitor. Visitors can only switch to Dark Mode for themselves.</p><div class="ab">
-<label class="fld">Theme mode<select id="thSel"><option value="gold-silver">Gold &amp; Silver (default)</option><option value="nature">Nature</option><option value="outer-space">Outer Space</option><option value="classic">Classic cream &amp; navy</option><option value="dark">Dark mode</option><option value="vegapunk">Vegapunk mode</option><option value="girly">Girly mode</option><option value="ocean">Ocean mode</option></select></label>
+<label class="fld">Theme mode<select id="thSel"><option value="gold-silver">Gold &amp; Silver (default)</option><option value="nature">Nature</option><option value="outer-space">Outer Space</option><option value="classic">Classic cream &amp; navy</option><option value="dark">Dark mode</option><option value="vegapunk">Vegapunk mode</option><option value="girly">Girly mode</option><option value="ocean">Ocean mode</option><option value="matrix">Dark Mode - Matrix</option><option value="netflix">Dark Mode - Netflix</option></select></label>
 <strong class="ah">UI effects</strong>
 <label><input type="checkbox" id="fxReveal"> Fade-in on scroll</label>
 <label><input type="checkbox" id="fxLift"> Hover lift on cards</label>
@@ -561,6 +564,18 @@
 <p class="dstate-line" id="dmStatus" role="status"></p><ul class="dchecks" id="dmChecks"></ul></div>
 <div class="dcard"><h3>DNS records to add</h3><div id="dmDns"><p class="dhelp">Save a domain to see the records.</p></div></div>
 <div class="dcard"><h3>Then</h3><ol class="dhelp"><li>In GitHub: repository <em>Settings &gt; Pages &gt; Custom domain</em>, enter the domain and Save (or commit a file named <code>CNAME</code> containing it).</li><li>Wait for DNS to propagate (minutes to 48 hours), then tick <em>Enforce HTTPS</em> once GitHub finishes issuing the certificate.</li><li>In Firebase: <em>Authentication &gt; Settings &gt; Authorized domains</em> &rarr; add the domain, or owner sign-in will fail on it.</li><li>Update the canonical address in <em>SEO &amp; social preview</em>, <code>robots.txt</code> and <code>sitemap.xml</code>.</li><li>Press Verify here.</li></ol><div class="dact-row"><button type="button" class="dbtn" id="dmCname" disabled>Download CNAME file</button></div></div></section>
+<section class="dpage" id="dp-svcforms" hidden>
+<div class="dcard"><h2>Service-specific contact forms</h2>
+<p class="dhelp">Ask different qualifying questions depending on the service a visitor is interested in. The meeting request form stays the same; the questions you set up appear inside it when the matching service is chosen.</p>
+<label class="tog"><input type="checkbox" id="sfEnabled"> Enable service-specific forms</label>
+<p class="dhelp">Off: visitors only see the normal meeting request form (no service dropdown). Turning it off never deletes your forms or past inquiries.</p></div>
+<div class="dcard"><h2>Service options</h2><p class="dhelp">The choices in the “Service type” dropdown.</p>
+<div class="dact-row"><button type="button" class="dbtn primary" id="sfSvcAdd">Add service</button></div><div class="mlist" id="sfSvcList"></div></div>
+<div class="dcard"><div id="sfListView"><h2>Service forms</h2><p class="dhelp">One active form per service. Services without an active form use the normal meeting request form. File uploads are not available because Firebase Storage needs a paid plan.</p>
+<div class="dact-row"><button type="button" class="dbtn primary" id="sfFormAdd">Add form</button></div><div class="mlist" id="sfList"></div></div>
+<div id="sfEdit" hidden></div></div>
+<div class="dcard"><p class="dhelp" id="sfState" role="status"></p>
+<div class="dact-row"><button type="button" class="dbtn primary" id="sfPublish" disabled>Publish changes</button><button type="button" class="dbtn" id="sfDiscard" disabled>Discard changes</button></div></div></section>
 <section class="dpage" id="dp-secbg" hidden><div class="dcard"><h2>Section backgrounds</h2>
 <p class="dhelp">Give each section its own background colour. Text switches to a light or dark palette automatically so it stays readable. Changes preview on the site; save to publish. The hero has its own colour settings.</p>
 <div class="mlist" id="sbList"></div>
@@ -602,34 +617,36 @@
 <form id="chatForm" autocomplete="off"><input id="chatInput" type="text" placeholder="Type your question…" aria-label="Type your question" maxlength="200"><button type="submit">Send</button></form>
 </div>
 <dialog id="lb" aria-label="Enlarged image"><button type="button" id="close" aria-label="Close enlarged view">×</button><img alt="Enlarged view"></dialog>
-<script src="scripts/settings.js?v=p5"></script>
-<script src="scripts/contacts.js?v=p5"></script>
-<script src="scripts/content.js?v=p5"></script>
-<script src="scripts/testimonials.js?v=p5"></script>
-<script src="scripts/faq.js?v=p5"></script>
-<script src="scripts/videos.js?v=p5"></script>
-<script src="scripts/training.js?v=p5"></script>
-<script src="scripts/experience.js?v=p5"></script>
-<script src="scripts/section-bg.js?v=p5"></script>
-<script src="scripts/hero-photo.js?v=p5"></script>
-<script src="scripts/main.js?v=p5"></script>
-<script src="scripts/chat-engine.js?v=p5"></script>
-<script src="scripts/chatbot.js?v=p5"></script>
-<script src="scripts/video-section.js?v=p5"></script>
-<script src="scripts/theme-switcher.js?v=p5"></script>
-<script src="scripts/seo.js?v=p5"></script>
-<script src="scripts/site-settings.js?v=p5"></script>
-<script src="scripts/availability.js?v=p5"></script>
-<script src="scripts/meeting-form.js?v=p5"></script>
-<script src="scripts/owner-ui.js?v=p5"></script>
-<script src="scripts/owner-dashboard.js?v=p5"></script>
-<script src="scripts/owner-content.js?v=p5"></script>
-<script src="scripts/owner-phase1.js?v=p5"></script>
-<script src="scripts/owner-phase2.js?v=p5"></script>
-<script src="scripts/analytics.js?v=p5"></script>
-<script src="scripts/owner-phase3.js?v=p5"></script>
-<script src="scripts/owner-phase5.js?v=p5"></script>
-<script src="scripts/owner-seo.js?v=p5"></script>
-<script type="module" src="scripts/owner-panel.js?v=p5"></script>
+<script src="scripts/settings.js?v=p6"></script>
+<script src="scripts/contacts.js?v=p6"></script>
+<script src="scripts/content.js?v=p6"></script>
+<script src="scripts/testimonials.js?v=p6"></script>
+<script src="scripts/faq.js?v=p6"></script>
+<script src="scripts/videos.js?v=p6"></script>
+<script src="scripts/training.js?v=p6"></script>
+<script src="scripts/experience.js?v=p6"></script>
+<script src="scripts/section-bg.js?v=p6"></script>
+<script src="scripts/hero-photo.js?v=p6"></script>
+<script src="scripts/main.js?v=p6"></script>
+<script src="scripts/chat-engine.js?v=p6"></script>
+<script src="scripts/chatbot.js?v=p6"></script>
+<script src="scripts/video-section.js?v=p6"></script>
+<script src="scripts/theme-switcher.js?v=p6"></script>
+<script src="scripts/seo.js?v=p6"></script>
+<script src="scripts/site-settings.js?v=p6"></script>
+<script src="scripts/availability.js?v=p6"></script>
+<script src="scripts/service-forms.js?v=p6"></script>
+<script src="scripts/meeting-form.js?v=p6"></script>
+<script src="scripts/owner-ui.js?v=p6"></script>
+<script src="scripts/owner-dashboard.js?v=p6"></script>
+<script src="scripts/owner-content.js?v=p6"></script>
+<script src="scripts/owner-phase1.js?v=p6"></script>
+<script src="scripts/owner-phase2.js?v=p6"></script>
+<script src="scripts/analytics.js?v=p6"></script>
+<script src="scripts/owner-phase3.js?v=p6"></script>
+<script src="scripts/owner-phase5.js?v=p6"></script>
+<script src="scripts/owner-phase6.js?v=p6"></script>
+<script src="scripts/owner-seo.js?v=p6"></script>
+<script type="module" src="scripts/owner-panel.js?v=p6"></script>
 </body>
 </html>
