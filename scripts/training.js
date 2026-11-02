@@ -223,7 +223,8 @@
   function block(panel, title, build) {
     const body = node('div', 'tblock-b'); const has = build(body);
     if (!has) return;
-    const b = node('section', 'tblock'); b.appendChild(node('h4', '', title)); b.appendChild(body); panel.appendChild(b);
+    const b = node('div', 'tblock'), h = node('h4', '', title); h.id = panel.id + '-' + title.toLowerCase().replace(/[^a-z]+/g, '-'); b.setAttribute('role', 'group'); b.setAttribute('aria-labelledby', h.id); b.appendChild(h);
+    b.appendChild(body); panel.appendChild(b);   // a div, not a section: the scroll-reveal effect hides nested sections
   }
 
   function toolCard(t, last, odd) {
