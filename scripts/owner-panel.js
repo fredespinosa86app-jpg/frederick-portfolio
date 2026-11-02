@@ -58,6 +58,10 @@ onSnapshot(doc(rdb,'content','training'),s=>{if(s.exists()&&Array.isArray(s.data
 onSnapshot(doc(rdb,'content','videos'),s=>{if(s.exists()&&Array.isArray(s.data().items)&&window.videosApi)window.videosApi.set(s.data().items,s.data().view)},()=>{});
 onSnapshot(doc(rdb,'content','faq'),s=>{if(s.exists()&&Array.isArray(s.data().items)&&window.faqApi)window.faqApi.set(s.data().items)},()=>{});
 onSnapshot(doc(rdb,'content','heroPhoto'),s=>{if(window.heroPhotoApi)window.heroPhotoApi.setDoc(s.exists()?s.data():null)},()=>{});
+onSnapshot(doc(rdb,'content','experience'),s=>{if(window.experienceApi)window.experienceApi.set(s.exists()?s.data():null)},()=>{});
+onSnapshot(doc(rdb,'content','availability'),s=>{if(window.availApi)window.availApi.setCfg(s.exists()?s.data():null)},()=>{});
+onSnapshot(doc(rdb,'content','busy'),s=>{if(window.availApi)window.availApi.setBusy(s.exists()?s.data():null)},()=>{});
+onSnapshot(doc(rdb,'content','rates'),s=>{if(window.availApi)window.availApi.setRates(s.exists()?s.data():null)},()=>{});
 onSnapshot(doc(rdb,'content','testimonials'),s=>{if(window.testiApi)window.testiApi.setDoc(s.exists()?s.data():null)},()=>{});
 onAuthStateChanged(auth,u=>{const ok=!!u&&u.email===OWNER&&u.emailVerified;
 if(u&&!ok){signOut(auth);notify('The Google account ('+u.email+') is not the owner account. Sign in with '+OWNER+'.','error');return}

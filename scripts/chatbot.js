@@ -20,8 +20,9 @@ const KB=[
 {k:['training','certificate','certified','course','learn'],a:`He completed a 6-week intensive Online Arbitrage VA training with The Ultimate VA for Online Arbitrage. See <a href="#training">Hands-on Training &amp; Research Experience</a>.`},
 {k:['communicat','slack','asana','discord','update'],a:`He works through Slack, Asana, Discord or email, whichever you prefer, and shares a status update before you have to ask.`},
 {k:['where','location','based','philippines','bulacan','plaridel'],a:`Frederick is based in Plaridel, Bulacan, Philippines.`},
-{k:[' rate',' price','pricing','how much','charge',' fee','quote','hourly','per hour','budget',' cost'],a:`Rates depend on the service. Online arbitrage product research starts at $3/hour. For automation-related services, the rate depends on the needs of the job. ${HIRE}`},
-{k:['available','availability','what time','schedule','working hours','hours','time zone','timezone','monday','saturday','when can'],a:`Frederick is available Monday to Saturday, 8:00 AM to 9:00 PM Philippine time (PHT, UTC+8). To book a time, <a href="#schedule">request a meeting</a>.`},
+{k:[' rate',' price','pricing','how much','charge',' fee','quote','hourly','per hour','budget',' cost'],get a(){const r=window.availApi&&window.availApi.rates(),b=[];if(r&&r.hourly!=null)b.push(`${r.currency} ${r.hourly} per hour`);if(r&&r.monthly!=null)b.push(`${r.currency} ${r.monthly} per month`);
+return b.length?`Frederick’s rates are ${b.join(' or ')}, depending on the arrangement. The final rate depends on the service. ${HIRE}`:`Rates depend on the service. Online arbitrage product research starts at $3/hour. For automation-related services, the rate depends on the needs of the job. ${HIRE}`}},
+{k:['available','availability','what time','schedule','working hours','hours','time zone','timezone','monday','saturday','when can'],get a(){return `Frederick is available ${window.availApi?window.availApi.sentence():'Monday to Saturday, 8:00 AM to 9:00 PM Philippine time (PHT, UTC+8)'}. To book a time, <a href="#schedule">request a meeting</a>.`}},
 {k:['hire','meeting','contact','email','whatsapp','reach','message','linkedin','upwork','onlinejobs','book','work with'],a:HIRE}
 ];
 const WELCOME=`Hi! I’m Marcus, the automated assistant for Frederick’s portfolio. Ask me about his services, tools, training or how to hire him.`;

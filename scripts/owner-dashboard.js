@@ -10,7 +10,7 @@
   const dash = $('dash'), openBtn = $('dashOpen');
   if (!dash || !openBtn) return;
 
-  const TITLES = { seo: 'SEO & social preview', training: 'Training categories', videos: 'How I Work videos', faq: 'FAQ', secbg: 'Section backgrounds', dashboard: 'Dashboard', inbox: 'Inbox: meeting requests', questions: 'Chatbot question history', marcus: 'Marcus configuration',
+  const TITLES = { seo: 'SEO & social preview', experience: 'Experience', booking: 'Availability, rates & capacity', clients: 'Clients & invoices', training: 'Training categories', videos: 'How I Work videos', faq: 'FAQ', secbg: 'Section backgrounds', dashboard: 'Dashboard', inbox: 'Inbox: meeting requests', questions: 'Chatbot question history', marcus: 'Marcus configuration',
     services: 'Services', toolkit: 'Toolkit', testimonials: 'Testimonials', video: 'Intro video', theme: 'Theme & effects', hero: 'Hero', social: 'Social media & contact', general: 'General settings' };
   const REQ_STATUS = { new: 'New', pending: 'Pending', confirmed: 'Confirmed', completed: 'Completed', cancelled: 'Cancelled' };
   const Q_STATUS = { new: 'New', reviewed: 'Reviewed', addressed: 'Addressed', archived: 'Archived' };
@@ -138,7 +138,7 @@
   }
 
   /* ---------- rendering ---------- */
-  function renderAll() { renderBadges(); renderDashboard(); renderInbox(); renderQuestions(); }
+  function renderAll() { renderBadges(); renderDashboard(); renderInbox(); renderQuestions(); document.dispatchEvent(new CustomEvent('dash:requests', { detail: { list: S.req, loaded: !!S.loaded.req } })); }
 
   function renderBadges() {
     const nReq = S.req.filter(r => normReq(r.status) === 'new').length, nQ = S.q.filter(q => normQ(q.status) === 'new').length;
@@ -190,7 +190,14 @@
             s === 'new' || s === 'pending' ? el('button', { class: 'dbtn sm primary', type: 'button', onclick: () => setReq(r, 'confirmed') }, 'Confirm') : ''));
       })))));
   }
-  const setReq = (r, status) => update(r.ref, { status }, 'Meeting request from ' + (r.name || 'a client') + ' marked ' + REQ_STATUS[status], 'Request marked ' + REQ_STATUS[status] + '.');
+  const setReq = async (r, status) => {
+    if (status === 'confirmed' && window.availApi) {   // warn before double-booking a confirmed time
+      const other = window.availApi.conflict(r, S.req);
+      if (other && !(await confirmBox('Possible double booking', 'This time overlaps a meeting already confirmed with ' + (other.name || 'another visitor') + ' (' + other.date + ' ' + other.time + '). Confirm anyway?', 'Confirm anyway'))) return;
+    }
+    return setReq0(r, status);
+  };
+  const setReq0 = (r, status) => update(r.ref, { status }, 'Meeting request from ' + (r.name || 'a client') + ' marked ' + REQ_STATUS[status], 'Request marked ' + REQ_STATUS[status] + '.');
 
   function openRequest(id) {
     const r = S.req.find(x => x.id === id); if (!r) return;

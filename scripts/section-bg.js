@@ -5,7 +5,7 @@
    ========================================================================== */
 (function () {
   'use strict';
-  const SECTIONS = [['intro', 'Meet Frederick (intro video)'], ['services', 'Services'], ['training', 'Training & Hands-on Experience'], ['toolkit', 'Toolkit'],
+  const SECTIONS = [['intro', 'Meet Frederick (intro video)'], ['services', 'Services'], ['training', 'Training & Hands-on Experience'], ['experience', 'Experience'], ['toolkit', 'Toolkit'],
     ['process', 'How I Work'], ['testimonials', 'Testimonials'], ['faq', 'FAQ'], ['thank-you', 'Thank-you video'], ['contact', 'Contact']];
   const HEX = /^#[0-9a-f]{6}$/i;
   const lum = c => { const n = parseInt(c.slice(1), 16), f = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }; return 0.2126 * f(n >> 16 & 255) + 0.7152 * f(n >> 8 & 255) + 0.0722 * f(n & 255); };

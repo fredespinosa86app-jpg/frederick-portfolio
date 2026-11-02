@@ -63,7 +63,7 @@
   }
 
   /* ---------- reusable form dialog ---------- */
-  function editDialog(title, defs, values) {
+  function editDialog(title, defs, values, validate) {
     const d = $('dForm'), form = $('dfForm'), box = $('dfFields'), err = $('dfErr'), okBtn = $('dfOk');
     $('dfTitle').textContent = title; err.textContent = ''; box.textContent = '';
     const out = Object.assign({}, values);
@@ -81,8 +81,9 @@
           } }),
           el('button', { type: 'button', class: 'dbtn sm', onclick: () => { out[f.key] = ''; show(); $(id).value = ''; } }, 'Remove image'));
         show();
-      } else input = el('input', { id, type: 'text', maxlength: f.max, autocomplete: 'off' });
-      if (f.type !== 'image') input.value = out[f.key] == null ? '' : out[f.key];
+      } else if (f.type === 'check') { input = el('input', { id, type: 'checkbox' }); input.checked = !!out[f.key]; }
+      else input = el('input', Object.assign({ id, type: ['month', 'date', 'number', 'email', 'tel'].includes(f.type) ? f.type : 'text', maxlength: f.max, autocomplete: 'off' }, f.type === 'number' ? { min: f.min, max: f.maxv, step: f.step || 'any', inputmode: 'decimal' } : {}));
+      if (f.type !== 'image' && f.type !== 'check') input.value = out[f.key] == null ? '' : out[f.key];
       box.append(el('div', { class: 'fld' }, el('label', { for: id }, f.label + (f.required ? ' *' : ' (optional)')), input, f.help ? el('small', { class: 'hint' }, f.help) : ''));
     });
     return new Promise(resolve => {
@@ -91,9 +92,11 @@
         e.preventDefault();
         for (const f of defs) {
           if (f.type === 'image') continue;
+          if (f.type === 'check') { out[f.key] = $('df-' + f.key).checked; continue; }
           const v = $('df-' + f.key).value.trim(); out[f.key] = v;
           if (f.required && !v) { err.textContent = f.label + ' is required.'; $('df-' + f.key).focus(); return; }
         }
+        const bad = validate && validate(out); if (bad) { err.textContent = bad; return; }
         finish(out);
       };
       $('dfCancel').onclick = () => finish(null);

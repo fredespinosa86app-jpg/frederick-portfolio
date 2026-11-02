@@ -118,3 +118,6 @@ dialog.dmodal::backdrop{background:rgba(10,16,32,.6)}.dmodal>div{padding:22px}.d
 .dash .vthumb-s{object-fit:cover}
 #trEdit .ab{margin-top:10px}#trEdit h3{margin:12px 0 0}
 dialog.dmodal form>div{display:grid;gap:12px}
+.dueflag.overdue{color:#b42318;font-weight:700}.dueflag.soon{color:#a15c00;font-weight:600}
+.bkdays{border:0;padding:0;margin:0 0 14px}.bkdays legend{font-weight:600;margin-bottom:8px}.bkdays>div{display:flex;flex-wrap:wrap;gap:6px 18px}
+.dash label.tog input[type=checkbox]{width:auto}

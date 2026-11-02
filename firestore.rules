@@ -1,0 +1,53 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isOwner() {
+      return request.auth != null
+        && request.auth.token.email == 'fredespinosa86.app@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+    // Phase 2: true when the requested start time is not already confirmed (best effort, see README)
+    function slotFree() {
+      let ref = /databases/$(database)/documents/content/busy;
+      return !exists(ref) || !((request.resource.data.date + 'T' + request.resource.data.time) in get(ref).data.get('keys', []));
+    }
+    match /settings/site { allow read: if true; allow write: if isOwner(); }
+    match /meetingRequests/{id} {
+      allow create: if request.resource.data.keys().hasOnly(['name','email','company','date','time','tz','platform','message','status','createdAt'])
+        && request.resource.data.keys().hasAll(['name','email','company','date','time','tz','platform','message','status','createdAt'])
+        && request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 100
+        && request.resource.data.email is string && request.resource.data.email.size() > 4 && request.resource.data.email.size() <= 120
+        && request.resource.data.message is string && request.resource.data.message.size() > 0 && request.resource.data.message.size() <= 2000
+        && request.resource.data.company is string && request.resource.data.company.size() <= 120
+        && request.resource.data.platform is string && request.resource.data.platform.size() <= 60
+        && request.resource.data.date is string && request.resource.data.date.size() <= 20
+        && request.resource.data.time is string && request.resource.data.time.size() <= 20
+        && request.resource.data.tz is string && request.resource.data.tz.size() <= 60
+        && request.resource.data.status == 'new'
+        && request.resource.data.createdAt == request.time
+        && slotFree();
+      allow read, update, delete: if isOwner();
+    }
+    match /chatUnanswered/{id} {
+      allow create: if request.resource.data.keys().hasOnly(['question','response','sessionId','context','status','createdAt'])
+        && request.resource.data.keys().hasAll(['question','response','sessionId','context','status','createdAt'])
+        && request.resource.data.question is string && request.resource.data.question.size() > 0 && request.resource.data.question.size() <= 300
+        && request.resource.data.response is string && request.resource.data.response.size() <= 600
+        && request.resource.data.sessionId is string && request.resource.data.sessionId.size() <= 40
+        && request.resource.data.context is string && request.resource.data.context.size() <= 300
+        && request.resource.data.status == 'new'
+        && request.resource.data.createdAt == request.time;
+      allow read, update, delete: if isOwner();
+    }
+    match /activity/{id} {
+      allow read, create, delete: if isOwner();
+    }
+    // Phase 2: private business data. Never readable by visitors.
+    match /clients/{id} { allow read, write: if isOwner(); }
+    match /ownerPrivate/{doc} { allow read, write: if isOwner(); }
+    match /content/{doc} {
+      allow read: if true;
+      allow write: if isOwner();
+    }
+  }
+}

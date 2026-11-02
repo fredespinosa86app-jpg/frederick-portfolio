@@ -84,6 +84,11 @@ service cloud.firestore {
         && request.auth.token.email == 'fredespinosa86.app@gmail.com'
         && request.auth.token.email_verified == true;
     }
+    // Phase 2: true when the requested start time is not already confirmed (best effort, see README)
+    function slotFree() {
+      let ref = /databases/$(database)/documents/content/busy;
+      return !exists(ref) || !((request.resource.data.date + 'T' + request.resource.data.time) in get(ref).data.get('keys', []));
+    }
     match /settings/site { allow read: if true; allow write: if isOwner(); }
     match /meetingRequests/{id} {
       allow create: if request.resource.data.keys().hasOnly(['name','email','company','date','time','tz','platform','message','status','createdAt'])
@@ -97,7 +102,8 @@ service cloud.firestore {
         && request.resource.data.time is string && request.resource.data.time.size() <= 20
         && request.resource.data.tz is string && request.resource.data.tz.size() <= 60
         && request.resource.data.status == 'new'
-        && request.resource.data.createdAt == request.time;
+        && request.resource.data.createdAt == request.time
+        && slotFree();
       allow read, update, delete: if isOwner();
     }
     match /chatUnanswered/{id} {
@@ -114,6 +120,9 @@ service cloud.firestore {
     match /activity/{id} {
       allow read, create, delete: if isOwner();
     }
+    // Phase 2: private business data. Never readable by visitors.
+    match /clients/{id} { allow read, write: if isOwner(); }
+    match /ownerPrivate/{doc} { allow read, write: if isOwner(); }
     match /content/{doc} {
       allow read: if true;
       allow write: if isOwner();
@@ -136,3 +145,10 @@ No rule change is needed: the existing `content/{doc}` rule (public read, owner 
 - `content/services` and `content/toolkit` gain a `view` field (`list` default, `grid`, `compact`).
 - `settings/site` gains `heroText2`, `heroLayout` (`text-left` | `image-left`) and `secBg` {sectionId: '#rrggbb'}.
 Older records without these fields keep working (safe defaults). Images are stored as small WebP data URLs (Firebase Storage needs a paid plan).
+
+## Phase 2 (Experience, availability, capacity, clients) - Firebase configuration
+**Publish the updated rules above** (Firebase console > Firestore Database > Rules; the same text is in `firestore.rules`). Without them the new owner pages cannot save private data and the double-booking check is inactive. Nothing else is required on the free Spark plan.
+- Public documents (covered by `content/{doc}`): `content/experience` {enabled, items[]}, `content/availability` {days, start, end, slot, tz, blocked[]}, `content/busy` {keys[], items[]} (start times of future confirmed meetings only, no names), `content/rates` {currency, hourly, monthly} (only the rates the owner ticked as public; otherwise null).
+- Private documents (owner only): `clients/{id}` {name, email, phone, company, rate, arrangement, invoiceDue, status, notes}, `ownerPrivate/config` {capacity, currency, hourly, monthly, showHourly, showMonthly}.
+- `content/busy` is refreshed by the owner dashboard whenever it is open and signed in. Confirm or cancel meetings from the dashboard and it updates itself.
+- Visitors choose times in the owner's time zone; their own time zone is appended to the message. The booking rule blocks an exact start time that is already confirmed; overlap between different slot lengths is handled in the page, because Firestore rules cannot loop over lists. Atomic reservation and rate limiting would need Cloud Functions (paid plan).

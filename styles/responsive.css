@@ -35,3 +35,4 @@ section{padding:64px 0}}
 @media(max-width:960px){.tcat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.thands{grid-template-columns:1fr}}
 @media(max-width:620px){.tcat-grid{grid-template-columns:1fr}.tpanel{padding:2px 16px 22px}.svc.view-compact .row,.kit.view-compact .row{grid-template-columns:1fr;gap:6px}.vgrid.view-list .vcard{grid-template-columns:minmax(0,130px) minmax(0,1fr);gap:12px}.vp-box{padding:14px 12px 12px}}
 @media(prefers-reduced-motion:reduce){.tcat-more::after{transition:none}}
+@media(max-width:620px){.xlist{padding-left:18px}.xitem::before{left:-26px}.mform fieldset.pick{padding:14px 12px}.cal{max-width:none}}

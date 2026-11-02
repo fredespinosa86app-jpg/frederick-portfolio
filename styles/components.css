@@ -269,3 +269,30 @@ dialog.vplayer{width:min(960px,96vw);background:#0b1020;border-radius:16px;overf
 /* training details must never be hidden by the scroll-reveal / glass effects */
 #tcatGrid .tpanel,#tcatGrid .tblock,#tcatGrid .tblock-b{opacity:1!important;transform:none!important;visibility:visible}
 #tcatGrid .tpanel[hidden]{display:none}
+
+/* ==========================================================================
+   Phase 2: experience timeline, rates line, meeting date/time picker
+   ========================================================================== */
+.ratesline{margin:-28px 0 28px;font-weight:600;color:var(--gold)}
+.xlist{list-style:none;margin:0;padding:0 0 0 22px;border-left:3px solid var(--gold);display:grid;gap:30px}
+.xitem{position:relative}
+.xitem::before{content:"";position:absolute;left:-30px;top:8px;width:13px;height:13px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 4px var(--paper)}
+.xitem h3{margin:0 0 4px}.xmeta{margin:0 0 10px;color:var(--muted)}.xmeta strong{color:var(--hc,var(--navy))}
+.xdesc{margin:0 0 10px;color:var(--muted);max-width:780px}.xitem .points{margin:0}
+.mform fieldset.pick{border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin:0;min-width:0;display:grid;gap:12px}
+.pick legend{font-weight:600;color:var(--navy);padding:0 6px}
+.pick .tzline,.pick .picked{margin:0;font-weight:400;font-size:14.5px;color:var(--muted)}.pick .picked{color:var(--navy);font-weight:600}
+.cal{max-width:340px}
+.cal-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.cal-n{width:44px;height:44px;border:1px solid var(--line);border-radius:10px;background:var(--field);color:var(--navy);font-size:22px;cursor:pointer}.cal-n:disabled{opacity:.35;cursor:not-allowed}
+.cal-g{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal-d{text-align:center;font-size:12.5px;font-weight:600;color:var(--muted);padding:4px 0}
+.cal-b{aspect-ratio:1;min-height:40px;border:1px solid var(--line);border-radius:10px;background:var(--field);color:var(--navy);font:inherit;font-weight:600;cursor:pointer}
+.cal-b:disabled{background:transparent;border-color:transparent;color:var(--muted);opacity:.4;text-decoration:line-through;cursor:not-allowed}
+.cal-b[aria-pressed="true"]{background:var(--gold);border-color:var(--gold);color:var(--onacc,#fff)}
+.cal-b.today:not([aria-pressed="true"]){border-color:var(--gold)}
+.slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:8px}
+.slot{display:grid;gap:2px;min-height:44px;padding:8px 6px;border:1px solid var(--line);border-radius:10px;background:var(--field);color:var(--navy);font:inherit;cursor:pointer;text-align:center}
+.slot small{font-size:11.5px;color:var(--muted);font-weight:400}.slot .st{font-weight:600}
+.slot:disabled{opacity:.5;cursor:not-allowed;background:transparent}
+.slot[aria-pressed="true"]{background:var(--gold);border-color:var(--gold);color:var(--onacc,#fff)}.slot[aria-pressed="true"] small{color:inherit}
