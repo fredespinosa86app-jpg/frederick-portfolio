@@ -23,10 +23,10 @@ service cloud.firestore {
         && request.resource.data.date is string && request.resource.data.date.size() <= 20
         && request.resource.data.time is string && request.resource.data.time.size() <= 20
         && request.resource.data.tz is string && request.resource.data.tz.size() <= 60
-        && (!('service' in request.resource.data) || (request.resource.data.service is string && request.resource.data.service.size() <= 60))
-        && (!('formId' in request.resource.data) || (request.resource.data.formId is string && request.resource.data.formId.size() <= 40))
-        && (!('formName' in request.resource.data) || (request.resource.data.formName is string && request.resource.data.formName.size() <= 100))
-        && (!('answers' in request.resource.data) || (request.resource.data.answers is string && request.resource.data.answers.size() <= 4000))
+        && (request.resource.data.get('service', '') is string && request.resource.data.get('service', '').size() <= 60)
+        && (request.resource.data.get('formId', '') is string && request.resource.data.get('formId', '').size() <= 40)
+        && (request.resource.data.get('formName', '') is string && request.resource.data.get('formName', '').size() <= 100)
+        && (request.resource.data.get('answers', '') is string && request.resource.data.get('answers', '').size() <= 4000)
         && request.resource.data.status == 'new'
         && request.resource.data.createdAt == request.time
         && slotFree();
