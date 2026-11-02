@@ -34,11 +34,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=DM+Sans:wght@400;500;600&family=Playfair+Display:wght@500;600&family=Lora:wght@500;600&family=Inter:wght@400;500;600&family=Poppins:wght@400;500;600&family=Orbitron:wght@500;700&family=Quicksand:wght@400;500;600&display=swap" rel="stylesheet">
 <script>try{if(localStorage.getItem('portfolio-dark')==='1')document.documentElement.setAttribute('data-theme','dark')}catch(e){}</script>
-<link rel="stylesheet" href="styles/main.css?v=p3">
-<link rel="stylesheet" href="styles/components.css?v=p3">
-<link rel="stylesheet" href="styles/owner.css?v=p3">
-<link rel="stylesheet" href="styles/themes.css?v=p3">
-<link rel="stylesheet" href="styles/responsive.css?v=p3">
+<link rel="stylesheet" href="styles/main.css?v=p5">
+<link rel="stylesheet" href="styles/components.css?v=p5">
+<link rel="stylesheet" href="styles/owner.css?v=p5">
+<link rel="stylesheet" href="styles/themes.css?v=p5">
+<link rel="stylesheet" href="styles/responsive.css?v=p5">
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -302,6 +302,8 @@
 <h2>Chatbot</h2>
 <button type="button" data-page="questions"><svg aria-hidden="true"><use href="#ic-help"/></svg><span class="dlabel">Question history</span><span class="nbadge" id="nbQ" hidden>0</span></button>
 <button type="button" data-page="marcus"><svg aria-hidden="true"><use href="#ic-chat"/></svg><span class="dlabel">Marcus configuration</span></button>
+<button type="button" data-page="chatid"><svg aria-hidden="true"><use href="#ic-chat"/></svg><span class="dlabel">Chatbot appearance &amp; filter</span></button>
+<button type="button" data-page="chatkb"><svg aria-hidden="true"><use href="#ic-help"/></svg><span class="dlabel">Chatbot knowledge base</span></button>
 <h2>Content</h2>
 <button type="button" data-page="services"><svg aria-hidden="true"><use href="#ic-briefcase"/></svg><span class="dlabel">Services</span></button>
 <button type="button" data-page="toolkit"><svg aria-hidden="true"><use href="#ic-grid"/></svg><span class="dlabel">Toolkit</span></button>
@@ -385,7 +387,28 @@
 <section class="dpage" id="dp-marcus" hidden><div class="dcard"><h2>Marcus - Assistant: n8n / Make replies</h2><p class="dhelp">Optional. When enabled, visitor messages are sent to your workflow and its answer is shown. If it fails, Marcus falls back to the built-in answers.</p><div class="ab">
 <input type="url" id="hookUrl" placeholder="https://your-webhook-url" aria-label="Automation webhook URL" autocomplete="off">
 <label><input type="checkbox" id="hookOn"> Use automation for chatbot replies</label>
-<button type="button" class="dbtn primary" id="hookSave">Save automation settings</button></div></div></section>
+<button type="button" class="dbtn primary" id="hookSave">Save automation settings</button></div></div>
+<div class="dcard" id="hookSec"><h2>Webhook security review</h2><p class="dstate-line" id="hookSecState" role="status"></p><ul class="dchecks" id="hookSecList"></ul><p class="dhelp">A proxy that keeps the real webhook private is included in the <code>server</code> folder of the project (free Cloudflare Worker, setup steps inside).</p></div></section>
+<section class="dpage" id="dp-chatid" hidden>
+<div class="dcard"><h2>Chatbot name and picture</h2><p class="dhelp">Shown on the chat button, the chat header and the welcome message of the public site. The preview updates as you type; nothing goes live until you save.</p>
+<div class="ab"><label class="fld">Assistant name<input type="text" id="ciName" maxlength="30" autocomplete="off"><small class="cnt" id="ciNameN"></small></label>
+<label class="fld">Profile picture<input type="file" id="ciFile" accept="image/png,image/jpeg,image/webp"></label>
+<div class="dact-row"><button type="button" class="dbtn" id="ciRemoveImg">Remove picture</button></div></div>
+<div class="cipreview" aria-label="Preview of the chatbot"><div class="cp-btn" id="cpBtn" aria-hidden="true"></div><div class="cp-win"><div class="cp-h"><img id="cpAv" alt="" hidden><div><strong id="cpName"></strong><small>Automated answers about Frederick</small></div></div><div class="cp-b" id="cpMsg"></div></div></div></div>
+<div class="dcard"><h2>Language filter</h2><p class="dhelp">Messages are checked before anything is sent to the webhook. The first profane message gets a polite warning. A second one in the same visit hides the chatbot until the visitor closes the tab and starts a new visit (the counter lives in the tab’s session). Threats and sexual requests are refused politely and are not counted as profanity. Ordinary disagreement or complaints are never flagged.</p>
+<label class="fld">Extra words or phrases to block (one per line or comma separated)<textarea id="ciExtra" rows="3" maxlength="3000"></textarea></label>
+<label class="fld">Words that must never be flagged<textarea id="ciAllow" rows="3" maxlength="3000"></textarea></label>
+<p class="dhelp" id="ciState" role="status"></p>
+<div class="dact-row"><button type="button" class="dbtn primary" id="ciSave" disabled>Save</button><button type="button" class="dbtn" id="ciDiscard" disabled>Discard changes</button></div></div></section>
+<section class="dpage" id="dp-chatkb" hidden><div class="dcard"><h2>Chatbot knowledge base</h2>
+<p class="dhelp">Answers you approve here are used first when a visitor’s question matches the question or any of its alternative phrasings. Without a reliable match the chatbot never invents an answer: it uses its built-in knowledge, your webhook (if on) or a polite fallback. Changes go live when you publish.</p>
+<div class="dfilters"><label class="fld">Search<input type="search" id="kbSearch" autocomplete="off" placeholder="Question, answer or category"></label></div>
+<div class="dact-row"><button type="button" class="dbtn primary" id="kbAdd">Add question</button><button type="button" class="dbtn" id="kbDefaults">Restore predefined answers</button><span class="dhelp" id="kbCount"></span></div>
+<div class="mlist" id="kbList"></div>
+<p class="dhelp" id="kbState" role="status"></p>
+<div class="dact-row"><button type="button" class="dbtn primary" id="kbPublish" disabled>Publish changes</button><button type="button" class="dbtn" id="kbDiscard" disabled>Discard changes</button></div></div>
+<div class="dcard"><h2>Try a visitor question</h2><p class="dhelp">Checks which entry (including your unpublished changes) the chatbot would use.</p>
+<div class="ab"><label class="fld">Visitor question<input type="text" id="kbTest" maxlength="200" autocomplete="off"></label></div><div class="dact-row"><button type="button" class="dbtn" id="kbTestBtn">Test</button></div><p class="dstate-line" id="kbTestOut" role="status"></p></div></section>
 <section class="dpage" id="dp-testimonials" hidden><div class="dcard"><h2>Testimonials</h2>
 <p class="dhelp">Edits preview on the site behind this panel and go live when you publish. The section appears only when it is switched on and at least one testimonial is shown.</p>
 <div class="dfilters"><label class="tog"><input type="checkbox" id="tmEnabled"> Show testimonials section</label>
@@ -574,37 +597,39 @@
 
 <button type="button" class="chat-btn" id="chatBtn" aria-label="Open Marcus - Assistant chat" aria-expanded="false" aria-controls="chat"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3h16a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H9l-5 4v-4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/></svg></button>
 <div class="chat" id="chat" role="dialog" aria-label="Marcus - Assistant chat">
-<div class="chat-h"><div><strong>Marcus - Assistant</strong><small>Automated answers about Frederick</small></div><button type="button" id="chatClose" aria-label="Close chat">×</button></div>
+<div class="chat-h"><img class="chat-av" alt="" width="40" height="40" hidden><div><strong>Marcus - Assistant</strong><small>Automated answers about Frederick</small></div><button type="button" id="chatClose" aria-label="Close chat">×</button></div>
 <div class="msgs" id="msgs" aria-live="polite"></div>
 <form id="chatForm" autocomplete="off"><input id="chatInput" type="text" placeholder="Type your question…" aria-label="Type your question" maxlength="200"><button type="submit">Send</button></form>
 </div>
 <dialog id="lb" aria-label="Enlarged image"><button type="button" id="close" aria-label="Close enlarged view">×</button><img alt="Enlarged view"></dialog>
-<script src="scripts/settings.js?v=p3"></script>
-<script src="scripts/contacts.js?v=p3"></script>
-<script src="scripts/content.js?v=p3"></script>
-<script src="scripts/testimonials.js?v=p3"></script>
-<script src="scripts/faq.js?v=p3"></script>
-<script src="scripts/videos.js?v=p3"></script>
-<script src="scripts/training.js?v=p3"></script>
-<script src="scripts/experience.js?v=p3"></script>
-<script src="scripts/section-bg.js?v=p3"></script>
-<script src="scripts/hero-photo.js?v=p3"></script>
-<script src="scripts/main.js?v=p3"></script>
-<script src="scripts/chatbot.js?v=p3"></script>
-<script src="scripts/video-section.js?v=p3"></script>
-<script src="scripts/theme-switcher.js?v=p3"></script>
-<script src="scripts/seo.js?v=p3"></script>
-<script src="scripts/site-settings.js?v=p3"></script>
-<script src="scripts/availability.js?v=p3"></script>
-<script src="scripts/meeting-form.js?v=p3"></script>
-<script src="scripts/owner-ui.js?v=p3"></script>
-<script src="scripts/owner-dashboard.js?v=p3"></script>
-<script src="scripts/owner-content.js?v=p3"></script>
-<script src="scripts/owner-phase1.js?v=p3"></script>
-<script src="scripts/owner-phase2.js?v=p3"></script>
-<script src="scripts/analytics.js?v=p3"></script>
-<script src="scripts/owner-phase3.js?v=p3"></script>
-<script src="scripts/owner-seo.js?v=p3"></script>
-<script type="module" src="scripts/owner-panel.js?v=p3"></script>
+<script src="scripts/settings.js?v=p5"></script>
+<script src="scripts/contacts.js?v=p5"></script>
+<script src="scripts/content.js?v=p5"></script>
+<script src="scripts/testimonials.js?v=p5"></script>
+<script src="scripts/faq.js?v=p5"></script>
+<script src="scripts/videos.js?v=p5"></script>
+<script src="scripts/training.js?v=p5"></script>
+<script src="scripts/experience.js?v=p5"></script>
+<script src="scripts/section-bg.js?v=p5"></script>
+<script src="scripts/hero-photo.js?v=p5"></script>
+<script src="scripts/main.js?v=p5"></script>
+<script src="scripts/chat-engine.js?v=p5"></script>
+<script src="scripts/chatbot.js?v=p5"></script>
+<script src="scripts/video-section.js?v=p5"></script>
+<script src="scripts/theme-switcher.js?v=p5"></script>
+<script src="scripts/seo.js?v=p5"></script>
+<script src="scripts/site-settings.js?v=p5"></script>
+<script src="scripts/availability.js?v=p5"></script>
+<script src="scripts/meeting-form.js?v=p5"></script>
+<script src="scripts/owner-ui.js?v=p5"></script>
+<script src="scripts/owner-dashboard.js?v=p5"></script>
+<script src="scripts/owner-content.js?v=p5"></script>
+<script src="scripts/owner-phase1.js?v=p5"></script>
+<script src="scripts/owner-phase2.js?v=p5"></script>
+<script src="scripts/analytics.js?v=p5"></script>
+<script src="scripts/owner-phase3.js?v=p5"></script>
+<script src="scripts/owner-phase5.js?v=p5"></script>
+<script src="scripts/owner-seo.js?v=p5"></script>
+<script type="module" src="scripts/owner-panel.js?v=p5"></script>
 </body>
 </html>

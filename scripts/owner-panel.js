@@ -63,6 +63,8 @@ onSnapshot(doc(rdb,'content','videos'),s=>{if(s.exists()&&Array.isArray(s.data()
 onSnapshot(doc(rdb,'content','faq'),s=>{if(s.exists()&&Array.isArray(s.data().items)&&window.faqApi)window.faqApi.set(s.data().items)},()=>{});
 onSnapshot(doc(rdb,'content','heroPhoto'),s=>{if(window.heroPhotoApi)window.heroPhotoApi.setDoc(s.exists()?s.data():null)},()=>{});
 onSnapshot(doc(rdb,'content','experience'),s=>{if(window.experienceApi)window.experienceApi.set(s.exists()?s.data():null)},()=>{});
+onSnapshot(doc(rdb,'content','chatbot'),s=>{if(window.chatEngine)window.chatEngine.setIdentity(s.exists()?s.data():null)},()=>{});
+onSnapshot(doc(rdb,'content','chatKb'),s=>{if(window.chatEngine)window.chatEngine.setKb(s.exists()?s.data():null)},()=>{});
 onSnapshot(doc(rdb,'content','availability'),s=>{if(window.availApi)window.availApi.setCfg(s.exists()?s.data():null)},()=>{});
 onSnapshot(doc(rdb,'content','busy'),s=>{if(window.availApi)window.availApi.setBusy(s.exists()?s.data():null)},()=>{});
 onSnapshot(doc(rdb,'content','rates'),s=>{if(window.availApi)window.availApi.setRates(s.exists()?s.data():null)},()=>{});

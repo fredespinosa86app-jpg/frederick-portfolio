@@ -215,7 +215,7 @@
     if (e.detail === 'services') { svc.reset(); renderServices(); } else if (e.detail === 'toolkit') { tk.reset(); renderToolkit(); }
   });
   document.addEventListener('dash:closed', () => { api.renderServices(api.getServices(), api.getView('services')); api.renderToolkit(api.getToolkit(), api.getView('toolkit')); });   // end preview
-  window.ownKit = { makeStore, editDialog, toPhoto, thumb, ctl, toggle, uid, clone, move };   // shared with owner-phase1.js
+  window.ownKit = { makeStore, editDialog, toIcon, toPhoto, thumb, ctl, toggle, uid, clone, move };   // shared with owner-phase1.js
   /* ---------- TESTIMONIALS (needs scripts/testimonials.js) ---------- */
   const tapi = window.testiApi;
   if (tapi) {

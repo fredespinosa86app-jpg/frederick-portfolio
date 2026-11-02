@@ -298,3 +298,8 @@ dialog.vplayer{width:min(960px,96vw);background:#0b1020;border-radius:16px;overf
 .slot[aria-pressed="true"]{background:var(--gold);border-color:var(--gold);color:var(--onacc,#fff)}.slot[aria-pressed="true"] small{color:inherit}
 /* Phase 3: privacy dialog */
 .pdlg{max-width:min(520px,calc(100vw - 32px));border:0;border-radius:14px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.35)}.pdlg::backdrop{background:rgba(7,12,24,.6)}.pdlg h2{margin-top:0}.pdlg p{line-height:1.55}.pdlg .tog{display:flex;gap:8px;align-items:center}
+/* Phase 5: chatbot identity, locked input, hidden states */
+.chat-btn[hidden],.chat[hidden]{display:none!important}
+.chat-btn.has-av{padding:0;overflow:hidden;background:#fff}.chat-btn.has-av img{width:100%;height:100%;object-fit:cover;border-radius:50%;display:block}
+.chat-h{gap:10px}.chat-h>div{flex:1;min-width:0}.chat-av{width:40px;height:40px;border-radius:50%;object-fit:cover;flex:none;background:#fff}
+.chat input:disabled{opacity:.6;background:#eceff5;cursor:not-allowed}.chat form.busy button[type=submit]{opacity:.55;cursor:not-allowed}
