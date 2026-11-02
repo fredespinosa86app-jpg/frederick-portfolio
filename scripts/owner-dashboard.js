@@ -336,4 +336,5 @@
     else { stop(); if (!dash.hidden) closeDash(); }
   });
   renderAll();
+  const ddClose = document.getElementById('ddClose'); if (ddClose) ddClose.addEventListener('click', () => document.getElementById('dDetail').close());
 })();

@@ -34,11 +34,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=DM+Sans:wght@400;500;600&family=Playfair+Display:wght@500;600&family=Lora:wght@500;600&family=Inter:wght@400;500;600&family=Poppins:wght@400;500;600&family=Orbitron:wght@500;700&family=Quicksand:wght@400;500;600&display=swap" rel="stylesheet">
 <script>try{if(localStorage.getItem('portfolio-dark')==='1')document.documentElement.setAttribute('data-theme','dark')}catch(e){}</script>
-<link rel="stylesheet" href="styles/main.css?v=p6">
-<link rel="stylesheet" href="styles/components.css?v=p6">
-<link rel="stylesheet" href="styles/owner.css?v=p6">
-<link rel="stylesheet" href="styles/themes.css?v=p6">
-<link rel="stylesheet" href="styles/responsive.css?v=p6">
+<link rel="stylesheet" href="styles/main.css?v=p8">
+<link rel="stylesheet" href="styles/components.css?v=p8">
+<link rel="stylesheet" href="styles/owner.css?v=p8">
+<link rel="stylesheet" href="styles/themes.css?v=p8">
+<link rel="stylesheet" href="styles/responsive.css?v=p8">
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -73,6 +73,7 @@
 <p class="intro">I help Amazon sellers identify profitable product opportunities through data-driven product research and online arbitrage analysis. Using SellerAmp SAS and Keepa, I assess pricing, sales performance, competition, and potential ROI — so every sourcing decision is backed by numbers, not guesswork.</p>
 <p class="intro intro2">My goal is to help you maximize profits and minimize risk in your Amazon business.</p>
 <div class="cta"><a class="btn gold hire-cta" href="#schedule">Hire Me</a><a class="btn ghost" href="#services">View My Services</a></div>
+<p class="capmsg" id="capMsg" role="status" hidden></p>
 <ul class="icons light" aria-label="Contact and social links" data-contacts></ul>
 </div>
 <div class="photo"><img id="heroPhoto" src="assets/images/hero/hero-portrait.webp" width="432" height="578" fetchpriority="high" alt="Portrait of Frederick Espinosa in a dark blazer"></div>
@@ -455,7 +456,7 @@
 <label class="fld">Hero layout<select id="heroLay"><option value="text-left">Text on the left, image on the right</option><option value="image-left">Image on the left, text on the right</option></select></label>
 <button type="button" class="dbtn primary" id="heroSave">Save hero settings</button><button type="button" class="dbtn" id="heroReset">Reset hero to default</button></div></div>
 <div class="dcard"><h2>Hero photo</h2><p class="dhelp">Replaces the portrait in the hero. The default portrait is never shown together with your photo. Choose a file to preview it in the hero behind this panel, then save to publish it.</p><div class="ab">
-<div class="hp-prev"><img id="hpPrev" alt="Hero photo preview" width="432" height="578"></div>
+<div class="hp-prev"><img id="hpPrev" loading="lazy" alt="Hero photo preview" width="432" height="578"></div>
 <small class="cnt" id="hpState" role="status">Showing the saved hero photo.</small>
 <label class="fld"><span>Choose a photo (PNG, JPG or WebP)</span><input type="file" id="hpFile" accept="image/png,image/jpeg,image/webp"></label>
 <div class="dact-row"><button type="button" class="dbtn primary" id="hpSave" disabled>Save hero photo</button><button type="button" class="dbtn" id="hpCancel" disabled>Cancel preview</button><button type="button" class="dbtn" id="hpRestore">Restore original portrait</button></div></div></div>
@@ -506,6 +507,14 @@
 <div class="dcard"><h2>Client capacity</h2><p class="dhelp">Private. Visitors never see these numbers. Active clients are counted from the Clients page.</p>
 <div class="dstats" id="bkStats"></div>
 <label class="fld">Maximum number of clients<input type="number" id="bkCap" min="0" max="500" step="1" inputmode="numeric"></label></div>
+<div class="dcard" id="capCard"><h2>When you are at full capacity</h2>
+<p class="dhelp">Your maximum is set above and active clients are counted from the Clients page (status Active only). When active clients reach the maximum, the Hire Me buttons and Contact section disappear, the meeting form closes, and the database refuses new inquiries. Inactive, completed and archived clients do not count. A maximum of 0 means no limit.</p>
+<div class="dstats" id="capStats"></div>
+<label class="tog"><input type="checkbox" id="capEnforce" checked> Hide Hire Me and Contact automatically when I reach my maximum</label>
+<label class="tog"><input type="checkbox" id="capMsgOn"> Show an availability message on the site while I am full</label>
+<label class="fld">Availability message<input type="text" id="capMsg2" maxlength="160" autocomplete="off"></label>
+<div class="dact-row"><button type="button" class="dbtn primary" id="capSave" disabled>Save</button><button type="button" class="dbtn" id="capDiscard" disabled>Discard changes</button></div>
+<p class="dhelp" id="capState" role="status"></p></div>
 <div class="dcard"><h2>Rates</h2><p class="dhelp">Rates are private unless you tick the box next to one. Only ticked rates are published for visitors.</p>
 <div class="ab"><label class="fld">Currency<input type="text" id="bkCur" maxlength="5" autocomplete="off" placeholder="USD"></label>
 <label class="fld">Hourly rate<input type="number" id="bkHr" min="0" step="any" inputmode="decimal"></label>
@@ -595,7 +604,7 @@
 <strong class="ah">Google search result</strong>
 <div class="seo-g" aria-label="Search result preview"><span class="seo-gu" id="pvGu"></span><span class="seo-gt" id="pvGt"></span><span class="seo-gd" id="pvGd"></span></div>
 <strong class="ah">Social share card</strong>
-<div class="seo-s" aria-label="Social share preview"><div class="seo-si"><img id="pvSi" alt="Social sharing image preview" width="1200" height="630"></div><div class="seo-sb"><span class="seo-sh" id="pvSh"></span><span class="seo-st" id="pvSt"></span><span class="seo-sd" id="pvSd"></span></div></div></div>
+<div class="seo-s" aria-label="Social share preview"><div class="seo-si"><img id="pvSi" loading="lazy" alt="Social sharing image preview" width="1200" height="630"></div><div class="seo-sb"><span class="seo-sh" id="pvSh"></span><span class="seo-st" id="pvSt"></span><span class="seo-sd" id="pvSd"></span></div></div></div>
 <div class="dcard"><h2>Share previews on social sites</h2><p class="dhelp">Facebook, LinkedIn and X read index.html directly and do not run JavaScript. To make a change show in shared links, copy these tags and replace the matching lines in the head of index.html, then upload the project again.</p><div class="ab">
 <textarea id="seoCode" rows="9" readonly aria-label="Head tags for index.html" spellcheck="false"></textarea>
 <button type="button" class="dbtn" id="seoCopy">Copy tags</button></div></div>
@@ -607,7 +616,7 @@
 </section>
 
 </div></div></div>
-<dialog class="dmodal" id="dDetail" aria-labelledby="ddT"><div><h2 id="ddT">Meeting request</h2><div id="ddBody"></div><div class="dact-row" id="ddActs"></div><div class="dact-row"><button type="button" class="dbtn" onclick="document.getElementById('dDetail').close()">Close</button></div></div></dialog>
+<dialog class="dmodal" id="dDetail" aria-labelledby="ddT"><div><h2 id="ddT">Meeting request</h2><div id="ddBody"></div><div class="dact-row" id="ddActs"></div><div class="dact-row"><button type="button" class="dbtn" id="ddClose">Close</button></div></div></dialog>
 <dialog class="dmodal" id="dConfirm" aria-labelledby="dcTitle"><div><h2 id="dcTitle"></h2><p id="dcMsg"></p><div class="dact-row"><button type="button" class="dbtn danger" id="dcOk">Delete</button><button type="button" class="dbtn" id="dcNo">Cancel</button></div></div></dialog>
 
 <button type="button" class="chat-btn" id="chatBtn" aria-label="Open Marcus - Assistant chat" aria-expanded="false" aria-controls="chat"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3h16a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H9l-5 4v-4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/></svg></button>
@@ -617,36 +626,38 @@
 <form id="chatForm" autocomplete="off"><input id="chatInput" type="text" placeholder="Type your question…" aria-label="Type your question" maxlength="200"><button type="submit">Send</button></form>
 </div>
 <dialog id="lb" aria-label="Enlarged image"><button type="button" id="close" aria-label="Close enlarged view">×</button><img alt="Enlarged view"></dialog>
-<script src="scripts/settings.js?v=p6"></script>
-<script src="scripts/contacts.js?v=p6"></script>
-<script src="scripts/content.js?v=p6"></script>
-<script src="scripts/testimonials.js?v=p6"></script>
-<script src="scripts/faq.js?v=p6"></script>
-<script src="scripts/videos.js?v=p6"></script>
-<script src="scripts/training.js?v=p6"></script>
-<script src="scripts/experience.js?v=p6"></script>
-<script src="scripts/section-bg.js?v=p6"></script>
-<script src="scripts/hero-photo.js?v=p6"></script>
-<script src="scripts/main.js?v=p6"></script>
-<script src="scripts/chat-engine.js?v=p6"></script>
-<script src="scripts/chatbot.js?v=p6"></script>
-<script src="scripts/video-section.js?v=p6"></script>
-<script src="scripts/theme-switcher.js?v=p6"></script>
-<script src="scripts/seo.js?v=p6"></script>
-<script src="scripts/site-settings.js?v=p6"></script>
-<script src="scripts/availability.js?v=p6"></script>
-<script src="scripts/service-forms.js?v=p6"></script>
-<script src="scripts/meeting-form.js?v=p6"></script>
-<script src="scripts/owner-ui.js?v=p6"></script>
-<script src="scripts/owner-dashboard.js?v=p6"></script>
-<script src="scripts/owner-content.js?v=p6"></script>
-<script src="scripts/owner-phase1.js?v=p6"></script>
-<script src="scripts/owner-phase2.js?v=p6"></script>
-<script src="scripts/analytics.js?v=p6"></script>
-<script src="scripts/owner-phase3.js?v=p6"></script>
-<script src="scripts/owner-phase5.js?v=p6"></script>
-<script src="scripts/owner-phase6.js?v=p6"></script>
-<script src="scripts/owner-seo.js?v=p6"></script>
-<script type="module" src="scripts/owner-panel.js?v=p6"></script>
+<script src="scripts/settings.js?v=p8"></script>
+<script src="scripts/contacts.js?v=p8"></script>
+<script src="scripts/content.js?v=p8"></script>
+<script src="scripts/testimonials.js?v=p8"></script>
+<script src="scripts/faq.js?v=p8"></script>
+<script src="scripts/videos.js?v=p8"></script>
+<script src="scripts/training.js?v=p8"></script>
+<script src="scripts/experience.js?v=p8"></script>
+<script src="scripts/section-bg.js?v=p8"></script>
+<script src="scripts/hero-photo.js?v=p8"></script>
+<script src="scripts/main.js?v=p8"></script>
+<script src="scripts/chat-engine.js?v=p8"></script>
+<script src="scripts/chatbot.js?v=p8"></script>
+<script src="scripts/video-section.js?v=p8"></script>
+<script src="scripts/theme-switcher.js?v=p8"></script>
+<script src="scripts/seo.js?v=p8"></script>
+<script src="scripts/site-settings.js?v=p8"></script>
+<script src="scripts/availability.js?v=p8"></script>
+<script src="scripts/capacity.js?v=p8"></script>
+<script src="scripts/service-forms.js?v=p8"></script>
+<script src="scripts/meeting-form.js?v=p8"></script>
+<script src="scripts/owner-ui.js?v=p8"></script>
+<script src="scripts/owner-dashboard.js?v=p8"></script>
+<script src="scripts/owner-content.js?v=p8"></script>
+<script src="scripts/owner-phase1.js?v=p8"></script>
+<script src="scripts/owner-phase2.js?v=p8"></script>
+<script src="scripts/analytics.js?v=p8"></script>
+<script src="scripts/owner-phase3.js?v=p8"></script>
+<script src="scripts/owner-phase5.js?v=p8"></script>
+<script src="scripts/owner-phase6.js?v=p8"></script>
+<script src="scripts/owner-phase7.js?v=p8"></script>
+<script src="scripts/owner-seo.js?v=p8"></script>
+<script type="module" src="scripts/owner-panel.js?v=p8"></script>
 </body>
 </html>

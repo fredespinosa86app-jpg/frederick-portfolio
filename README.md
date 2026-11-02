@@ -89,6 +89,11 @@ service cloud.firestore {
       let ref = /databases/$(database)/documents/content/busy;
       return !exists(ref) || !((request.resource.data.date + 'T' + request.resource.data.time) in get(ref).data.get('keys', []));
     }
+    // Phase 7: true unless the owner panel has marked the business as full (content/capacity.open == false).
+    function capOpen() {
+      let cap = /databases/$(database)/documents/content/capacity;
+      return !exists(cap) || get(cap).data.get('open', true) != false;
+    }
     match /settings/site { allow read: if true; allow write: if isOwner(); }
     match /meetingRequests/{id} {
       allow create: if request.resource.data.keys().hasOnly(['name','email','company','date','time','tz','platform','message','status','createdAt','service','formId','formName','answers'])
@@ -101,12 +106,13 @@ service cloud.firestore {
         && request.resource.data.date is string && request.resource.data.date.size() <= 20
         && request.resource.data.time is string && request.resource.data.time.size() <= 20
         && request.resource.data.tz is string && request.resource.data.tz.size() <= 60
-        && (!('service' in request.resource.data) || (request.resource.data.service is string && request.resource.data.service.size() <= 60))
-        && (!('formId' in request.resource.data) || (request.resource.data.formId is string && request.resource.data.formId.size() <= 40))
-        && (!('formName' in request.resource.data) || (request.resource.data.formName is string && request.resource.data.formName.size() <= 100))
-        && (!('answers' in request.resource.data) || (request.resource.data.answers is string && request.resource.data.answers.size() <= 4000))
+        && (request.resource.data.get('service', '') is string && request.resource.data.get('service', '').size() <= 60)
+        && (request.resource.data.get('formId', '') is string && request.resource.data.get('formId', '').size() <= 40)
+        && (request.resource.data.get('formName', '') is string && request.resource.data.get('formName', '').size() <= 100)
+        && (request.resource.data.get('answers', '') is string && request.resource.data.get('answers', '').size() <= 4000)
         && request.resource.data.status == 'new'
         && request.resource.data.createdAt == request.time
+        && capOpen()
         && slotFree();
       allow read, update, delete: if isOwner();
     }
@@ -194,3 +200,42 @@ No Firestore rule change is needed (new documents live under `content/{doc}`: pu
 - **Service forms**: Owner Panel > Service forms. Data lives in `content/serviceForms` {enabled, services[], forms[]} (questions only, public read like the other content documents). The master switch is OFF by default; while off, the meeting request form is exactly the old one.
 - **Submissions**: the normal request fields plus `service`, `formId`, `formName` and `answers` (JSON text of question/answer pairs, up to 4,000 characters). The question text is copied into every submission, so editing, deactivating or deleting a form never changes old inquiries. They appear in Owner Panel > Inbox with the service shown and the answers in the detail view; only the owner can read them.
 - **Not included**: the File Upload field, because Firebase Storage needs a paid plan. Spam protection is the existing honeypot, 60-second throttle and size-limited rules; a hard rate limit needs App Check or a server.
+
+
+## Phase 7 - Capacity-based Hire Me and Contact visibility
+
+* **Where:** Owner Panel > Availability, rates & capacity. Set your maximum under *Client capacity*, then use the new *When you are at full capacity* card.
+* **How it counts:** only clients with status **Active** on the Clients page. Inactive, completed and archived clients are ignored. The count is never typed in by hand.
+* **When active clients reach the maximum:** the Hire Me buttons, the Contact section and its menu link are hidden, `#schedule` cannot be opened (a direct link goes back to the home page), the chatbot stops suggesting a meeting, and the database refuses new inquiries.
+* **Maximum 0 means no limit.** Nothing is hidden until you set a maximum of 1 or more.
+* **Optional message:** tick *Show an availability message* to show your text (default: "Currently at full client capacity. Please check back later for availability.") under the home banner while you are full. It is off by default.
+* **Nothing is deleted:** contact settings, service forms and past inquiries are kept.
+* **Firestore rules:** republish `firestore.rules` (it gained a `capOpen()` check) so the block also works on the server.
+* **Good to know:** the public flag lives in `content/capacity` (`open`, plus your message settings; the numbers stay private). It is refreshed by the owner panel whenever clients, your maximum or the switch change, and all of those only change inside the panel. Footer and social contact icons are not part of the Contact section and stay visible.
+
+## Phase 8 - Final review, setup checklist and known limits
+
+### One-time setup checklist (in this order)
+1. **Publish `firestore.rules`** (Firebase Console > Firestore Database > Rules > paste the whole file > Publish). Do this before enabling Service forms or the capacity switch.
+2. **Authorised domains** (Firebase Console > Authentication > Settings): add `fredespinosa86app-jpg.github.io` and your custom domain, if any.
+3. **Restrict the Firebase web API key** (Google Cloud Console > APIs & Services > Credentials): limit it to HTTP referrers `https://fredespinosa86app-jpg.github.io/*` (and your custom domain). The key in `scripts/settings.js` is public by design, but restricting it stops reuse elsewhere.
+4. **Sign in once** as the owner, then open *Availability, rates & capacity* so the public capacity flag is created.
+5. **Marcus webhook** (optional): deploy `server/chat-proxy-worker.js` on Cloudflare (free) and paste the Worker address instead of the n8n/Make address. Replace any webhook URL that was saved before Phase 5.
+6. **GitHub Pages**: push the folder contents to the repository root (the branch Pages serves). Browsers pick up new files because every script/style link has a version tag (`?v=p8`); change it when you edit a file.
+
+### What was reviewed in Phase 8
+* **Files:** every local file, image, script, style, anchor and element id referenced by the page exists; no unreferenced assets; every image has alt text; no inline event handlers or `javascript:` links; external links use `rel="noopener"`.
+* **Accessibility:** automated WCAG 2 AA scan (axe-core) of all 10 themes, the meeting page and all 26 owner pages reports 0 violations. Fixes this phase: low text contrast in Classic, Girly and Netflix, disabled-row contrast in the owner lists, and the calendar's ARIA role.
+* **Responsive:** no horizontal scrolling from 320 px to 1920 px on the home page, the meeting page and every owner page. Fixed this phase at 320 px: the calendar grid and the long e-mail address in the Contact panel.
+* **Database rules:** every collection the code touches has a rule; there is no catch-all rule; visitors can only *create* (never read, change or delete) meeting requests, unanswered chat questions and visit records, each with a strict field list and size limits; everything private is owner-only (verified Google e-mail).
+* **Webhook:** the saved address must start with `https://` (checked when saving and again when used); replies are shown as plain text; the Worker proxy in `server/` hides the real address.
+* **Secrets:** no private keys, tokens or webhook addresses are in any shipped file. Only the public Firebase web config is present.
+
+### Known limits (free Firebase plan)
+* **Reads:** each page view opens 16 live listeners, so roughly 16 reads and 1 write per visit. The free plan allows 50,000 reads and 20,000 writes per day, which is about 3,000 visits per day before reads run out. Heavy traffic needs the Blaze plan or a caching layer.
+* **Spam protection:** the honeypot, the one-request-per-minute limit and the field limits slow abuse, but a determined script can still create requests. A hard server-side limit needs App Check or Cloud Functions (paid).
+* **Capacity flag:** refreshed by the owner panel while you are signed in (all inputs change only there).
+* **Gmail, Drive and file-upload questions:** not available without the paid plan.
+* **Browsers tested:** Chromium only (desktop and mobile sizes). Firefox and Safari could not be run in the test environment, so they are untested; the code uses only standard CSS and JavaScript, but please open the site once in each and report anything odd.
+* **Owner panel code is loaded for every visitor** (about 45 KB gzipped). Splitting it needs a build step, so it was left alone to protect stability.
+* **Content-Security-Policy and Subresource Integrity** are not set. GitHub Pages cannot send headers; a `<meta>` policy is possible but needs separate testing and your approval.

@@ -11,6 +11,11 @@ service cloud.firestore {
       let ref = /databases/$(database)/documents/content/busy;
       return !exists(ref) || !((request.resource.data.date + 'T' + request.resource.data.time) in get(ref).data.get('keys', []));
     }
+    // Phase 7: true unless the owner panel has marked the business as full (content/capacity.open == false).
+    function capOpen() {
+      let cap = /databases/$(database)/documents/content/capacity;
+      return !exists(cap) || get(cap).data.get('open', true) != false;
+    }
     match /settings/site { allow read: if true; allow write: if isOwner(); }
     match /meetingRequests/{id} {
       allow create: if request.resource.data.keys().hasOnly(['name','email','company','date','time','tz','platform','message','status','createdAt','service','formId','formName','answers'])
@@ -29,6 +34,7 @@ service cloud.firestore {
         && (request.resource.data.get('answers', '') is string && request.resource.data.get('answers', '').size() <= 4000)
         && request.resource.data.status == 'new'
         && request.resource.data.createdAt == request.time
+        && capOpen()
         && slotFree();
       allow read, update, delete: if isOwner();
     }

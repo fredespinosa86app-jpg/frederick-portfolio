@@ -33,7 +33,7 @@ prev.type=next.type='button';prev.setAttribute('aria-label','Previous month');ne
 prev.disabled=view<=t.slice(0,7)+'-01';const nv=A.addDays(view,32).slice(0,7)+'-01';next.disabled=nv>lastDay().slice(0,7)+'-01';
 prev.addEventListener('click',()=>{view=A.addDays(view,-1).slice(0,7)+'-01';drawCal()});next.addEventListener('click',()=>{view=nv;drawCal()});
 head.append(prev,node('strong','',MON[m-1]+' '+y),next);cal.appendChild(head);
-const grid=node('div','cal-g');grid.setAttribute('role','grid');['Su','Mo','Tu','We','Th','Fr','Sa'].forEach((d,i)=>{const h=node('span','cal-d',d);h.title=A.DAYS[i];grid.appendChild(h)});
+const grid=node('div','cal-g');grid.setAttribute('role','group');grid.setAttribute('aria-label','Choose a date');['Su','Mo','Tu','We','Th','Fr','Sa'].forEach((d,i)=>{const h=node('span','cal-d',d);h.title=A.DAYS[i];grid.appendChild(h)});
 for(let i=0;i<A.dowOf(view);i++)grid.appendChild(node('span','cal-e'));
 const n=new Date(Date.UTC(y,m,0)).getUTCDate();
 for(let d=1;d<=n;d++){const ds=y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0'),i=dayInfo(ds),b=node('button','cal-b',String(d));b.type='button';b.disabled=!i.ok;
@@ -61,6 +61,7 @@ svcSel.replaceChildren(Object.assign(document.createElement('option'),{value:'',
 svcSel.value=st.services.some(s=>s.id===keep)?keep:'';drawService()}
 if(SF){svcSel.addEventListener('change',drawService);SF.onChange(syncService);syncService()}
 mf.addEventListener('submit',async e=>{e.preventDefault();const st=document.getElementById('mStatus'),b=document.getElementById('mBtn'),f=n=>mf.elements[n].value.trim();st.className='';st.textContent='';
+if(window.capacityApi&&!window.capacityApi.open()){st.className='err';st.textContent='Frederick is currently at full client capacity and is not accepting new requests.';return}
 if(f('website'))return;
 const d={name:f('name'),email:f('email'),company:f('company'),date:f('date'),time:f('time'),tz:window.availApi.cfg().tz,platform:f('platform'),message:f('message')};
 if(!d.name||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.email)||!d.message){st.className='err';st.textContent='Please complete all required fields with a valid email address.';return}
@@ -80,7 +81,7 @@ try{localStorage.setItem('lastReq',Date.now())}catch(x){}
 st.textContent='';mf.reset();pick.reset();syncService();mf.hidden=true;document.getElementById('mDone').hidden=false}
 catch(x){st.className='err';st.textContent='Sorry, your request could not be sent. The time may have just been taken, or the connection failed.';const em=window.contactsApi&&window.contactsApi.get('email');if(em){const a=document.createElement('a');a.href=em.href+'?subject=Meeting%20request';a.textContent=em.value;st.append(' Please email ',a,' instead.')}}
 b.disabled=false});
-function route(){const s=location.hash==='#schedule';document.getElementById('page').hidden=s;document.getElementById('schedule').hidden=!s;
+function route(){if(location.hash==='#schedule'&&window.capacityApi&&!window.capacityApi.open())history.replaceState(null,'',location.pathname+location.search+'#home');const s=location.hash==='#schedule';document.getElementById('page').hidden=s;document.getElementById('schedule').hidden=!s;
 if(s){mf.hidden=false;document.getElementById('mDone').hidden=true;window.scrollTo(0,0);document.title='Schedule a Meeting · Frederick Espinosa'}
 else{document.title=ORIG;if(location.hash.length>1){const t=document.getElementById(location.hash.slice(1));if(t)t.scrollIntoView()}}}
 addEventListener('hashchange',route);route();

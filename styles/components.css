@@ -306,3 +306,7 @@ dialog.vplayer{width:min(960px,96vw);background:#0b1020;border-radius:16px;overf
 /* Phase 6: service-specific questions */
 .mform .svcq{border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin:0;min-width:0;display:grid;gap:12px}.svcq legend{font-weight:600;color:var(--navy);padding:0 6px}
 .sfq{display:grid;gap:6px;margin:0 0 6px;padding:0;border:0;min-width:0}.sfq .sfl{font-weight:600;font-size:15px;color:var(--navy);padding:0}.sfopts{display:grid;gap:6px}.sfo{display:flex!important;align-items:center;gap:8px;font-weight:400!important;color:var(--ink)!important}.sfo input{width:auto!important}
+
+/* Phase 7: optional full-capacity message */
+.capmsg{margin:14px 0 0;padding:10px 14px;border-radius:10px;background:var(--paper);border:1px solid var(--line);color:var(--ink);font-weight:600;max-width:34em}
+.capmsg[hidden]{display:none}

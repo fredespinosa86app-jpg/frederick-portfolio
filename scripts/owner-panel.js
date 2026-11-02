@@ -13,7 +13,7 @@ const {getFirestore,doc,onSnapshot,setDoc,collection,addDoc,serverTimestamp,quer
 const app=initializeApp(FIREBASE_CONFIG),auth=getAuth(app),ref=doc(getFirestore(app),'settings','site');
 const $=id=>document.getElementById(id),hire=document.querySelectorAll('.hire-cta'),login=$('ownerLogin'),cb=$('hireToggle'),hookUrl=$('hookUrl'),hookOn=$('hookOn'),introOn=$('introOn'),introUrl=$('introUrl');
 login.hidden=false;
-onSnapshot(ref,s=>{const d=s.exists()?s.data():{};const on=d.hireEnabled!==false;hire.forEach(e=>e.hidden=!on);cb.checked=on;window.chatHook=d.chatAuto&&d.chatWebhook?d.chatWebhook:'';hookUrl.value=d.chatWebhook||'';hookOn.checked=!!d.chatAuto;const iu=d.introUrl||window.DEF_INTRO,ie=d.introEnabled!==false;introOn.checked=ie;introUrl.value=iu;window.setIntro(iu,ie);window.applySite(d)},()=>{});
+onSnapshot(ref,s=>{const d=s.exists()?s.data():{};const on=d.hireEnabled!==false;if(window.capacityApi)window.capacityApi.setHire(on);else hire.forEach(e=>e.hidden=!on);cb.checked=on;window.chatHook=d.chatAuto&&/^https:\/\//i.test(d.chatWebhook||'')?d.chatWebhook:'';hookUrl.value=d.chatWebhook||'';hookOn.checked=!!d.chatAuto;const iu=d.introUrl||window.DEF_INTRO,ie=d.introEnabled!==false;introOn.checked=ie;introUrl.value=iu;window.setIntro(iu,ie);window.applySite(d)},()=>{});
 window.__ownerLoginReady=true;
 const authMsg=e=>{const c=(e&&e.code)||'';
 if(c==='auth/unauthorized-domain')return 'Sign-in is blocked because "'+location.hostname+'" is not an authorized domain. In Firebase open Authentication > Settings > Authorized domains and add it.';
@@ -64,6 +64,7 @@ onSnapshot(doc(rdb,'content','faq'),s=>{if(s.exists()&&Array.isArray(s.data().it
 onSnapshot(doc(rdb,'content','heroPhoto'),s=>{if(window.heroPhotoApi)window.heroPhotoApi.setDoc(s.exists()?s.data():null)},()=>{});
 onSnapshot(doc(rdb,'content','experience'),s=>{if(window.experienceApi)window.experienceApi.set(s.exists()?s.data():null)},()=>{});
 onSnapshot(doc(rdb,'content','serviceForms'),s=>{if(window.serviceFormsApi)window.serviceFormsApi.set(s.exists()?s.data():null)},()=>{});
+onSnapshot(doc(rdb,'content','capacity'),s=>{if(window.capacityApi)window.capacityApi.set(s.exists()?s.data():null)},()=>{});
 onSnapshot(doc(rdb,'content','chatbot'),s=>{if(window.chatEngine)window.chatEngine.setIdentity(s.exists()?s.data():null)},()=>{});
 onSnapshot(doc(rdb,'content','chatKb'),s=>{if(window.chatEngine)window.chatEngine.setKb(s.exists()?s.data():null)},()=>{});
 onSnapshot(doc(rdb,'content','availability'),s=>{if(window.availApi)window.availApi.setCfg(s.exists()?s.data():null)},()=>{});

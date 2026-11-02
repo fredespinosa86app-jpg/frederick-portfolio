@@ -51,7 +51,7 @@
   --hero:linear-gradient(135deg,#050a14,#0b2a47); --serif:Orbitron,sans-serif; --sans:Inter,system-ui,sans-serif;
 }
 [data-theme="girly"] {
-  --cream:#fff5f8; --paper:#fff; --alt:#ffeaf1; --ink:#5b3a4a; --muted:#8a6677; --navy:#b02a63;
+  --cream:#fff5f8; --paper:#fff; --alt:#ffeaf1; --ink:#5b3a4a; --muted:#7a5568; --navy:#b02a63;
   --gold:#d6336c; --role:#b02a63; --line:#f6d0de; --deep:#d6336c; --hov:#ffe0eb; --field:#fff;
   --tag:#ffd9e6; --tagc:#8f1d4b; --onacc:#fff; --hero:linear-gradient(135deg,#ffd6e5,#ffeef4);
   --serif:"Playfair Display",Georgia,serif; --sans:Quicksand,system-ui,sans-serif;
@@ -108,3 +108,9 @@ body.fx-glow :is(.tool,.tcard,.side,.frame,.mform):hover{box-shadow:0 0 0 1px va
 body.fx-glow .hero h1{text-shadow:0 0 26px color-mix(in srgb,var(--gold) 45%,transparent)}
 body.fx-glass{background-image:radial-gradient(circle at 12% 8%,color-mix(in srgb,var(--gold) 24%,transparent),transparent 42%),radial-gradient(circle at 88% 55%,color-mix(in srgb,var(--navy) 16%,transparent),transparent 46%);background-attachment:fixed}
 body.fx-glass :is(.tool,.tcard,.side,.frame,.mform,.done){background:color-mix(in srgb,var(--paper) 58%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-color:color-mix(in srgb,var(--gold) 28%,var(--line))}
+
+/* Phase 8: contrast fixes (WCAG AA) */
+[data-theme="classic"] .tcat-more{color:#8a5f12}
+[data-theme="netflix"] .alt-mail,[data-theme="girly"] .alt-mail{color:#fff}
+[data-theme="classic"] .steps b{color:#9a6a18}
+[data-theme="girly"] .panel.on-dark p{color:#fff}

@@ -4,7 +4,9 @@
 const bt=document.getElementById('chatBtn'),cp=document.getElementById('chat'),ms=document.getElementById('msgs'),ci=document.getElementById('chatInput'),cf=document.getElementById('chatForm'),E=window.chatEngine;
 const sendBtn=cf.querySelector('button[type=submit]');
 const MAIL='mailto:frederickespinosa.onlinejob@gmail.com?subject=Hiring%20inquiry';
-const HIRE=`You can <a href="#schedule">request a meeting</a>, <a href="${MAIL}" target="_blank" rel="noopener">email Frederick</a>, message him on <a href="https://wa.me/639052912208" target="_blank" rel="noopener noreferrer">WhatsApp</a>, or use the LinkedIn, OnlineJobs.ph and Upwork icons on this page.`;
+const HIRE_OPEN=`You can <a href="#schedule">request a meeting</a>, <a href="${MAIL}" target="_blank" rel="noopener">email Frederick</a>, message him on <a href="https://wa.me/639052912208" target="_blank" rel="noopener noreferrer">WhatsApp</a>, or use the LinkedIn, OnlineJobs.ph and Upwork icons on this page.`;
+const HIRE_FULL='Frederick is currently at full client capacity and is not taking new inquiries. Please check back later for availability.';
+const hire=()=>window.capacityApi&&!window.capacityApi.open()?HIRE_FULL:HIRE_OPEN;
 const KB=[
 {k:['fba','fbm','fulfill'],a:`Frederick’s hands-on training focused on FBA product research, and he only has theoretical knowledge of FBM. FBA is where his practical experience is.`},
 {k:['secure','secured','security','safe','privacy','confidential','my information','my data','personal info'],a:`Details you send through the meeting request form travel over an encrypted (HTTPS) connection and are stored in a private database that only Frederick’s verified Google account can read. They are used only to reply to your request. The built-in chat doesn’t save your messages, but if Frederick’s AI automation is switched on, your chat messages are sent to that workflow to generate replies. Please don’t share passwords, payment details or other sensitive information here.`},
@@ -22,11 +24,11 @@ const KB=[
 {k:['communicat','slack','asana','discord','update'],a:`He works through Slack, Asana, Discord or email, whichever you prefer, and shares a status update before you have to ask.`},
 {k:['where','location','based','philippines','bulacan','plaridel'],a:`Frederick is based in Plaridel, Bulacan, Philippines.`},
 {k:[' rate',' price','pricing','how much','charge',' fee','quote','hourly','per hour','budget',' cost'],get a(){const r=window.availApi&&window.availApi.rates(),b=[];if(r&&r.hourly!=null)b.push(`${r.currency} ${r.hourly} per hour`);if(r&&r.monthly!=null)b.push(`${r.currency} ${r.monthly} per month`);
-return b.length?`Frederick’s rates are ${b.join(' or ')}, depending on the arrangement. The final rate depends on the service. ${HIRE}`:`Rates depend on the service. Online arbitrage product research starts at $3/hour. For automation-related services, the rate depends on the needs of the job. ${HIRE}`}},
+return b.length?`Frederick’s rates are ${b.join(' or ')}, depending on the arrangement. The final rate depends on the service. ${hire()}`:`Rates depend on the service. Online arbitrage product research starts at $3/hour. For automation-related services, the rate depends on the needs of the job. ${hire()}`}},
 {k:['available','availability','what time','schedule','working hours','hours','time zone','timezone','monday','saturday','when can'],get a(){return `Frederick is available ${window.availApi?window.availApi.sentence():'Monday to Saturday, 8:00 AM to 9:00 PM Philippine time (PHT, UTC+8)'}. To book a time, <a href="#schedule">request a meeting</a>.`}},
-{k:['hire','meeting','contact','email','whatsapp','reach','message','linkedin','upwork','onlinejobs','book','work with'],a:HIRE}
+{k:['hire','meeting','contact','email','whatsapp','reach','message','linkedin','upwork','onlinejobs','book','work with'],get a(){return hire()}}
 ];
-const FALLBACK=`I’m not sure about that one. I can answer questions about his services, tools, criteria, training and FBA experience. For anything else, ${HIRE}`;
+const FALLBACK=`I’m not sure about that one. I can answer questions about his services, tools, criteria, training and FBA experience. For anything else, ${hire()}`;
 const IDLE_MSG='Is there anything else I can help you with? Are you still there?';
 const WARN_MSG='Please keep the conversation respectful. I’m here to help with your questions.';
 const REFUSE_MSG='I can’t help with that. I can answer questions about Frederick’s services, tools, training and how to hire him.';
@@ -47,7 +49,7 @@ html=em?html.replace(/mailto:[^"?]*/g,em.href):html.replace(/<a href="mailto:[^"
 html=wa?html.replace(/https:\/\/wa\.me\/\d+/g,wa.href):html.replace(/message him on <a href="https:\/\/wa\.me[^"]*"[^>]*>WhatsApp<\/a>, /g,'');return html}
 /* built-in keyword knowledge (used after the owner's knowledge base, and when the webhook is off or fails) */
 function answer(q){lastFallback=false;const s=' '+q.toLowerCase()+' ';
-if(/\b(thanks|thank you)\b/.test(s))return `You’re welcome! ${HIRE}`;
+if(/\b(thanks|thank you)\b/.test(s))return `You’re welcome! ${hire()}`;
 let best=null,top=0;for(const e of KB.concat(window.__chatExtra||[])){let n=0;for(const k of e.k)if(s.includes(k))n+=k.length>=12?2:1;if(n>top){top=n;best=e}}
 lastFallback=!best;return best?best.a:FALLBACK}
 const SID=Math.random().toString(36).slice(2),HIST=[];

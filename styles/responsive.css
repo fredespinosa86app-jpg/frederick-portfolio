@@ -36,3 +36,9 @@ section{padding:64px 0}}
 @media(max-width:620px){.tcat-grid{grid-template-columns:1fr}.tpanel{padding:2px 16px 22px}.svc.view-compact .row,.kit.view-compact .row{grid-template-columns:1fr;gap:6px}.vgrid.view-list .vcard{grid-template-columns:minmax(0,130px) minmax(0,1fr);gap:12px}.vp-box{padding:14px 12px 12px}}
 @media(prefers-reduced-motion:reduce){.tcat-more::after{transition:none}}
 @media(max-width:620px){.xlist{padding-left:18px}.xitem::before{left:-26px}.mform fieldset.pick{padding:14px 12px}.cal{max-width:none}}
+
+/* Phase 8: very small phones (320px) */
+.alt-mail,.alt-mail a{overflow-wrap:anywhere}
+.cal-g{grid-template-columns:repeat(7,minmax(0,1fr))}
+.cal-b{min-width:0}
+@media(max-width:380px){.mform{padding:14px}.mform fieldset.pick{padding:10px 8px}.cal-g{gap:3px}.cal-b{min-height:28px;border-radius:8px;padding:0;font-size:14px}}
