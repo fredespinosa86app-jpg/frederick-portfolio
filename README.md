@@ -43,6 +43,16 @@ Load order matters: `settings.js` first, `owner-panel.js` (type="module") last.
   Firestore `content/testimonials` (covered by the `content` rules above).
 - Testimonials saved earlier as "Quote | Name, role" text keep showing until you publish the new format.
 
+## Owner login troubleshooting
+1. **Run it from a web address**, not by double-clicking `index.html` (browsers block the Firebase module on `file://`).
+   Use the published site, or the VS Code *Live Server* extension.
+2. **Authorized domains:** Firebase Console > Authentication > Settings > Authorized domains must list the address you use:
+   your GitHub Pages domain, `localhost`, and (for Live Server) `127.0.0.1`. The sign-in message tells you the exact hostname.
+3. **Google sign-in enabled:** Authentication > Sign-in method > Google.
+4. **Replace the whole folder** (delete old files first) so old and new scripts are not mixed, then hard-refresh (Ctrl+Shift+R).
+5. Sign in with the owner Google account set in `scripts/settings.js` (`ownerEmail`).
+6. Open the browser console (F12) for the exact error.
+
 ## Themes
 - Visitors choose **Gold & Silver** (default), **Nature** or **Outer Space** in the header.
   The choice is saved in `localStorage` (`portfolio-theme`).
@@ -112,3 +122,17 @@ service cloud.firestore {
 }
 ```
 Add your site domain under Firebase Authentication > Settings > Authorized domains.
+
+## SEO (Phase 4)
+- Baseline tags (title, description, canonical, Open Graph, Twitter card, favicons, JSON-LD Person + WebSite) are in the `<head>` of `index.html`. Link-preview sites read these directly.
+- `robots.txt` and `sitemap.xml` point at `https://fredespinosa86app-jpg.github.io/frederick-portfolio/`. If you move to a custom domain, edit that address in `index.html`, `robots.txt` and `sitemap.xml`, and in Owner Panel > SEO & social preview.
+- Owner Panel > SEO & social preview edits title, description, keywords, social image path, canonical address and the "allow search engines" switch. Values are stored in `settings/site.seo` (no Firestore rule change needed). They apply for browsers and for crawlers that run JavaScript; use "Copy tags" and paste into `index.html` so Facebook, LinkedIn and X also pick them up.
+- Social image: 1200 x 630, stored at `assets/images/social/og-image.jpg`.
+- After deploying, submit the sitemap in Google Search Console.
+
+## Phase 1 (public portfolio) - new Firestore documents
+No rule change is needed: the existing `content/{doc}` rule (public read, owner write) covers them.
+- `content/training` {items[7]}, `content/videos` {view, items[<=20]}, `content/faq` {items[<=60]}, `content/heroPhoto` {photo}
+- `content/services` and `content/toolkit` gain a `view` field (`list` default, `grid`, `compact`).
+- `settings/site` gains `heroText2`, `heroLayout` (`text-left` | `image-left`) and `secBg` {sectionId: '#rrggbb'}.
+Older records without these fields keep working (safe defaults). Images are stored as small WebP data URLs (Firebase Storage needs a paid plan).

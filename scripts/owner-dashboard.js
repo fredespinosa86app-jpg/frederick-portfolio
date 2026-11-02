@@ -10,7 +10,7 @@
   const dash = $('dash'), openBtn = $('dashOpen');
   if (!dash || !openBtn) return;
 
-  const TITLES = { dashboard: 'Dashboard', inbox: 'Inbox: meeting requests', questions: 'Chatbot question history', marcus: 'Marcus configuration',
+  const TITLES = { seo: 'SEO & social preview', training: 'Training categories', videos: 'How I Work videos', faq: 'FAQ', secbg: 'Section backgrounds', dashboard: 'Dashboard', inbox: 'Inbox: meeting requests', questions: 'Chatbot question history', marcus: 'Marcus configuration',
     services: 'Services', toolkit: 'Toolkit', testimonials: 'Testimonials', video: 'Intro video', theme: 'Theme & effects', hero: 'Hero', social: 'Social media & contact', general: 'General settings' };
   const REQ_STATUS = { new: 'New', pending: 'Pending', confirmed: 'Confirmed', completed: 'Completed', cancelled: 'Cancelled' };
   const Q_STATUS = { new: 'New', reviewed: 'Reviewed', addressed: 'Addressed', archived: 'Archived' };
@@ -285,9 +285,18 @@
   /* ---------- events from other scripts ---------- */
   document.addEventListener('site:applied', () => { renderDashboard(); fillSocial(); });
   document.addEventListener('content:applied', renderDashboard);
+  const ownerLink = $('ownerLogin');
+  if (ownerLink) ownerLink.addEventListener('click', () => {
+    if (window.__ownerLoginReady) return;   // the Firebase module handles the click
+    const msg = location.protocol === 'file:'
+      ? 'Owner login needs a web address. Open the project through a local web server (for example the VS Code Live Server extension) or use your published site. Opening index.html straight from the folder blocks it.'
+      : (window.__ownerLoginError ? 'Owner login could not start: ' + window.__ownerLoginError : 'Owner login is still loading. Please try again in a moment.');
+    notify(msg, 'error');
+  });
   document.addEventListener('own:auth', e => {
     const ok = e.detail.ok;
     openBtn.hidden = !ok;
+    if (ok && window.__ownerJustSignedIn) { window.__ownerJustSignedIn = false; openDash(); notify('Signed in as owner.', 'success'); }
     if (ok) { $('adminEmail').textContent = e.detail.email; buildSocial(); start(); }
     else { stop(); if (!dash.hidden) closeDash(); }
   });

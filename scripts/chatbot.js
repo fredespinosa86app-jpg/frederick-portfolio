@@ -37,7 +37,7 @@ html=wa?html.replace(/https:\/\/wa\.me\/\d+/g,wa.href):html.replace(/message him
 function answer(q){lastFallback=false;const s=' '+q.toLowerCase()+' ';
 if(/^\s*(hi|hello|hey)\b/i.test(q))return WELCOME;
 if(/\b(thanks|thank you)\b/.test(s))return `You’re welcome! ${HIRE}`;
-let best=null,top=0;for(const e of KB){let n=0;for(const k of e.k)if(s.includes(k))n+=k.length>=12?2:1;if(n>top){top=n;best=e}}
+let best=null,top=0;for(const e of KB.concat(window.__chatExtra||[])){let n=0;for(const k of e.k)if(s.includes(k))n+=k.length>=12?2:1;if(n>top){top=n;best=e}}
 lastFallback=!best;return best?best.a:FALLBACK}
 const SID=Math.random().toString(36).slice(2),HIST=[];
 async function viaHook(q){const c=new AbortController(),t=setTimeout(()=>c.abort(),20000);

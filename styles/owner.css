@@ -21,7 +21,7 @@ body.dash-lock{overflow:hidden}
 .dash.collapsed .dlabel,.dash.collapsed .dnav h2,.dash.collapsed .dbrand span,.dash.collapsed .nbadge{display:none}
 .dmain{display:flex;flex-direction:column;min-width:0;min-height:0}
 .dtop{display:flex;align-items:center;gap:10px;padding:10px 20px;background:var(--d-card);border-bottom:1px solid var(--d-line)}
-.dtop h1{font-size:18px;flex:1;min-width:0}.dtop h1:focus{outline:none}
+.dtop h2{font-size:18px;flex:1;min-width:0}.dtop h2:focus{outline:none}
 .dicon{display:grid;place-items:center;width:44px;height:44px;border:1px solid var(--d-line);border-radius:10px;background:var(--d-card);color:var(--d-ink);cursor:pointer}
 #dMenu{display:none}
 .dbody{flex:1;overflow-y:auto;padding:24px;display:block}
@@ -102,3 +102,19 @@ dialog.dmodal::backdrop{background:rgba(10,16,32,.6)}.dmodal>div{padding:22px}.d
 @media(max-width:700px){.mrow{grid-template-columns:auto minmax(0,1fr)}.mctl{grid-column:1/-1;justify-content:flex-start}}
 
 .dash .dfilters label.tog{display:flex;align-items:center;gap:8px;min-height:42px;font-weight:600}
+/* SEO page */
+.dash .cnt{font-weight:500;font-size:12px;color:var(--d-muted)}.dash .cnt.good{color:#1e7a43}.dash .cnt.warn{color:#9a6200}.dash .cnt.bad{color:#b3261e}
+.dash [aria-invalid="true"]{border-color:#b3261e}
+.dash #seoCode{width:100%;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace;padding:10px;border:1px solid var(--d-line);border-radius:8px;background:var(--d-bg,#f6f7f9);color:var(--d-ink);resize:vertical}
+.seo-g{display:grid;gap:3px;padding:14px 16px;border:1px solid var(--d-line);border-radius:10px;background:#fff;max-width:600px;overflow-wrap:anywhere}
+.seo-gu{font-size:12px;color:#4d5156}.seo-gt{font-size:19px;line-height:1.3;color:#1a0dab}.seo-gd{font-size:13.5px;line-height:1.5;color:#4d5156}
+.seo-s{border:1px solid var(--d-line);border-radius:10px;overflow:hidden;max-width:520px;background:#fff;color:#14213d}
+.seo-si{aspect-ratio:1200/630;background:#e9ecf1}.seo-si img{display:block;width:100%;height:100%;object-fit:cover}
+.seo-sb{display:grid;gap:3px;padding:10px 14px 12px;background:#f2f3f5;overflow-wrap:anywhere}.seo-sh{font-size:11px;letter-spacing:.04em;color:#65676b}.seo-st{font-weight:700;font-size:15px}.seo-sd{font-size:13px;color:#65676b}
+/* Phase 1 dashboard additions */
+.vd-prev{aspect-ratio:16/9;background:#0b1020;border-radius:10px;overflow:hidden}.vd-prev:empty{display:none}.vd-prev iframe{width:100%;height:100%;border:0;display:block}
+.vd-prev.vertical{aspect-ratio:9/16;max-height:50vh;margin-inline:auto}
+.hp-prev{max-width:220px;background:#e9ecf1;border-radius:12px;overflow:hidden}.hp-prev img{display:block;width:100%;height:auto;max-height:300px;object-fit:contain}
+.dash .vthumb-s{object-fit:cover}
+#trEdit .ab{margin-top:10px}#trEdit h3{margin:12px 0 0}
+dialog.dmodal form>div{display:grid;gap:12px}

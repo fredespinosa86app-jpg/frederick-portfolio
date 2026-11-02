@@ -41,6 +41,27 @@
     });
   }
 
+  /* ---------- image -> screenshot-sized data URL (keeps the aspect ratio; used for training images) ---------- */
+  function toPhoto(file, maxLen) {
+    maxLen = maxLen || 90000;
+    return new Promise((resolve, reject) => {
+      if (!/^image\/(png|jpeg|webp)$/.test(file.type)) return reject(new Error('Please choose a PNG, JPG or WebP image.'));
+      const url = URL.createObjectURL(file), im = new Image();
+      im.onload = () => {
+        URL.revokeObjectURL(url);
+        for (const mw of [900, 760, 620, 500, 400]) for (const q of [0.8, 0.65, 0.5]) {
+          const sc = Math.min(1, mw / Math.max(im.width, im.height)), c = document.createElement('canvas');
+          c.width = Math.max(1, Math.round(im.width * sc)); c.height = Math.max(1, Math.round(im.height * sc));
+          c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+          const out = c.toDataURL('image/webp', q); if (out.length <= maxLen) return resolve(out);
+        }
+        reject(new Error('This image is too detailed to store. Please choose a smaller or simpler image.'));
+      };
+      im.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Could not read this image.')); };
+      im.src = url;
+    });
+  }
+
   /* ---------- reusable form dialog ---------- */
   function editDialog(title, defs, values) {
     const d = $('dForm'), form = $('dfForm'), box = $('dfFields'), err = $('dfErr'), okBtn = $('dfOk');
@@ -56,7 +77,7 @@
         input = el('div', { class: 'imgfield' }, prev,
           el('input', { type: 'file', id, accept: 'image/*', onchange: async e => {
             const file = e.target.files[0]; if (!file) return;
-            try { out[f.key] = await toIcon(file, f.cover); err.textContent = ''; show(); } catch (ex) { err.textContent = ex.message; e.target.value = ''; }
+            try { out[f.key] = f.photo ? await toPhoto(file) : await toIcon(file, f.cover); err.textContent = ''; show(); } catch (ex) { err.textContent = ex.message; e.target.value = ''; }
           } }),
           el('button', { type: 'button', class: 'dbtn sm', onclick: () => { out[f.key] = ''; show(); $(id).value = ''; } }, 'Remove image'));
         show();
@@ -83,22 +104,22 @@
 
   /* ---------- generic publish/discard handling ---------- */
   function makeStore(cfg) {
-    const s = { saved: clone(cfg.get()), draft: null, dirty: false, busy: false };
-    s.draft = clone(s.saved);
+    const s = { saved: clone(cfg.get()), draft: null, dirty: false, busy: false, savedM: cfg.meta ? clone(cfg.meta.get()) : null };
+    s.draft = clone(s.saved); s.draftM = clone(s.savedM);   // draftM = extra settings saved with the list (for example the view format)
     s.touch = () => { s.dirty = true; cfg.render(); };
-    s.sync = () => { $(cfg.pub).disabled = !s.dirty || s.busy; $(cfg.disc).disabled = !s.dirty || s.busy; $(cfg.state).textContent = s.dirty ? 'Unpublished changes: previewing on the site behind this panel.' : 'All changes are published.'; $(cfg.state).className = 'dhelp' + (s.dirty ? ' mdirty' : ''); cfg.preview(s.draft); };
-    s.reset = () => { s.saved = clone(cfg.get()); if (!s.dirty) s.draft = clone(s.saved); };
+    s.sync = () => { $(cfg.pub).disabled = !s.dirty || s.busy; $(cfg.disc).disabled = !s.dirty || s.busy; $(cfg.state).textContent = s.dirty ? 'Unpublished changes: previewing on the site behind this panel.' : 'All changes are published.'; $(cfg.state).className = 'dhelp' + (s.dirty ? ' mdirty' : ''); cfg.preview(s.draft, s.draftM); };
+    s.reset = () => { s.saved = clone(cfg.get()); if (cfg.meta) s.savedM = clone(cfg.meta.get()); if (!s.dirty) { s.draft = clone(s.saved); s.draftM = clone(s.savedM); } };
     $(cfg.pub).addEventListener('click', async () => {
       const bad = cfg.validate(s.draft); if (bad) return notify(bad, 'error');
       s.busy = true; s.sync();
       try {
-        await window.OWN.fs.setDoc(window.OWN.fs.doc(window.OWN.db, 'content', cfg.doc), Object.assign({ updatedAt: Date.now() }, cfg.payload(s.draft)));
+        await window.OWN.fs.setDoc(window.OWN.fs.doc(window.OWN.db, 'content', cfg.doc), Object.assign({ updatedAt: Date.now() }, cfg.payload(s.draft, s.draftM)));
         window.OWN.log(cfg.label + ' updated'); notify(cfg.label + ' published.', 'success');
-        s.saved = clone(s.draft); s.dirty = false;
+        s.saved = clone(s.draft); s.savedM = clone(s.draftM); s.dirty = false;
       } catch (e) { notify('Could not publish. ' + (e && e.code === 'permission-denied' ? 'Check your Firestore rules (content collection).' : ''), 'error'); }
       s.busy = false; cfg.render();
     });
-    $(cfg.disc).addEventListener('click', () => { s.draft = clone(s.saved); s.dirty = false; cfg.render(); notify('Changes discarded.'); });
+    $(cfg.disc).addEventListener('click', () => { s.draft = clone(s.saved); s.draftM = clone(s.savedM); s.dirty = false; cfg.render(); notify('Changes discarded.'); });
     return s;
   }
   const thumb = (src, label) => src ? el('img', { class: 'mthumb', src, alt: '', width: '40', height: '40' }) : el('span', { class: 'mthumb ph', 'aria-hidden': 'true' }, (label || '?').trim().charAt(0).toUpperCase());
@@ -111,12 +132,12 @@
     { key: 'description', label: 'Description', type: 'textarea', required: true, max: 700, help: 'Up to 700 characters.' },
     { key: 'image', label: 'Icon or image', type: 'image', help: 'Shown next to the title. Small square images work best.' }];
   const svc = makeStore({
-    get: () => api.getServices(), preview: l => api.renderServices(l), pub: 'svcPublish', disc: 'svcDiscard', state: 'svcState', doc: 'services', label: 'Services',
-    payload: l => ({ items: l }),
+    get: () => api.getServices(), meta: { get: () => ({ view: api.getView('services') }) }, preview: (l, m) => api.renderServices(l, m.view), pub: 'svcPublish', disc: 'svcDiscard', state: 'svcState', doc: 'services', label: 'Services',
+    payload: (l, m) => ({ items: l, view: m.view }),
     validate: l => l.some(s => !s.title.trim() || !s.description.trim()) ? 'Every service needs a title and a description.' : (l.length > 30 ? 'Please keep 30 services or fewer.' : ''),
     render: () => renderServices() });
   function renderServices() {
-    const L = svc.draft;
+    const L = svc.draft; $('svcView').value = svc.draftM.view;
     $('svcList').replaceChildren(...(L.length ? L.map((s, i) => el('div', { class: 'mrow' + (s.enabled === false ? ' off' : '') },
       thumb(s.image, s.title),
       el('div', { class: 'mmain' }, el('strong', {}, s.title), el('small', {}, s.description.slice(0, 120) + (s.description.length > 120 ? '…' : ''))),
@@ -136,8 +157,8 @@
 
   /* ---------- TOOLKIT ---------- */
   const tk = makeStore({
-    get: () => api.getToolkit(), preview: l => api.renderToolkit(l), pub: 'tkPublish', disc: 'tkDiscard', state: 'tkState', doc: 'toolkit', label: 'Toolkit',
-    payload: l => ({ categories: l }),
+    get: () => api.getToolkit(), meta: { get: () => ({ view: api.getView('toolkit') }) }, preview: (l, m) => api.renderToolkit(l, m.view), pub: 'tkPublish', disc: 'tkDiscard', state: 'tkState', doc: 'toolkit', label: 'Toolkit',
+    payload: (l, m) => ({ categories: l, view: m.view }),
     validate: l => l.some(c => !c.name.trim() || c.tools.some(t => !t.name.trim())) ? 'Every category and tool needs a name.' : (l.reduce((n, c) => n + c.tools.length, 0) > 80 ? 'Please keep 80 tools or fewer.' : ''),
     render: () => renderToolkit() });
   const catOptions = () => tk.draft.map(c => ({ value: c.id, label: c.name }));
@@ -151,7 +172,7 @@
     return r;
   }
   function renderToolkit() {
-    const L = tk.draft;
+    const L = tk.draft; $('tkView').value = tk.draftM.view;
     $('tkList').replaceChildren(...(L.length ? L.map((c, ci) => el('div', { class: 'mcat' },
       el('div', { class: 'mcat-h' }, el('strong', {}, c.name),
         el('div', { class: 'mctl' },
@@ -183,11 +204,15 @@
     if (r) { tk.draft.push({ id: uid('c'), name: r.name, tools: [] }); tk.touch(); }
   });
 
+  $('svcView').addEventListener('change', e => { svc.draftM.view = e.target.value; svc.touch(); });
+  $('tkView').addEventListener('change', e => { tk.draftM.view = e.target.value; tk.touch(); });
+
   /* ---------- lifecycle ---------- */
   document.addEventListener('dash:page', e => {
     if (e.detail === 'services') { svc.reset(); renderServices(); } else if (e.detail === 'toolkit') { tk.reset(); renderToolkit(); }
   });
-  document.addEventListener('dash:closed', () => { api.renderServices(api.getServices()); api.renderToolkit(api.getToolkit()); });   // end preview
+  document.addEventListener('dash:closed', () => { api.renderServices(api.getServices(), api.getView('services')); api.renderToolkit(api.getToolkit(), api.getView('toolkit')); });   // end preview
+  window.ownKit = { makeStore, editDialog, toPhoto, thumb, ctl, toggle, uid, clone, move };   // shared with owner-phase1.js
   /* ---------- TESTIMONIALS (needs scripts/testimonials.js) ---------- */
   const tapi = window.testiApi;
   if (tapi) {

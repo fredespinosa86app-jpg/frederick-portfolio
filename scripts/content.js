@@ -230,6 +230,9 @@
 ];
   const CACHE = 'contentCfg';
   let services = DEFAULT_SERVICES, toolkit = DEFAULT_TOOLKIT;
+  /* View formats: list (the original two-column look, default), grid, compact */
+  const VIEWS = ['list', 'grid', 'compact'], view = { services: 'list', toolkit: 'list' };
+  const okView = v => VIEWS.includes(v) ? v : 'list';
 
   /* ---- sanitising: everything that reaches the page is re-validated here ---- */
   const str = (v, max) => typeof v === 'string' ? v.trim().slice(0, max) : '';
@@ -246,11 +249,11 @@
 
   const node = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
 
-  function renderServices(list) {
+  function renderServices(list, v) {
     const sec = document.getElementById('services'), box = sec && sec.querySelector('.svc');
     if (!box) return;
     const items = cleanServices(list).filter(s => s.enabled);
-    box.textContent = '';
+    box.textContent = ''; box.className = 'svc view-' + okView(v || view.services);
     items.forEach(s => {
       const row = node('div', 'row'), h3 = node('h3');
       if (s.image) { const i = node('img', 'svc-ico'); i.src = s.image; i.alt = ''; i.width = 32; i.height = 32; h3.appendChild(i); }
@@ -260,10 +263,10 @@
     document.dispatchEvent(new Event('content:applied'));
   }
 
-  function renderToolkit(data) {
+  function renderToolkit(data, v) {
     const sec = document.getElementById('toolkit'), box = sec && sec.querySelector('.kit');
     if (!box) return;
-    box.textContent = '';
+    box.textContent = ''; box.className = 'kit view-' + okView(v || view.toolkit);
     let shown = 0;
     cleanToolkit(data).forEach(c => {
       const tools = c.tools.filter(t => t.enabled);
@@ -281,19 +284,20 @@
     document.dispatchEvent(new Event('content:applied'));
   }
 
-  function cache() { try { localStorage.setItem(CACHE, JSON.stringify({ s: services === DEFAULT_SERVICES ? null : services, t: toolkit === DEFAULT_TOOLKIT ? null : toolkit })); } catch (e) { /* ignore */ } }
+  function cache() { try { localStorage.setItem(CACHE, JSON.stringify({ s: services === DEFAULT_SERVICES ? null : services, t: toolkit === DEFAULT_TOOLKIT ? null : toolkit, v: view })); } catch (e) { /* ignore */ } }
 
   window.contentApi = {
     getServices: () => cleanServices(services), getToolkit: () => cleanToolkit(toolkit),
-    renderServices, renderToolkit,
-    setServices: list => { services = cleanServices(list); cache(); renderServices(services); },
-    setToolkit: list => { toolkit = cleanToolkit(list); cache(); renderToolkit(toolkit); }
+    renderServices, renderToolkit, VIEWS, getView: k => view[k],
+    setServices: (list, v) => { services = cleanServices(list); if (v) view.services = okView(v); cache(); renderServices(services); },
+    setToolkit: (list, v) => { toolkit = cleanToolkit(list); if (v) view.toolkit = okView(v); cache(); renderToolkit(toolkit); }
   };
 
   try {
     const c = JSON.parse(localStorage.getItem(CACHE) || 'null');
     if (c && c.s) services = cleanServices(c.s);
     if (c && c.t) toolkit = cleanToolkit(c.t);
+    if (c && c.v) { view.services = okView(c.v.services); view.toolkit = okView(c.v.toolkit); }
   } catch (e) { /* ignore */ }
   renderServices(services); renderToolkit(toolkit);
 })();
