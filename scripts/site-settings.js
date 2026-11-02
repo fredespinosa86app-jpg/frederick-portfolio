@@ -10,10 +10,7 @@ const L=c=>{const n=parseInt(c.slice(1),16);return(0.2126*(n>>16&255)+0.7152*(n>
 window.__ltCust=(g?(L(c1)+L(c2))/2:L(c1))>0.6;if(cust)h.classList.toggle('lt',window.__ltCust);
 window.applyLook(d.theme,d.fx);{const fxs=String(d.fx||'').split(',');$('thSel').value=window.OWNER_THEMES.includes(d.theme)?d.theme:'gold-silver';$('fxReveal').checked=fxs.includes('reveal');$('fxLift').checked=fxs.includes('lift');$('fxGlow').checked=fxs.includes('glow');$('fxGlass').checked=fxs.includes('glass')}
 $('heroC1').value=c1;$('heroC2').value=c2;$('heroG').checked=g;$('heroAng').value=ang;$('heroH1').value=t.textContent;$('heroRole').value=r.textContent;$('heroTxt').value=p.textContent;
-const items=(d.testiText||'').split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{const i=l.lastIndexOf('|');return i>0?{q:l.slice(0,i).trim(),n:l.slice(i+1).trim()}:{q:l,n:''}}).filter(x=>x.q);
-const on=d.testiEnabled===true,grid=$('tGrid');grid.textContent='';
-items.slice(0,9).forEach(x=>{const f=document.createElement('figure'),b=document.createElement('blockquote');f.className='tcard';b.textContent=x.q;f.appendChild(b);if(x.n){const c=document.createElement('figcaption'),s=document.createElement('strong');s.textContent=x.n;c.appendChild(s);f.appendChild(c)}grid.appendChild(f)});
-$('testimonials').hidden=!(on&&items.length);$('tOn').checked=on;$('tTxt').value=d.testiText||'';
+if(window.testiApi)window.testiApi.setLegacy({enabled:d.testiEnabled===true,text:d.testiText||''});
 const R=document.body.style,HF={fr:'Fraunces,Georgia,serif',pf:'"Playfair Display",Georgia,serif',lo:'Lora,Georgia,serif',po:'Poppins,system-ui,sans-serif',in:'Inter,system-ui,sans-serif'},BF={dm:'"DM Sans",system-ui,sans-serif',in:'Inter,system-ui,sans-serif',lo:'Lora,Georgia,serif',po:'Poppins,system-ui,sans-serif'};
 const gh=HF[d.gHead]?d.gHead:'fr',gb=BF[d.gBody]?d.gBody:'dm',gs=['0.92','1','1.1','1.2'].includes(String(d.gSize))?String(d.gSize):'1',hc=hx.test(d.gHeadC||''),tc=hx.test(d.gTextC||'');
 if(gh!=='fr')R.setProperty('--serif',HF[gh]);else R.removeProperty('--serif');if(gb!=='dm')R.setProperty('--sans',BF[gb]);else R.removeProperty('--sans');

@@ -36,6 +36,13 @@ Load order matters: `settings.js` first, `owner-panel.js` (type="module") last.
   site and go live with **Publish changes** (stored in Firestore `content/services` and `content/toolkit`, owner-write only).
 - A section with nothing enabled is hidden. Everything is re-validated before it is rendered on the public page.
 
+## Testimonials
+- Dashboard > Testimonials: add, edit, delete, reorder and hide testimonials; set name, position/company, text, a 1-5 star rating
+  (optional, never defaulted) and a profile photo (initials such as JS or D are shown when there is no photo).
+- View format (Grid, Carousel, List) and the section on/off switch are published with **Publish changes** and stored in
+  Firestore `content/testimonials` (covered by the `content` rules above).
+- Testimonials saved earlier as "Quote | Name, role" text keep showing until you publish the new format.
+
 ## Themes
 - Visitors choose **Gold & Silver** (default), **Nature** or **Outer Space** in the header.
   The choice is saved in `localStorage` (`portfolio-theme`).

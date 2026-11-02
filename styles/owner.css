@@ -100,3 +100,5 @@ dialog.dmodal::backdrop{background:rgba(10,16,32,.6)}.dmodal>div{padding:22px}.d
 .dmodal form>div{padding:22px}
 .dash .fld label{font-weight:600}
 @media(max-width:700px){.mrow{grid-template-columns:auto minmax(0,1fr)}.mctl{grid-column:1/-1;justify-content:flex-start}}
+
+.dash .dfilters label.tog{display:flex;align-items:center;gap:8px;min-height:42px;font-weight:600}

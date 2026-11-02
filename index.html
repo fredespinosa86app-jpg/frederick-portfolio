@@ -19,6 +19,7 @@
 <symbol id="up" viewBox="0 0 24 24"><path d="M18.56 13.24c-1.3 0-2.52-.55-3.57-1.45l.27-1.28.01-.05c.24-1.34.99-3.58 3.3-3.58 1.73 0 3.14 1.4 3.14 3.13 0 1.72-1.4 3.13-3.14 3.13zm0-9.4c-2.96 0-4.8 1.92-5.65 4.07-.65-.98-1.15-2.16-1.45-3.16H8.5v5.08c0 1.12-.9 2.03-2 2.03s-2-.9-2-2.03V4.75H1.7v5.08c0 2.7 2.13 4.9 4.8 4.9 2.67 0 4.8-2.2 4.8-4.9v-.85c.3.64.65 1.28 1.08 1.84L10.9 19.2h2.85l.97-4.57c.9.6 1.94.98 3.12.98 2.84 0 5.16-2.32 5.16-5.16 0-2.8-2.3-5.1-5.12-5.1z"/></symbol>
 <symbol id="gm" viewBox="0 0 24 24"><path d="M2 6.5A2.5 2.5 0 0 1 4.5 4h15A2.5 2.5 0 0 1 22 6.5v11a2.5 2.5 0 0 1-2.5 2.5h-15A2.5 2.5 0 0 1 2 17.5zm3 .3v.1l7 5.2 7-5.2v-.1zm14 2.6-7 5.2-7-5.2v8.1h14z"/></symbol>
 <symbol id="wa" viewBox="0 0 24 24"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2c-1.5 0-2.9-.4-4.1-1.1l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.2-.4.2-.4.7-1.3.1-.2 0-.3 0-.5l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.5.1-.7.3-.2.3-.9.9-.9 2.200s.9 2.500 1.100 2.700c.1.2 1.800 2.800 4.400 3.900 1.600.7 2.200.7 3 .6.5-.1 1.500-.6 1.700-1.200.2-.6.2-1.100.2-1.200-.1-.1-.3-.2-.5-.3z"/></symbol>
+<symbol id="star" viewBox="0 0 24 24"><path d="M12 2l3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z"/></symbol>
 <symbol id="fb" viewBox="0 0 24 24"><path d="M22 12a10 10 0 1 0-11.5 9.9v-7H7.9V12h2.6V9.8c0-2.5 1.5-3.9 3.8-3.9 1.1 0 2.2.2 2.2.2v2.5h-1.3c-1.2 0-1.6.8-1.6 1.6V12h2.8l-.4 2.9h-2.4v7A10 10 0 0 0 22 12z"/></symbol>
 <symbol id="fv" viewBox="0 0 24 24"><text x="12" y="16.5" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="700" fill="currentColor">Fi</text></symbol>
 <symbol id="fl" viewBox="0 0 24 24"><text x="12" y="16.5" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="700" fill="currentColor">FL</text></symbol>
@@ -153,7 +154,7 @@
 <section id="testimonials" hidden>
 <div class="wrap">
 <div class="head"><h2>Testimonials</h2><p>What others say about working with me.</p></div>
-<div class="tgrid" id="tGrid"></div>
+<div class="tview" id="tRoot" data-view="grid"><div class="tgrid" id="tGrid"></div></div>
 </div>
 </section>
 
@@ -323,10 +324,14 @@
 <input type="url" id="hookUrl" placeholder="https://your-webhook-url" aria-label="Automation webhook URL" autocomplete="off">
 <label><input type="checkbox" id="hookOn"> Use automation for chatbot replies</label>
 <button type="button" class="dbtn primary" id="hookSave">Save automation settings</button></div></div></section>
-<section class="dpage" id="dp-testimonials" hidden><div class="dcard"><h2>Testimonials</h2><p class="dhelp">Shown on the site only when switched on and at least one testimonial exists.</p><div class="ab">
-<label><input type="checkbox" id="tOn"> Show testimonials section</label>
-<label class="fld">One per line: Quote | Name, role<textarea id="tTxt" rows="6" maxlength="2500" placeholder="Quote text here | Client name, company"></textarea></label>
-<button type="button" class="dbtn primary" id="tSave">Save testimonials</button></div></div></section>
+<section class="dpage" id="dp-testimonials" hidden><div class="dcard"><h2>Testimonials</h2>
+<p class="dhelp">Edits preview on the site behind this panel and go live when you publish. The section appears only when it is switched on and at least one testimonial is shown.</p>
+<div class="dfilters"><label class="tog"><input type="checkbox" id="tmEnabled"> Show testimonials section</label>
+<label class="fld">View format<select id="tmView"><option value="grid">Grid view</option><option value="carousel">Carousel view</option><option value="list">List view</option></select></label></div>
+<div class="dact-row"><button type="button" class="dbtn primary" id="tmAdd">Add testimonial</button></div>
+<div class="mlist" id="tmList"></div>
+<p class="dhelp" id="tmState" role="status"></p>
+<div class="dact-row"><button type="button" class="dbtn primary" id="tmPublish" disabled>Publish changes</button><button type="button" class="dbtn" id="tmDiscard" disabled>Discard changes</button></div></div></section>
 <section class="dpage" id="dp-video" hidden><div class="dcard"><h2>Intro video</h2><p class="dhelp">YouTube or Loom link shown in the "Meet Frederick" section.</p><div class="ab">
 <label><input type="checkbox" id="introOn" checked> Show video section</label>
 <input type="url" id="introUrl" placeholder="YouTube or Loom link" aria-label="Video link (YouTube or Loom)" autocomplete="off">
@@ -396,6 +401,7 @@
 <script src="scripts/settings.js"></script>
 <script src="scripts/contacts.js"></script>
 <script src="scripts/content.js"></script>
+<script src="scripts/testimonials.js"></script>
 <script src="scripts/main.js"></script>
 <script src="scripts/chatbot.js"></script>
 <script src="scripts/video-section.js"></script>

@@ -20,7 +20,6 @@ $('adminOut').addEventListener('click',()=>signOut(auth));
 const save=(o,m)=>setDoc(ref,{...o,updatedAt:Date.now()},{merge:true}).then(()=>{notify(m);window.OWN&&window.OWN.log(m)}).catch(()=>notify('Could not save. Please check your Firestore rules.'));
 $('heroSave').addEventListener('click',()=>save({heroC1:$('heroC1').value,heroC2:$('heroC2').value,heroGrad:$('heroG').checked,heroAng:$('heroAng').value,heroTitle:$('heroH1').value.trim(),heroRole:$('heroRole').value.trim(),heroText:$('heroTxt').value.trim()},'Hero settings saved.'));
 $('heroReset').addEventListener('click',()=>{if(confirm('Reset the hero to its original look and text?'))save({heroC1:'#070C18',heroC2:'#1b2a4e',heroGrad:false,heroAng:'135',heroTitle:'',heroRole:'',heroText:''},'Hero reset to default.')});
-$('tSave').addEventListener('click',()=>save({testiEnabled:$('tOn').checked,testiText:$('tTxt').value.trim()},'Testimonials saved.'));
 $('gSave').addEventListener('click',()=>{const c=$('gCol').checked;save({gHead:$('gHead').value,gBody:$('gBody').value,gSize:$('gSize').value,gHeadC:c?$('gHeadC').value:'',gTextC:c?$('gTextC').value:''},'Style saved.')});
 $('gReset').addEventListener('click',()=>{if(confirm('Reset fonts, text size and colors to the original style?'))save({gHead:'fr',gBody:'dm',gSize:'1',gHeadC:'',gTextC:''},'Style reset to default.')});
 const fxv=()=>[['fxReveal','reveal'],['fxLift','lift'],['fxGlow','glow'],['fxGlass','glass']].filter(x=>$(x[0]).checked).map(x=>x[1]).join(',');
@@ -46,6 +45,7 @@ log:text=>addDoc(collection(rdb,'activity'),{text:String(text).slice(0,200),crea
 /* Public content (defaults live in scripts/content.js; the owner's published edits override them) */
 onSnapshot(doc(rdb,'content','services'),s=>{if(s.exists()&&Array.isArray(s.data().items)&&window.contentApi)window.contentApi.setServices(s.data().items)},()=>{});
 onSnapshot(doc(rdb,'content','toolkit'),s=>{if(s.exists()&&Array.isArray(s.data().categories)&&window.contentApi)window.contentApi.setToolkit(s.data().categories)},()=>{});
+onSnapshot(doc(rdb,'content','testimonials'),s=>{if(window.testiApi)window.testiApi.setDoc(s.exists()?s.data():null)},()=>{});
 onAuthStateChanged(auth,u=>{const ok=!!u&&u.email===OWNER&&u.emailVerified;
 if(u&&!ok){signOut(auth);notify('This account is not authorized.','error');return}
 login.hidden=ok;document.dispatchEvent(new CustomEvent('own:auth',{detail:{ok,email:ok?u.email:''}}))});

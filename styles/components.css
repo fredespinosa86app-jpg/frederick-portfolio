@@ -160,3 +160,21 @@ dialog img{display:block;max-width:96vw;max-height:90vh;border-radius:12px;backg
 /* ---- Services / Toolkit icons (optional, owner-uploaded) ---- */
 .svc-ico{width:32px;height:32px;object-fit:contain;vertical-align:middle;margin-right:10px;border-radius:6px}
 .badges span .tool-ico{width:18px;height:18px;object-fit:contain;vertical-align:-3px;margin-right:6px}
+
+/* ---- Testimonials: stars, avatars and the three view formats ---- */
+.tview{position:relative}
+.tstars{display:flex;gap:3px;color:var(--gold)}.tstars svg{width:18px;height:18px;fill:currentColor}
+.tauthor{display:flex;align-items:center;gap:12px;border-top:1px solid var(--line);padding-top:14px}
+.tauthor strong{display:block;color:var(--navy)}.tauthor small{display:block;color:var(--muted);font-size:14px}
+.tav{width:48px;height:48px;border-radius:50%;flex:none;object-fit:cover;background:var(--tag);color:var(--tagc);display:grid;place-items:center;font-weight:700;font-size:16px;letter-spacing:.02em}
+.tview[data-view="list"] .tgrid{grid-template-columns:minmax(0,1fr);max-width:820px;margin:0 auto}
+.tview[data-view="carousel"] .tgrid{display:flex;gap:20px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;padding:4px 2px 14px;scrollbar-width:none;overscroll-behavior-x:contain}
+.tview[data-view="carousel"] .tgrid::-webkit-scrollbar{display:none}
+.tview[data-view="carousel"] .tcard{flex:0 0 min(400px,88%);scroll-snap-align:start}
+.tnav{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:12px}
+.tnav button{width:46px;height:46px;border-radius:50%;border:1px solid var(--line);background:var(--paper);color:var(--navy);font-size:24px;line-height:1;cursor:pointer}
+.tnav button:hover:not(:disabled){background:var(--hov)}.tnav button:disabled{opacity:.4;cursor:default}
+.tcount{color:var(--muted);font-size:14px;min-width:56px;text-align:center}
+@media(prefers-reduced-motion:reduce){.tview[data-view="carousel"] .tgrid{scroll-behavior:auto}}
+
+.tcard{justify-content:flex-start}.tcard .tauthor{margin-top:auto}

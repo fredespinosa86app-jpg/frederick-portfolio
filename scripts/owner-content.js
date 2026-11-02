@@ -15,18 +15,24 @@
   const move = (arr, i, d) => { const j = i + d; if (j < 0 || j >= arr.length) return; [arr[i], arr[j]] = [arr[j], arr[i]]; };
 
   /* ---------- image -> small square data URL (icons and logos) ---------- */
-  function toIcon(file) {
+  function toIcon(file, cover) {
     return new Promise((resolve, reject) => {
       if (!/^image\//.test(file.type)) return reject(new Error('Please choose an image file.'));
       const url = URL.createObjectURL(file), im = new Image();
       im.onload = () => {
         URL.revokeObjectURL(url);
-        for (const size of [96, 64, 48]) {
+        for (const size of (cover ? [128, 96, 64] : [96, 64, 48])) {
           const c = document.createElement('canvas'); c.width = c.height = size;
-          const sc = Math.min(size / im.width, size / im.height, 1), w = Math.round(im.width * sc), h = Math.round(im.height * sc);
-          c.getContext('2d').drawImage(im, (size - w) / 2, (size - h) / 2, w, h);
+          const ctx = c.getContext('2d');
+          if (cover) {   // centred square crop (profile photos): no distortion
+            const sc = Math.max(size / im.width, size / im.height), w = im.width * sc, h = im.height * sc;
+            ctx.drawImage(im, (size - w) / 2, (size - h) / 2, w, h);
+          } else {       // fit inside a square (icons and logos): no distortion
+            const sc = Math.min(size / im.width, size / im.height, 1), w = Math.round(im.width * sc), h = Math.round(im.height * sc);
+            ctx.drawImage(im, (size - w) / 2, (size - h) / 2, w, h);
+          }
           const out = c.toDataURL('image/webp', 0.85);
-          if (out.length <= 60000) return resolve(out);
+          if (out.length <= (cover ? 45000 : 60000)) return resolve(out);
         }
         reject(new Error('This image is too large. Please choose a simpler image.'));
       };
@@ -50,7 +56,7 @@
         input = el('div', { class: 'imgfield' }, prev,
           el('input', { type: 'file', id, accept: 'image/*', onchange: async e => {
             const file = e.target.files[0]; if (!file) return;
-            try { out[f.key] = await toIcon(file); err.textContent = ''; show(); } catch (ex) { err.textContent = ex.message; e.target.value = ''; }
+            try { out[f.key] = await toIcon(file, f.cover); err.textContent = ''; show(); } catch (ex) { err.textContent = ex.message; e.target.value = ''; }
           } }),
           el('button', { type: 'button', class: 'dbtn sm', onclick: () => { out[f.key] = ''; show(); $(id).value = ''; } }, 'Remove image'));
         show();
@@ -182,4 +188,48 @@
     if (e.detail === 'services') { svc.reset(); renderServices(); } else if (e.detail === 'toolkit') { tk.reset(); renderToolkit(); }
   });
   document.addEventListener('dash:closed', () => { api.renderServices(api.getServices()); api.renderToolkit(api.getToolkit()); });   // end preview
+  /* ---------- TESTIMONIALS (needs scripts/testimonials.js) ---------- */
+  const tapi = window.testiApi;
+  if (tapi) {
+    const TM_FIELDS = () => [
+      { key: 'name', label: 'Name', required: true, max: 80 },
+      { key: 'role', label: 'Position, company or designation', max: 100 },
+      { key: 'quote', label: 'Testimonial', type: 'textarea', required: true, max: 700 },
+      { key: 'rating', label: 'Star rating', type: 'select', options: [{ value: '', label: 'No rating' }].concat([1, 2, 3, 4, 5].map(n => ({ value: String(n), label: n + (n === 1 ? ' star' : ' stars') }))) },
+      { key: 'photo', label: 'Profile photo', type: 'image', cover: true, help: 'Cropped to a circle. Without a photo, the initials of the name are shown.' }];
+    const tm = makeStore({
+      get: () => tapi.get(), preview: d => tapi.render(d), pub: 'tmPublish', disc: 'tmDiscard', state: 'tmState', doc: 'testimonials', label: 'Testimonials',
+      payload: d => ({ enabled: d.enabled, view: d.view, items: d.items }),
+      validate: d => d.items.some(t => !t.name.trim() || !t.quote.trim()) ? 'Every testimonial needs a name and the testimonial text.'
+        : (d.items.length > 20 ? 'Please keep 20 testimonials or fewer.' : (JSON.stringify(d).length > 900000 ? 'Too much image data. Remove a few photos.' : '')),
+      render: () => renderTm() });
+    const avatar = t => t.photo ? el('img', { class: 'mthumb', src: t.photo, alt: '', width: '40', height: '40' }) : el('span', { class: 'mthumb ph', 'aria-hidden': 'true' }, tapi.initials(t.name));
+    function renderTm() {
+      const D = tm.draft;
+      $('tmEnabled').checked = D.enabled; $('tmView').value = D.view;
+      $('tmList').replaceChildren(...(D.items.length ? D.items.map((t, i) => el('div', { class: 'mrow' + (t.enabled === false ? ' off' : '') },
+        avatar(t),
+        el('div', { class: 'mmain' }, el('strong', {}, t.name), el('small', {}, [t.role, t.rating ? '★'.repeat(t.rating) + ' (' + t.rating + '/5)' : 'No rating'].filter(Boolean).join(' · ')),
+          el('small', {}, t.quote.slice(0, 110) + (t.quote.length > 110 ? '…' : ''))),
+        el('div', { class: 'mctl' }, toggle(t.name, t.enabled !== false, v => { t.enabled = v; tm.touch(); }),
+          ctl('Move up', t.name, () => { move(D.items, i, -1); tm.touch(); }, i === 0), ctl('Move down', t.name, () => { move(D.items, i, 1); tm.touch(); }, i === D.items.length - 1),
+          ctl('Edit', t.name, async () => {
+            const r = await editDialog('Edit testimonial', TM_FIELDS(), Object.assign({}, t, { rating: String(t.rating || '') }));
+            if (r) { Object.assign(t, { name: r.name, role: r.role || '', quote: r.quote, rating: Number(r.rating) || 0, photo: r.photo || '' }); tm.touch(); } }),
+          el('button', { type: 'button', class: 'dbtn sm danger', 'aria-label': 'Delete: ' + t.name, onclick: async () => {
+            if (await confirmBox('Delete this testimonial?', 'The testimonial from “' + t.name + '” will be removed once you publish.')) { D.items.splice(i, 1); tm.touch(); } } }, 'Delete'))))
+        : [el('p', { class: 'dstate' }, 'No testimonials yet. Add one, then switch the section on.')]));
+      tm.sync();
+    }
+    $('tmEnabled').addEventListener('change', e => { tm.draft.enabled = e.target.checked; tm.touch(); });
+    $('tmView').addEventListener('change', e => { tm.draft.view = e.target.value; tm.touch(); });
+    $('tmAdd').addEventListener('click', async () => {
+      if (tm.draft.items.length >= 20) return notify('Please keep 20 testimonials or fewer.', 'error');
+      const r = await editDialog('Add testimonial', TM_FIELDS(), { name: '', role: '', quote: '', rating: '', photo: '' });
+      if (r) { tm.draft.items.push({ id: uid('m'), name: r.name, role: r.role || '', quote: r.quote, rating: Number(r.rating) || 0, photo: r.photo || '', enabled: true }); tm.touch(); }
+    });
+    document.addEventListener('dash:page', e => { if (e.detail === 'testimonials') { tm.reset(); renderTm(); } });
+    document.addEventListener('dash:closed', () => tapi.render(tapi.get()));
+  }
+
 })();
