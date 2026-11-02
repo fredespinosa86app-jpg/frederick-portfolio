@@ -9,7 +9,7 @@ if(FIREBASE_CONFIG){try{
 const B='https://www.gstatic.com/firebasejs/10.12.2/';
 const {initializeApp}=await import(B+'firebase-app.js');
 const {getAuth,GoogleAuthProvider,signInWithPopup,signOut,onAuthStateChanged}=await import(B+'firebase-auth.js');
-const {getFirestore,doc,onSnapshot,setDoc,collection,addDoc,serverTimestamp,query,orderBy,limit,updateDoc,deleteDoc}=await import(B+'firebase-firestore.js');
+const {getFirestore,doc,onSnapshot,setDoc,collection,addDoc,serverTimestamp,query,orderBy,limit,updateDoc,deleteDoc,where,getDocs}=await import(B+'firebase-firestore.js');
 const app=initializeApp(FIREBASE_CONFIG),auth=getAuth(app),ref=doc(getFirestore(app),'settings','site');
 const $=id=>document.getElementById(id),hire=document.querySelectorAll('.hire-cta'),login=$('ownerLogin'),cb=$('hireToggle'),hookUrl=$('hookUrl'),hookOn=$('hookOn'),introOn=$('introOn'),introUrl=$('introUrl');
 login.hidden=false;
@@ -49,7 +49,11 @@ window.submitMeeting=d=>addDoc(collection(rdb,'meetingRequests'),{...d,status:'n
 window.recordUnanswered=r=>{const q=String(r.question||'').trim().slice(0,300);if(!q)return Promise.resolve();const sid=String(r.sessionId||'anon').slice(0,40);
 return setDoc(doc(rdb,'chatUnanswered',sid+'_'+hash(q.toLowerCase())),{question:q,response:String(r.response||'').slice(0,600),sessionId:sid,context:String(r.context||'').slice(0,300),status:'new',createdAt:serverTimestamp()}).catch(()=>{})};
 /* Owner dashboard bridge (every call is checked by the Firestore rules, not by the UI) */
-window.OWN={db:rdb,ref,save,fs:{collection,addDoc,doc,setDoc,updateDoc,deleteDoc,onSnapshot,query,orderBy,limit,serverTimestamp},
+/* Phase 3: anonymous visit counter (rules allow create-only with a fixed set of fields) */
+window.recordVisit=d=>addDoc(collection(rdb,'visits'),{...d,createdAt:serverTimestamp()});
+/* every owner write is counted so the dashboard can lock "View site" while a save is running */
+const busy=f=>(...a)=>{window.dashBusy&&window.dashBusy(1);return Promise.resolve(f(...a)).finally(()=>window.dashBusy&&window.dashBusy(-1))};
+window.OWN={db:rdb,ref,save,fs:{collection,addDoc:busy(addDoc),doc,setDoc:busy(setDoc),updateDoc:busy(updateDoc),deleteDoc:busy(deleteDoc),onSnapshot,query,orderBy,limit,where,getDocs,serverTimestamp},
 log:text=>addDoc(collection(rdb,'activity'),{text:String(text).slice(0,200),createdAt:serverTimestamp()}).catch(()=>{})};
 /* Public content (defaults live in scripts/content.js; the owner's published edits override them) */
 onSnapshot(doc(rdb,'content','services'),s=>{if(s.exists()&&Array.isArray(s.data().items)&&window.contentApi)window.contentApi.setServices(s.data().items,s.data().view)},()=>{});
@@ -65,5 +69,5 @@ onSnapshot(doc(rdb,'content','rates'),s=>{if(window.availApi)window.availApi.set
 onSnapshot(doc(rdb,'content','testimonials'),s=>{if(window.testiApi)window.testiApi.setDoc(s.exists()?s.data():null)},()=>{});
 onAuthStateChanged(auth,u=>{const ok=!!u&&u.email===OWNER&&u.emailVerified;
 if(u&&!ok){signOut(auth);notify('The Google account ('+u.email+') is not the owner account. Sign in with '+OWNER+'.','error');return}
-login.hidden=ok;document.dispatchEvent(new CustomEvent('own:auth',{detail:{ok,email:ok?u.email:''}}))});
+login.hidden=ok;if(ok){try{localStorage.setItem('ownerDevice','1')}catch(e){}}document.dispatchEvent(new CustomEvent('own:auth',{detail:{ok,email:ok?u.email:''}}))});
 }catch(e){window.__ownerLoginError=String((e&&e.message)||e);console.warn('Owner login unavailable',e)}}

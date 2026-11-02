@@ -34,11 +34,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=DM+Sans:wght@400;500;600&family=Playfair+Display:wght@500;600&family=Lora:wght@500;600&family=Inter:wght@400;500;600&family=Poppins:wght@400;500;600&family=Orbitron:wght@500;700&family=Quicksand:wght@400;500;600&display=swap" rel="stylesheet">
 <script>try{if(localStorage.getItem('portfolio-dark')==='1')document.documentElement.setAttribute('data-theme','dark')}catch(e){}</script>
-<link rel="stylesheet" href="styles/main.css?v=p2">
-<link rel="stylesheet" href="styles/components.css?v=p2">
-<link rel="stylesheet" href="styles/owner.css?v=p2">
-<link rel="stylesheet" href="styles/themes.css?v=p2">
-<link rel="stylesheet" href="styles/responsive.css?v=p2">
+<link rel="stylesheet" href="styles/main.css?v=p3">
+<link rel="stylesheet" href="styles/components.css?v=p3">
+<link rel="stylesheet" href="styles/owner.css?v=p3">
+<link rel="stylesheet" href="styles/themes.css?v=p3">
+<link rel="stylesheet" href="styles/responsive.css?v=p3">
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -260,9 +260,15 @@
 </main>
 
 <footer><div class="wrap">
-<div><strong>Frederick Espinosa</strong><p>Amazon Product Researcher · Virtual Assistant</p><p>Plaridel, Bulacan, Philippines</p><button type="button" class="owner" id="ownerLogin">Owner login</button></div>
+<div><strong>Frederick Espinosa</strong><p>Amazon Product Researcher · Virtual Assistant</p><p>Plaridel, Bulacan, Philippines</p><button type="button" class="owner" id="ownerLogin">Owner login</button> <button type="button" class="owner" id="privacyLink">Privacy</button></div>
 <ul class="icons" aria-label="Footer contact links" data-contacts></ul>
 </div></footer>
+<dialog id="privacyDlg" class="pdlg" aria-labelledby="privT"><div><h2 id="privT">Privacy notice</h2>
+<p>This site counts visits so the owner can see which sections are useful. It does this <strong>without cookies</strong> and without collecting your name, email address, IP address or exact location.</p>
+<p>Each visit stores: a random anonymous ID kept in your browser, the section you viewed, the website you came from (host name only), your device type (desktop, tablet or mobile), your browser name, and the time. Data is kept in the owner’s private database, shown only to the owner, and is not sold or shared. Older records are deleted by the owner on request or on a regular schedule.</p>
+<p>If you send a meeting request, the details you type are used only to reply to you.</p>
+<label class="tog"><input type="checkbox" id="privOpt"> Do not count my visits</label><p class="dhelp" id="privState" role="status"></p>
+<p><button type="button" class="btn gold" id="privClose">Close</button></p></div></dialog>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
 <symbol id="ic-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></symbol>
@@ -308,6 +314,9 @@
 <h2>Business</h2>
 <button type="button" data-page="booking"><svg aria-hidden="true"><use href="#ic-cog"/></svg><span class="dlabel">Availability, rates &amp; capacity</span></button>
 <button type="button" data-page="clients"><svg aria-hidden="true"><use href="#ic-inbox"/></svg><span class="dlabel">Clients &amp; invoices</span></button>
+<button type="button" data-page="visitors"><svg aria-hidden="true"><use href="#ic-grid"/></svg><span class="dlabel">Visitors</span></button>
+<button type="button" data-page="integrations"><svg aria-hidden="true"><use href="#ic-link"/></svg><span class="dlabel">Integrations</span></button>
+<button type="button" data-page="domain"><svg aria-hidden="true"><use href="#ic-link"/></svg><span class="dlabel">Custom domain</span></button>
 <h2>Appearance</h2>
 <button type="button" data-page="theme"><svg aria-hidden="true"><use href="#ic-palette"/></svg><span class="dlabel">Theme &amp; effects</span></button>
 <button type="button" data-page="secbg"><svg aria-hidden="true"><use href="#ic-palette"/></svg><span class="dlabel">Section backgrounds</span></button>
@@ -497,6 +506,38 @@
 <div class="dact-row"><button type="button" class="dbtn primary" id="clAdd">Add client</button></div>
 <div class="mlist" id="clList"></div>
 <p class="dhelp" id="clState" role="status"></p></div></section>
+<section class="dpage" id="dp-visitors" hidden>
+<div class="dcard"><h2>Visitor activity</h2>
+<p class="dhelp">Anonymous counts only: no names, emails or IP addresses. Your own signed-in device, bots and visitors who opted out are not counted. Visible to the owner only.</p>
+<div class="dfilters"><label class="fld">Period<select id="vsRange"><option value="today">Today</option><option value="7" selected>Last 7 days</option><option value="30">Last 30 days</option><option value="custom">Custom range</option></select></label>
+<label class="fld" id="vsFromW" hidden>From<input type="date" id="vsFrom"></label><label class="fld" id="vsToW" hidden>To<input type="date" id="vsTo"></label>
+<button type="button" class="dbtn" id="vsReload">Refresh</button></div>
+<p class="dhelp" id="vsState" role="status"></p>
+<div class="dstats" id="vsStats"></div></div>
+<div class="dcard"><h2 id="vsChartT">Activity over time</h2><div id="vsChart" class="vchart"></div><details class="vtable"><summary>View as table</summary><div id="vsTable"></div></details></div>
+<div class="vgrid"><div class="dcard"><h2>Most viewed sections</h2><div id="vsSections" class="bars"></div></div>
+<div class="dcard"><h2>Referral sources</h2><div id="vsRefs" class="bars"></div></div>
+<div class="dcard"><h2>Devices</h2><div id="vsDevices" class="bars"></div></div>
+<div class="dcard"><h2>Browsers</h2><div id="vsBrowsers" class="bars"></div></div></div>
+<div class="dcard"><h2>Data retention</h2><p class="dhelp">Visit records are small, but you can remove old ones at any time.</p><div class="dact-row"><button type="button" class="dbtn danger" id="vsPurge">Delete records older than 90 days</button></div></div></section>
+<section class="dpage" id="dp-integrations" hidden><div class="dcard"><h2>Integrations</h2>
+<p class="dhelp">Connections use Google’s official OAuth 2.0. Access tokens are kept only in this browser tab’s memory and are never saved to the database or the site files. This site has no server (free Firebase plan), so no refresh token can be stored: you reconnect after reloading the page.</p></div>
+<div class="dcard"><h3>Google Calendar</h3><p class="dstate-line" id="gcStatus" role="status"></p>
+<p class="dhelp">When connected: checks your calendar for conflicts before you confirm a meeting, and can add confirmed meetings to your calendar once (duplicates are detected). No invitations are emailed to visitors.</p>
+<label class="fld">Google OAuth Client ID (public identifier, not a secret)<input type="text" id="gcClient" autocomplete="off" placeholder="1234567890-abc.apps.googleusercontent.com"></label>
+<label class="tog"><input type="checkbox" id="gcAuto"> Add confirmed meetings to my calendar automatically</label>
+<div class="dact-row"><button type="button" class="dbtn primary" id="gcConnect">Connect</button><button type="button" class="dbtn" id="gcDisconnect" disabled>Disconnect and revoke</button></div>
+<details class="vtable"><summary>Setup instructions</summary><ol class="dhelp"><li>Open Google Cloud Console, create or choose a project and enable the <em>Google Calendar API</em>.</li><li>Configure the OAuth consent screen (External; add your Google account as a test user while the app is in Testing).</li><li>Create credentials: <em>OAuth client ID</em>, type <em>Web application</em>. Under Authorized JavaScript origins add your site address (for example https://fredespinosa86app-jpg.github.io, and your custom domain once it works).</li><li>Paste the Client ID above, press Save, then Connect and allow access.</li></ol></details>
+<div class="dact-row"><button type="button" class="dbtn" id="gcSave">Save Client ID</button></div></div>
+<div class="dcard"><h3>Google Drive</h3><p class="dstate-line warn">Not available</p><p class="dhelp">Storing or reading files safely needs a server to hold credentials and a verified Google app. Requirements: Firebase Blaze plan with Cloud Functions, a Google Cloud project with the Drive API enabled, an OAuth consent screen and the narrowest scope (<code>drive.file</code>). Not simulated here.</p></div>
+<div class="dcard"><h3>Gmail</h3><p class="dstate-line warn">Not available</p><p class="dhelp">Sending or managing email requires a sensitive Gmail scope, which needs Google’s app verification, plus a server to keep credentials (Firebase Blaze + Cloud Functions). Not simulated here. Meanwhile, the existing meeting-request webhook and mail links keep working.</p></div></section>
+<section class="dpage" id="dp-domain" hidden><div class="dcard"><h2>Custom domain</h2>
+<p class="dhelp">The site is hosted on GitHub Pages. A domain is only shown as connected after the checks below succeed. Adding a name here does not change DNS or create an SSL certificate by itself: those are done at your domain registrar and in GitHub Pages settings.</p>
+<label class="fld">Domain name<input type="text" id="dmName" maxlength="120" autocomplete="off" placeholder="example.com or www.example.com"></label>
+<div class="dact-row"><button type="button" class="dbtn primary" id="dmSave">Save domain</button><button type="button" class="dbtn" id="dmVerify" disabled>Verify</button><button type="button" class="dbtn danger" id="dmRemove" disabled>Remove domain</button></div>
+<p class="dstate-line" id="dmStatus" role="status"></p><ul class="dchecks" id="dmChecks"></ul></div>
+<div class="dcard"><h3>DNS records to add</h3><div id="dmDns"><p class="dhelp">Save a domain to see the records.</p></div></div>
+<div class="dcard"><h3>Then</h3><ol class="dhelp"><li>In GitHub: repository <em>Settings &gt; Pages &gt; Custom domain</em>, enter the domain and Save (or commit a file named <code>CNAME</code> containing it).</li><li>Wait for DNS to propagate (minutes to 48 hours), then tick <em>Enforce HTTPS</em> once GitHub finishes issuing the certificate.</li><li>In Firebase: <em>Authentication &gt; Settings &gt; Authorized domains</em> &rarr; add the domain, or owner sign-in will fail on it.</li><li>Update the canonical address in <em>SEO &amp; social preview</em>, <code>robots.txt</code> and <code>sitemap.xml</code>.</li><li>Press Verify here.</li></ol><div class="dact-row"><button type="button" class="dbtn" id="dmCname" disabled>Download CNAME file</button></div></div></section>
 <section class="dpage" id="dp-secbg" hidden><div class="dcard"><h2>Section backgrounds</h2>
 <p class="dhelp">Give each section its own background colour. Text switches to a light or dark palette automatically so it stays readable. Changes preview on the site; save to publish. The hero has its own colour settings.</p>
 <div class="mlist" id="sbList"></div>
@@ -538,30 +579,32 @@
 <form id="chatForm" autocomplete="off"><input id="chatInput" type="text" placeholder="Type your question…" aria-label="Type your question" maxlength="200"><button type="submit">Send</button></form>
 </div>
 <dialog id="lb" aria-label="Enlarged image"><button type="button" id="close" aria-label="Close enlarged view">×</button><img alt="Enlarged view"></dialog>
-<script src="scripts/settings.js?v=p2"></script>
-<script src="scripts/contacts.js?v=p2"></script>
-<script src="scripts/content.js?v=p2"></script>
-<script src="scripts/testimonials.js?v=p2"></script>
-<script src="scripts/faq.js?v=p2"></script>
-<script src="scripts/videos.js?v=p2"></script>
-<script src="scripts/training.js?v=p2"></script>
-<script src="scripts/experience.js?v=p2"></script>
-<script src="scripts/section-bg.js?v=p2"></script>
-<script src="scripts/hero-photo.js?v=p2"></script>
-<script src="scripts/main.js?v=p2"></script>
-<script src="scripts/chatbot.js?v=p2"></script>
-<script src="scripts/video-section.js?v=p2"></script>
-<script src="scripts/theme-switcher.js?v=p2"></script>
-<script src="scripts/seo.js?v=p2"></script>
-<script src="scripts/site-settings.js?v=p2"></script>
-<script src="scripts/availability.js?v=p2"></script>
-<script src="scripts/meeting-form.js?v=p2"></script>
-<script src="scripts/owner-ui.js?v=p2"></script>
-<script src="scripts/owner-dashboard.js?v=p2"></script>
-<script src="scripts/owner-content.js?v=p2"></script>
-<script src="scripts/owner-phase1.js?v=p2"></script>
-<script src="scripts/owner-phase2.js?v=p2"></script>
-<script src="scripts/owner-seo.js?v=p2"></script>
-<script type="module" src="scripts/owner-panel.js?v=p2"></script>
+<script src="scripts/settings.js?v=p3"></script>
+<script src="scripts/contacts.js?v=p3"></script>
+<script src="scripts/content.js?v=p3"></script>
+<script src="scripts/testimonials.js?v=p3"></script>
+<script src="scripts/faq.js?v=p3"></script>
+<script src="scripts/videos.js?v=p3"></script>
+<script src="scripts/training.js?v=p3"></script>
+<script src="scripts/experience.js?v=p3"></script>
+<script src="scripts/section-bg.js?v=p3"></script>
+<script src="scripts/hero-photo.js?v=p3"></script>
+<script src="scripts/main.js?v=p3"></script>
+<script src="scripts/chatbot.js?v=p3"></script>
+<script src="scripts/video-section.js?v=p3"></script>
+<script src="scripts/theme-switcher.js?v=p3"></script>
+<script src="scripts/seo.js?v=p3"></script>
+<script src="scripts/site-settings.js?v=p3"></script>
+<script src="scripts/availability.js?v=p3"></script>
+<script src="scripts/meeting-form.js?v=p3"></script>
+<script src="scripts/owner-ui.js?v=p3"></script>
+<script src="scripts/owner-dashboard.js?v=p3"></script>
+<script src="scripts/owner-content.js?v=p3"></script>
+<script src="scripts/owner-phase1.js?v=p3"></script>
+<script src="scripts/owner-phase2.js?v=p3"></script>
+<script src="scripts/analytics.js?v=p3"></script>
+<script src="scripts/owner-phase3.js?v=p3"></script>
+<script src="scripts/owner-seo.js?v=p3"></script>
+<script type="module" src="scripts/owner-panel.js?v=p3"></script>
 </body>
 </html>

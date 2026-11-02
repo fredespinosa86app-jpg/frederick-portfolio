@@ -59,8 +59,13 @@ button.stat{cursor:pointer}button.stat:hover{border-color:#9db4f0}
 .srow-h{display:flex;align-items:center;gap:10px}.ico-pill{display:grid;place-items:center;width:36px;height:36px;border-radius:10px;background:#eef1f8}.ico-pill svg{width:18px;height:18px;fill:currentColor}
 .tog{display:flex;align-items:center;gap:8px;font-size:14px;white-space:nowrap}.ferr{grid-column:2/-1;margin:0;color:var(--d-bad);font-size:13px;min-height:0}.ferr:empty{display:none}
 .dact-row{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
-.dtoasts{position:fixed;right:20px;top:calc(16px + env(safe-area-inset-top,0px));z-index:120;display:grid;gap:10px;max-width:min(380px,calc(100vw - 40px))}
-.dtoast{background:#1b2333;color:#fff;padding:12px 16px;border-radius:12px;box-shadow:0 10px 30px rgba(7,12,24,.3);font:500 14px system-ui,sans-serif}.dtoast.success{background:#1e7a46}.dtoast.error{background:#b3261e}.dtoast[data-go]{cursor:pointer}
+.dtoasts{position:fixed;right:20px;bottom:calc(20px + env(safe-area-inset-bottom,0px));z-index:120;display:flex;flex-direction:column;gap:10px;max-width:min(380px,calc(100vw - 40px));pointer-events:none}
+.dtoast{display:flex;align-items:flex-start;gap:10px;background:#1b2333;color:#fff;padding:12px 16px;border-radius:12px;box-shadow:0 10px 30px rgba(7,12,24,.3);font:500 14px/1.4 system-ui,sans-serif;pointer-events:auto;animation:dtin .2s ease-out}
+.dtoast.out{opacity:0;transform:translateY(8px);transition:opacity .18s,transform .18s}.dtoast.success{background:#1e7a46}.dtoast.error{background:#b3261e}.dtoast.warning{background:#8a5a00}.dtoast.go{cursor:pointer}
+.dti{flex:none;width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,.22);display:grid;place-items:center;font-size:12px;font-weight:800;margin-top:1px}.dtm{min-width:0;overflow-wrap:anywhere}
+@keyframes dtin{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}@media (prefers-reduced-motion:reduce){.dtoast{animation:none}.dtoast.out{transition:none}}
+#dClose:disabled{opacity:.55;cursor:not-allowed}
+@media (max-width:640px){.dtoasts{left:12px;right:12px;max-width:none;bottom:calc(12px + env(safe-area-inset-bottom,0px))}}
 dialog.dmodal{border:0;border-radius:16px;padding:0;width:min(560px,calc(100vw - 32px));max-height:calc(100vh - 32px);color:#1b2333;font:15px/1.55 system-ui,sans-serif;background:#fff;overflow:auto}
 dialog.dmodal::backdrop{background:rgba(10,16,32,.6)}.dmodal>div{padding:22px}.dmodal h2{font:650 18px system-ui,sans-serif;margin:0 0 10px;color:#1b2333}
 .ddl{display:grid;grid-template-columns:130px minmax(0,1fr);gap:8px 12px;margin:0 0 16px}.ddl dt{color:#5b6578;font-size:13px}.ddl dd{margin:0;overflow-wrap:anywhere}.pre{white-space:pre-wrap}
@@ -121,3 +126,13 @@ dialog.dmodal form>div{display:grid;gap:12px}
 .dueflag.overdue{color:#b42318;font-weight:700}.dueflag.soon{color:#a15c00;font-weight:600}
 .bkdays{border:0;padding:0;margin:0 0 14px}.bkdays legend{font-weight:600;margin-bottom:8px}.bkdays>div{display:flex;flex-wrap:wrap;gap:6px 18px}
 .dash label.tog input[type=checkbox]{width:auto}
+/* Phase 3 */
+.vgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.vchart{width:100%;overflow:hidden}.vsvg{width:100%;height:auto;display:block}.vsvg .bar{fill:#2563c9}.vsvg .grid{stroke:#d5dbe8;stroke-width:1}.vsvg .ax{font:11px system-ui,sans-serif;fill:#5b6578}
+.vtable{margin-top:10px}.vtable summary{cursor:pointer;font-weight:600}.vtable table,.dns{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}.vtable td,.vtable th,.dns td,.dns th{padding:6px 8px;border-bottom:1px solid #e3e8f2;text-align:left}
+.bars{display:grid;gap:8px}.brow{display:grid;grid-template-columns:minmax(80px,1.2fr) 2fr auto;gap:10px;align-items:center;font-size:13px}.bl{overflow-wrap:anywhere}.bt{height:10px;background:#e7ecf6;border-radius:6px;overflow:hidden}.bt i{display:block;height:100%;background:#2563c9;border-radius:6px}.bn{white-space:nowrap;color:var(--d-muted)}
+.dstate-line{margin:6px 0 10px;font-weight:600}.dstate-line.ok{color:#1e7a46}.dstate-line.warn{color:#8a5a00}
+.dchecks{list-style:none;padding:0;margin:8px 0 0;display:grid;gap:6px;font-size:14px}.dchecks .ok{color:#1e7a46}.dchecks .bad{color:#b3261e}
+.tscroll{overflow-x:auto}
+.dcard{min-width:0}.dcard li,.dcard code,.dcard em{overflow-wrap:anywhere}
+.dcard .tog{white-space:normal}

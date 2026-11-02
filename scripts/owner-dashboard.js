@@ -10,7 +10,7 @@
   const dash = $('dash'), openBtn = $('dashOpen');
   if (!dash || !openBtn) return;
 
-  const TITLES = { seo: 'SEO & social preview', experience: 'Experience', booking: 'Availability, rates & capacity', clients: 'Clients & invoices', training: 'Training categories', videos: 'How I Work videos', faq: 'FAQ', secbg: 'Section backgrounds', dashboard: 'Dashboard', inbox: 'Inbox: meeting requests', questions: 'Chatbot question history', marcus: 'Marcus configuration',
+  const TITLES = { seo: 'SEO & social preview', visitors: 'Visitors', integrations: 'Integrations', domain: 'Custom domain', experience: 'Experience', booking: 'Availability, rates & capacity', clients: 'Clients & invoices', training: 'Training categories', videos: 'How I Work videos', faq: 'FAQ', secbg: 'Section backgrounds', dashboard: 'Dashboard', inbox: 'Inbox: meeting requests', questions: 'Chatbot question history', marcus: 'Marcus configuration',
     services: 'Services', toolkit: 'Toolkit', testimonials: 'Testimonials', video: 'Intro video', theme: 'Theme & effects', hero: 'Hero', social: 'Social media & contact', general: 'General settings' };
   const REQ_STATUS = { new: 'New', pending: 'Pending', confirmed: 'Confirmed', completed: 'Completed', cancelled: 'Cancelled' };
   const Q_STATUS = { new: 'New', reviewed: 'Reviewed', addressed: 'Addressed', archived: 'Archived' };
@@ -33,11 +33,26 @@
   const chip = (label, kind) => el('span', { class: 'chip chip-' + kind }, label);
   const hint = e => (e && e.code === 'permission-denied') ? 'Check your Firestore rules.' : '';
 
+  /* ---- toasts (bottom-right, non-blocking) and the "View site" lock ---- */
+  const ICON = { success: '✓', error: '✕', warning: '!', info: 'i' }, TIME = { success: 3500, info: 4000, warning: 6000, error: 8000 };
+  let pending = 0, toasts = 0, confirming = 0;
+  function syncLock() {
+    const b = $('dClose'); if (!b) return;
+    const on = pending > 0 || toasts > 0 || confirming > 0;
+    b.disabled = on; b.setAttribute('aria-disabled', String(on));
+    b.title = on ? 'Please wait until the current action has finished' : '';
+  }
+  window.dashBusy = n => { pending = Math.max(0, pending + n); syncLock(); };
   function notify(msg, type, goPage) {
-    const t = el('div', { class: 'dtoast ' + (type || 'info'), role: type === 'error' ? 'alert' : 'status' }, msg);
-    if (goPage) { t.dataset.go = goPage; t.addEventListener('click', () => { openDash(); go(goPage); t.remove(); }); }
-    $('dtoasts').append(t);
-    setTimeout(() => t.remove(), type === 'error' ? 7000 : 4500);
+    type = ICON[type] ? type : 'info';
+    const box = $('dtoasts'); const live = [...box.children].filter(c => !c.classList.contains('out')); live.slice(0, Math.max(0, live.length - 3)).forEach(c => c.dispatchEvent(new Event('toast:end')));
+    const t = el('div', { class: 'dtoast ' + type, role: type === 'error' ? 'alert' : 'status' }, el('span', { class: 'dti', 'aria-hidden': 'true' }, ICON[type]), el('span', { class: 'dtm' }, msg));
+    let done = false, timer;
+    const end = () => { if (done) return; done = true; clearTimeout(timer); t.classList.add('out'); setTimeout(() => { t.remove(); toasts = Math.max(0, toasts - 1); syncLock(); }, 180); };
+    t.addEventListener('toast:end', end);
+    if (goPage) { t.classList.add('go'); t.addEventListener('click', () => { openDash(); go(goPage); end(); }); }
+    toasts++; syncLock(); box.append(t);
+    timer = setTimeout(end, TIME[type]);
   }
   window.dashNotify = notify;
 
@@ -49,8 +64,8 @@
       const onCancel = e => { e.preventDefault(); done(false); };
       d.addEventListener('cancel', onCancel);
       $('dcOk').onclick = () => done(true); $('dcNo').onclick = () => done(false);
-      d.showModal(); $('dcNo').focus();
-    });
+      confirming++; syncLock(); d.showModal(); $('dcNo').focus();
+    }).then(v => { confirming = Math.max(0, confirming - 1); syncLock(); return v; });
   }
 
   window.dashKit = { el, notify, confirmBox };   // shared with owner-content.js
@@ -75,7 +90,7 @@
   document.querySelectorAll('.dnav [data-page]').forEach(b => b.addEventListener('click', () => go(b.dataset.page)));
   document.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => go(b.dataset.go)));
   openBtn.addEventListener('click', openDash);
-  $('dClose').addEventListener('click', closeDash);
+  $('dClose').addEventListener('click', () => { if (!$('dClose').disabled) closeDash(); });
   $('dMenu').addEventListener('click', () => dash.classList.toggle('drawer'));
   $('dScrim').addEventListener('click', () => dash.classList.remove('drawer'));
   $('dCollapse').addEventListener('click', () => $('dCollapse').setAttribute('aria-pressed', dash.classList.toggle('collapsed')));
@@ -195,7 +210,13 @@
       const other = window.availApi.conflict(r, S.req);
       if (other && !(await confirmBox('Possible double booking', 'This time overlaps a meeting already confirmed with ' + (other.name || 'another visitor') + ' (' + other.date + ' ' + other.time + '). Confirm anyway?', 'Confirm anyway'))) return;
     }
-    return setReq0(r, status);
+    if (status === 'confirmed' && window.calendarApi && window.calendarApi.connected()) {   // Google Calendar conflict check (only when connected)
+      const busy = await window.calendarApi.conflictFor(r);
+      if (busy && !(await confirmBox('Calendar conflict', 'Google Calendar shows you are busy at that time. Confirm anyway?', 'Confirm anyway'))) return;
+    }
+    const res = await setReq0(r, status);
+    if (status === 'confirmed' && window.calendarApi) window.calendarApi.onConfirmed(r);
+    return res;
   };
   const setReq0 = (r, status) => update(r.ref, { status }, 'Meeting request from ' + (r.name || 'a client') + ' marked ' + REQ_STATUS[status], 'Request marked ' + REQ_STATUS[status] + '.');
 

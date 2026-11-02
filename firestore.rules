@@ -43,6 +43,20 @@ service cloud.firestore {
       allow read, create, delete: if isOwner();
     }
     // Phase 2: private business data. Never readable by visitors.
+    // Phase 3: anonymous visit counter. Visitors may only create; only the owner reads or deletes.
+    match /visits/{id} {
+      allow create: if request.resource.data.keys().hasOnly(['vid','sid','type','path','ref','device','browser','createdAt'])
+        && request.resource.data.keys().hasAll(['vid','sid','type','path','ref','device','browser','createdAt'])
+        && request.resource.data.vid is string && request.resource.data.vid.size() == 24
+        && request.resource.data.sid is string && request.resource.data.sid.size() == 24
+        && request.resource.data.type in ['view','section']
+        && request.resource.data.path is string && request.resource.data.path.size() <= 40
+        && request.resource.data.ref is string && request.resource.data.ref.size() <= 100
+        && request.resource.data.device in ['desktop','tablet','mobile']
+        && request.resource.data.browser is string && request.resource.data.browser.size() <= 20
+        && request.resource.data.createdAt == request.time;
+      allow read, delete: if isOwner();
+    }
     match /clients/{id} { allow read, write: if isOwner(); }
     match /ownerPrivate/{doc} { allow read, write: if isOwner(); }
     match /content/{doc} {

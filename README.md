@@ -121,6 +121,20 @@ service cloud.firestore {
       allow read, create, delete: if isOwner();
     }
     // Phase 2: private business data. Never readable by visitors.
+    // Phase 3: anonymous visit counter. Visitors may only create; only the owner reads or deletes.
+    match /visits/{id} {
+      allow create: if request.resource.data.keys().hasOnly(['vid','sid','type','path','ref','device','browser','createdAt'])
+        && request.resource.data.keys().hasAll(['vid','sid','type','path','ref','device','browser','createdAt'])
+        && request.resource.data.vid is string && request.resource.data.vid.size() == 24
+        && request.resource.data.sid is string && request.resource.data.sid.size() == 24
+        && request.resource.data.type in ['view','section']
+        && request.resource.data.path is string && request.resource.data.path.size() <= 40
+        && request.resource.data.ref is string && request.resource.data.ref.size() <= 100
+        && request.resource.data.device in ['desktop','tablet','mobile']
+        && request.resource.data.browser is string && request.resource.data.browser.size() <= 20
+        && request.resource.data.createdAt == request.time;
+      allow read, delete: if isOwner();
+    }
     match /clients/{id} { allow read, write: if isOwner(); }
     match /ownerPrivate/{doc} { allow read, write: if isOwner(); }
     match /content/{doc} {
@@ -152,3 +166,10 @@ Older records without these fields keep working (safe defaults). Images are stor
 - Private documents (owner only): `clients/{id}` {name, email, phone, company, rate, arrangement, invoiceDue, status, notes}, `ownerPrivate/config` {capacity, currency, hourly, monthly, showHourly, showMonthly}.
 - `content/busy` is refreshed by the owner dashboard whenever it is open and signed in. Confirm or cancel meetings from the dashboard and it updates itself.
 - Visitors choose times in the owner's time zone; their own time zone is appended to the message. The booking rule blocks an exact start time that is already confirmed; overlap between different slot lengths is handled in the page, because Firestore rules cannot loop over lists. Atomic reservation and rate limiting would need Cloud Functions (paid plan).
+
+## Phase 3 (visitors, toasts, integrations, custom domain)
+**Publish the updated rules again** (new `visits` block; `firestore.rules` has the full text).
+- **Visitor monitoring**: `scripts/analytics.js` writes one small document per visit/section to `visits` (random anonymous id, tab session id, page or section, referrer host, device, browser, time). No cookies, no IP, no personal data; Do Not Track / Global Privacy Control, a footer opt-out and bots are respected; the owner's signed-in device is skipped. A refresh does not count again (once per tab session). Owner Panel > Visitors shows totals, unique visitors, page views, sections, referrers, devices, browsers and a chart with Today / 7 / 30 days / custom filters, and can delete records older than 90 days. Spark limits: 20,000 writes and 50,000 reads per day; the page reads at most 5,000 records per load. Rules cannot rate-limit, so a malicious visitor could inflate counts.
+- **Toasts**: bottom-right, auto-dismiss (success 3.5 s, warning 6 s, error 8 s). "View site" is disabled while a save, a confirmation dialog or a toast is active, and enabled again afterwards.
+- **Integrations**: Google Calendar uses Google Identity Services (OAuth 2.0 token flow). The Client ID is public and saved in `ownerPrivate/config`; the access token stays in browser memory only (no server exists on Spark, so no refresh token can be kept: reconnect after a reload). Needs a Google Cloud project with the Calendar API, an OAuth Web client with your site as an authorized JavaScript origin, and your account as a test user while unverified. Drive and Gmail are NOT implemented: they need Cloud Functions (Blaze plan) and, for Gmail, Google app verification.
+- **Custom domain**: stored in `ownerPrivate/config.domain`. Verification uses Google's public DNS-over-HTTPS and a fetch of `https://<domain>/index.html`. It is "verified" only when DNS, HTTPS and the portfolio content all check out. DNS, GitHub Pages' custom-domain setting, the CNAME file and Firebase Authorized domains must still be done by you.

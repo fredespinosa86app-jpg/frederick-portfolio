@@ -171,7 +171,7 @@
     try {
       await f.setDoc(f.doc(own().db, 'content', 'availability'), { days, start, end, slot: +$('bkSlot').value, tz, blocked: drafts.blocked, updatedAt: Date.now() });
       await f.setDoc(f.doc(own().db, 'content', 'rates'), { currency: P.currency, hourly: P.showHourly ? hr : null, monthly: P.showMonthly ? mo : null, updatedAt: Date.now() });
-      await f.setDoc(f.doc(own().db, 'ownerPrivate', 'config'), Object.assign({ updatedAt: Date.now() }, P));
+      await f.setDoc(f.doc(own().db, 'ownerPrivate', 'config'), Object.assign({ updatedAt: Date.now() }, P), { merge: true });
       priv = P; own().log('Availability, rates and capacity updated'); notify('Settings saved. The meeting form is updated.', 'success'); renderStats(); clearFlag();
     } catch (e) { notify('Could not save. ' + fmtErr(e), 'error'); $('bkSave').disabled = false; }
   });
