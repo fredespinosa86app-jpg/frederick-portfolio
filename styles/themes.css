@@ -84,8 +84,8 @@
 [data-theme="netflix"] .btn.gold:hover{background:#f6121d}
 [data-theme="netflix"] :is(.mform input,.mform select,.mform textarea):focus{border-color:var(--gold)}
 /* the dashboard keeps its light layout; only its accent colour follows these two themes */
-[data-theme="matrix"] .dash{--d-accent:#0a7a35}[data-theme="matrix"] .dnav button[aria-current=page]{background:#0f4a24}[data-theme="matrix"] .dbtn.primary:hover:not(:disabled){background:#07612a}
-[data-theme="netflix"] .dash{--d-accent:#b20710}[data-theme="netflix"] .dnav button[aria-current=page]{background:#7d0a10}[data-theme="netflix"] .dbtn.primary:hover:not(:disabled){background:#8f0a10}
+[data-theme="matrix"] :is(.dash,dialog.dmodal){--d-accent:#0a7a35}[data-theme="matrix"] .dnav button[aria-current=page]{background:#0f4a24}[data-theme="matrix"] .dbtn.primary:hover:not(:disabled){background:#07612a}
+[data-theme="netflix"] :is(.dash,dialog.dmodal){--d-accent:#b20710}[data-theme="netflix"] .dnav button[aria-current=page]{background:#7d0a10}[data-theme="netflix"] .dbtn.primary:hover:not(:disabled){background:#8f0a10}
 
 /* Smooth, subtle theme change (disabled for reduced-motion users in responsive.css) */
 html.theme-fade, html.theme-fade * {

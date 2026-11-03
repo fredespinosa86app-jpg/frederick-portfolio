@@ -79,10 +79,20 @@ Firebase Authentication + Firestore. Firestore rules:
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    function isOwner() {
+    // Security S1: only a verified Google sign-in can be the owner.
+    function isGoogleSignIn() {
       return request.auth != null
-        && request.auth.token.email == 'fredespinosa86.app@gmail.com'
-        && request.auth.token.email_verified == true;
+        && request.auth.token.email_verified == true
+        && request.auth.token.firebase.sign_in_provider == 'google.com';
+    }
+    // Your Firebase account ID. Owner panel > Security shows it after you sign in.
+    // While this still says PASTE_YOUR_ACCOUNT_ID_HERE the e-mail check below is the way in.
+    // Once it holds your real ID and you have tested sign-in, delete the e-mail line (see README: "Strict owner mode").
+    function ownerUid() { return 'PASTE_YOUR_ACCOUNT_ID_HERE'; }
+    function isOwner() {
+      return isGoogleSignIn()
+        && (request.auth.uid == ownerUid()
+            || request.auth.token.email == 'fredespinosa86.app@gmail.com');
     }
     // Phase 2: true when the requested start time is not already confirmed (best effort, see README)
     function slotFree() {
@@ -239,3 +249,29 @@ No Firestore rule change is needed (new documents live under `content/{doc}`: pu
 * **Browsers tested:** Chromium only (desktop and mobile sizes). Firefox and Safari could not be run in the test environment, so they are untested; the code uses only standard CSS and JavaScript, but please open the site once in each and report anything odd.
 * **Owner panel code is loaded for every visitor** (about 45 KB gzipped). Splitting it needs a build step, so it was left alone to protect stability.
 * **Content-Security-Policy and Subresource Integrity** are not set. GitHub Pages cannot send headers; a `<meta>` policy is possible but needs separate testing and your approval.
+
+## Phase 8.1 - Dialog fixes
+* **Owner panel pop-ups (request details, confirm boxes, Add/Edit forms):** the main buttons (Confirm Meeting, Save, Confirm) were white on a transparent background and could not be seen. The pop-ups now carry their own colour settings, so those buttons show in every theme (the accent follows Matrix and Netflix too).
+* **Privacy notice on the public site:** the pop-up had no background of its own, so the page showed through it and the text was almost unreadable. It now has a solid background that follows the active theme, with readable text (checked on all 10 themes at desktop and phone sizes).
+
+## Security S1 - Owner identity, sign-in session and rules
+
+**What changed**
+- The database rules now accept the owner only when the sign-in is a *verified Google* sign-in, and only for your account ID (UID) **or**, during the transition, your e-mail address.
+- Owner panel > **Security** shows your account ID with a Copy button, the idle-timeout choice, "keep me signed in" (off by default), Sign out now, and a Firebase console checklist. A **Sign out** button is also always visible at the bottom of the left menu.
+- Sign-in lasts only until the browser is closed (unless you switch "keep me signed in" on). After 30 minutes without activity (you can choose 15 / 30 / 60 / 120) the panel signs you out; a warning appears one minute before.
+
+**Step 1 - get your account ID (once)**
+1. Publish the new `firestore.rules` (Firestore Database > Rules > paste > Publish). It still lets you in by e-mail.
+2. Sign in, open Owner panel > Security, press **Copy account ID** and send it to the assistant (or keep it for step 2). It is an identifier, not a password.
+
+**Step 2 - Strict owner mode (after the ID is known and sign-in has been tested)**
+1. Open `firestore.rules.strict`, replace `PASTE_YOUR_ACCOUNT_ID_HERE` with your ID.
+2. Publish it. Sign out and in again; check Inbox, Settings and one save.
+3. If anything is refused, publish `firestore.rules` again to go back. Never publish the strict file while the placeholder is still in it: it would lock you out of your own database until you publish the transition file again.
+
+**Firebase console checklist** (also on the Security page): only Google sign-in enabled; authorised domains only yours; API key restricted to your site address; published rules equal this file; a budget alert.
+
+**Honest limits**
+- The idle timeout and session choice work in your browser only. Without a server (the free plan has none) a sign-in token cannot be cancelled from elsewhere; it simply expires within about an hour. Signing out on this device is immediate.
+- Rules tests: `rules-tests/` contains an emulator-based test file. It was **not** run in the build environment (no emulator download available); run it on your computer with `npm install` then `npm test` inside that folder (needs Java and the Firebase emulator). The sandbox tests only check the owner logic and the rule text.

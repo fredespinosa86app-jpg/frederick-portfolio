@@ -34,11 +34,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=DM+Sans:wght@400;500;600&family=Playfair+Display:wght@500;600&family=Lora:wght@500;600&family=Inter:wght@400;500;600&family=Poppins:wght@400;500;600&family=Orbitron:wght@500;700&family=Quicksand:wght@400;500;600&display=swap" rel="stylesheet">
 <script>try{if(localStorage.getItem('portfolio-dark')==='1')document.documentElement.setAttribute('data-theme','dark')}catch(e){}</script>
-<link rel="stylesheet" href="styles/main.css?v=p8">
-<link rel="stylesheet" href="styles/components.css?v=p8">
-<link rel="stylesheet" href="styles/owner.css?v=p8">
-<link rel="stylesheet" href="styles/themes.css?v=p8">
-<link rel="stylesheet" href="styles/responsive.css?v=p8">
+<link rel="stylesheet" href="styles/main.css?v=s1">
+<link rel="stylesheet" href="styles/components.css?v=s1">
+<link rel="stylesheet" href="styles/owner.css?v=s1">
+<link rel="stylesheet" href="styles/themes.css?v=s1">
+<link rel="stylesheet" href="styles/responsive.css?v=s1">
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -284,7 +284,7 @@
 <symbol id="ic-palette" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18c1.5 0 2-1 1.5-2-.6-1.2 0-2.5 1.5-2.5H17a4 4 0 0 0 4-4c0-5-4-9.5-9-9.5z"/></symbol>
 <symbol id="ic-hero" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 15l5-4 4 3 3-2 6 4"/></symbol>
 <symbol id="ic-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></symbol>
-<symbol id="ic-cog" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9L7 7M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></symbol>
+<symbol id="ic-out" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></symbol><symbol id="ic-shield" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 4.5-3.2 8.2-8 9-4.8-.8-8-4.5-8-9V6l8-3z"/><path d="M9 12l2 2 4-4"/></symbol><symbol id="ic-cog" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9L7 7M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></symbol>
 <symbol id="ic-briefcase" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M3 13h18"/></symbol>
 <symbol id="ic-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></symbol>
 <symbol id="ic-menu" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></symbol>
@@ -332,8 +332,10 @@
 <h2>Search &amp; sharing</h2>
 <button type="button" data-page="seo"><svg aria-hidden="true"><use href="#ic-search"/></svg><span class="dlabel">SEO &amp; social preview</span></button>
 <h2>Settings</h2>
+<button type="button" data-page="security"><svg aria-hidden="true"><use href="#ic-shield"/></svg><span class="dlabel">Security</span></button>
 <button type="button" data-page="general"><svg aria-hidden="true"><use href="#ic-cog"/></svg><span class="dlabel">General settings</span></button>
 </div>
+<div class="dsidefoot"><button type="button" id="dSignOut" class="dsignout"><svg aria-hidden="true"><use href="#ic-out"/></svg><span class="dlabel">Sign out</span></button></div>
 </aside>
 <div class="dscrim" id="dScrim"></div>
 <div class="dmain">
@@ -609,6 +611,23 @@
 <textarea id="seoCode" rows="9" readonly aria-label="Head tags for index.html" spellcheck="false"></textarea>
 <button type="button" class="dbtn" id="seoCopy">Copy tags</button></div></div>
 </section>
+<section class="dpage" id="dp-security" hidden>
+<div class="dcard"><h2>Your account</h2>
+<p class="dhelp">Signed in as <strong id="secEmail"></strong> with <strong id="secProv">Google</strong>.</p>
+<label class="fld">Account ID<input type="text" id="secUid" readonly aria-describedby="secUidHelp"></label>
+<div class="ab"><button type="button" class="dbtn" id="secCopy">Copy account ID</button></div>
+<p class="dhelp" id="secUidHelp">This ID names your account in the database rules. It is not a password, but do not post it publicly. After you copy it, follow README &gt; "Strict owner mode" to lock the rules to this ID.</p></div>
+<div class="dcard"><h2>Sign-in session</h2>
+<label class="fld">Sign me out after being idle for<select id="secIdle"><option value="15">15 minutes</option><option value="30">30 minutes</option><option value="60">1 hour</option><option value="120">2 hours</option></select></label>
+<label class="tog"><input type="checkbox" id="secKeep"> Keep me signed in on this device after I close the browser</label>
+<p class="dhelp">Off is safer: closing the browser signs you out. The idle timer and this choice are saved on this device only and apply to the next sign-in.</p>
+<div class="ab"><button type="button" class="dbtn" id="secOut">Sign out now</button></div>
+<p class="dhelp" id="secState" role="status"></p></div>
+<div class="dcard"><h2>Firebase console checklist</h2>
+<p class="dhelp">These settings can only be changed in Google's consoles, so tick each one when you have checked it. Ticks are saved privately.</p>
+<ul class="seclist" id="secList"></ul>
+<p class="dhelp" id="secProg" role="status"></p></div>
+</section>
 <section class="dpage" id="dp-general" hidden>
 <div class="dcard"><h2>Hiring</h2><div class="ab">
 <label><input type="checkbox" id="hireToggle" checked> Show “Hire Me” button and Contact section</label><p class="dhelp">When off, the Hire Me buttons, Contact section and the meeting request form are hidden.</p></div></div>
@@ -626,38 +645,39 @@
 <form id="chatForm" autocomplete="off"><input id="chatInput" type="text" placeholder="Type your question…" aria-label="Type your question" maxlength="200"><button type="submit">Send</button></form>
 </div>
 <dialog id="lb" aria-label="Enlarged image"><button type="button" id="close" aria-label="Close enlarged view">×</button><img alt="Enlarged view"></dialog>
-<script src="scripts/settings.js?v=p8"></script>
-<script src="scripts/contacts.js?v=p8"></script>
-<script src="scripts/content.js?v=p8"></script>
-<script src="scripts/testimonials.js?v=p8"></script>
-<script src="scripts/faq.js?v=p8"></script>
-<script src="scripts/videos.js?v=p8"></script>
-<script src="scripts/training.js?v=p8"></script>
-<script src="scripts/experience.js?v=p8"></script>
-<script src="scripts/section-bg.js?v=p8"></script>
-<script src="scripts/hero-photo.js?v=p8"></script>
-<script src="scripts/main.js?v=p8"></script>
-<script src="scripts/chat-engine.js?v=p8"></script>
-<script src="scripts/chatbot.js?v=p8"></script>
-<script src="scripts/video-section.js?v=p8"></script>
-<script src="scripts/theme-switcher.js?v=p8"></script>
-<script src="scripts/seo.js?v=p8"></script>
-<script src="scripts/site-settings.js?v=p8"></script>
-<script src="scripts/availability.js?v=p8"></script>
-<script src="scripts/capacity.js?v=p8"></script>
-<script src="scripts/service-forms.js?v=p8"></script>
-<script src="scripts/meeting-form.js?v=p8"></script>
-<script src="scripts/owner-ui.js?v=p8"></script>
-<script src="scripts/owner-dashboard.js?v=p8"></script>
-<script src="scripts/owner-content.js?v=p8"></script>
-<script src="scripts/owner-phase1.js?v=p8"></script>
-<script src="scripts/owner-phase2.js?v=p8"></script>
-<script src="scripts/analytics.js?v=p8"></script>
-<script src="scripts/owner-phase3.js?v=p8"></script>
-<script src="scripts/owner-phase5.js?v=p8"></script>
-<script src="scripts/owner-phase6.js?v=p8"></script>
-<script src="scripts/owner-phase7.js?v=p8"></script>
-<script src="scripts/owner-seo.js?v=p8"></script>
-<script type="module" src="scripts/owner-panel.js?v=p8"></script>
+<script src="scripts/settings.js?v=s1"></script>
+<script src="scripts/contacts.js?v=s1"></script>
+<script src="scripts/content.js?v=s1"></script>
+<script src="scripts/testimonials.js?v=s1"></script>
+<script src="scripts/faq.js?v=s1"></script>
+<script src="scripts/videos.js?v=s1"></script>
+<script src="scripts/training.js?v=s1"></script>
+<script src="scripts/experience.js?v=s1"></script>
+<script src="scripts/section-bg.js?v=s1"></script>
+<script src="scripts/hero-photo.js?v=s1"></script>
+<script src="scripts/main.js?v=s1"></script>
+<script src="scripts/chat-engine.js?v=s1"></script>
+<script src="scripts/chatbot.js?v=s1"></script>
+<script src="scripts/video-section.js?v=s1"></script>
+<script src="scripts/theme-switcher.js?v=s1"></script>
+<script src="scripts/seo.js?v=s1"></script>
+<script src="scripts/site-settings.js?v=s1"></script>
+<script src="scripts/availability.js?v=s1"></script>
+<script src="scripts/capacity.js?v=s1"></script>
+<script src="scripts/service-forms.js?v=s1"></script>
+<script src="scripts/meeting-form.js?v=s1"></script>
+<script src="scripts/owner-ui.js?v=s1"></script>
+<script src="scripts/owner-dashboard.js?v=s1"></script>
+<script src="scripts/owner-content.js?v=s1"></script>
+<script src="scripts/owner-phase1.js?v=s1"></script>
+<script src="scripts/owner-phase2.js?v=s1"></script>
+<script src="scripts/analytics.js?v=s1"></script>
+<script src="scripts/owner-phase3.js?v=s1"></script>
+<script src="scripts/owner-phase5.js?v=s1"></script>
+<script src="scripts/owner-phase6.js?v=s1"></script>
+<script src="scripts/owner-phase7.js?v=s1"></script>
+<script src="scripts/owner-security.js?v=s1"></script>
+<script src="scripts/owner-seo.js?v=s1"></script>
+<script type="module" src="scripts/owner-panel.js?v=s1"></script>
 </body>
 </html>

@@ -8,9 +8,12 @@ const OWNER=S.ownerEmail;
 if(FIREBASE_CONFIG){try{
 const B='https://www.gstatic.com/firebasejs/10.12.2/';
 const {initializeApp}=await import(B+'firebase-app.js');
-const {getAuth,GoogleAuthProvider,signInWithPopup,signOut,onAuthStateChanged}=await import(B+'firebase-auth.js');
+const {getAuth,GoogleAuthProvider,signInWithPopup,signOut,onAuthStateChanged,setPersistence,browserSessionPersistence,browserLocalPersistence}=await import(B+'firebase-auth.js');
 const {getFirestore,doc,onSnapshot,setDoc,collection,addDoc,serverTimestamp,query,orderBy,limit,updateDoc,deleteDoc,where,getDocs}=await import(B+'firebase-firestore.js');
 const app=initializeApp(FIREBASE_CONFIG),auth=getAuth(app),ref=doc(getFirestore(app),'settings','site');
+/* Security S1: by default the owner session ends when the browser is closed; "keep me signed in" is an explicit per-device choice (Owner panel > Security). */
+let keepIn=false;try{keepIn=localStorage.getItem('ownerKeep')==='1'}catch(e){}
+try{await setPersistence(auth,keepIn?browserLocalPersistence:browserSessionPersistence)}catch(e){console.warn('Could not set sign-in persistence',e)}
 const $=id=>document.getElementById(id),hire=document.querySelectorAll('.hire-cta'),login=$('ownerLogin'),cb=$('hireToggle'),hookUrl=$('hookUrl'),hookOn=$('hookOn'),introOn=$('introOn'),introUrl=$('introUrl');
 login.hidden=false;
 onSnapshot(ref,s=>{const d=s.exists()?s.data():{};const on=d.hireEnabled!==false;if(window.capacityApi)window.capacityApi.setHire(on);else hire.forEach(e=>e.hidden=!on);cb.checked=on;window.chatHook=d.chatAuto&&/^https:\/\//i.test(d.chatWebhook||'')?d.chatWebhook:'';hookUrl.value=d.chatWebhook||'';hookOn.checked=!!d.chatAuto;const iu=d.introUrl||window.DEF_INTRO,ie=d.introEnabled!==false;introOn.checked=ie;introUrl.value=iu;window.setIntro(iu,ie);window.applySite(d)},()=>{});
@@ -54,6 +57,7 @@ window.recordVisit=d=>addDoc(collection(rdb,'visits'),{...d,createdAt:serverTime
 /* every owner write is counted so the dashboard can lock "View site" while a save is running */
 const busy=f=>(...a)=>{window.dashBusy&&window.dashBusy(1);return Promise.resolve(f(...a)).finally(()=>window.dashBusy&&window.dashBusy(-1))};
 window.OWN={db:rdb,ref,save,fs:{collection,addDoc:busy(addDoc),doc,setDoc:busy(setDoc),updateDoc:busy(updateDoc),deleteDoc:busy(deleteDoc),onSnapshot,query,orderBy,limit,where,getDocs,serverTimestamp},
+session:{signOut:()=>signOut(auth),setKeep:async on=>{try{localStorage.setItem('ownerKeep',on?'1':'0')}catch(e){}try{await setPersistence(auth,on?browserLocalPersistence:browserSessionPersistence)}catch(e){}},keep:()=>keepIn},
 log:text=>addDoc(collection(rdb,'activity'),{text:String(text).slice(0,200),createdAt:serverTimestamp()}).catch(()=>{})};
 /* Public content (defaults live in scripts/content.js; the owner's published edits override them) */
 onSnapshot(doc(rdb,'content','services'),s=>{if(s.exists()&&Array.isArray(s.data().items)&&window.contentApi)window.contentApi.setServices(s.data().items,s.data().view)},()=>{});
@@ -71,7 +75,7 @@ onSnapshot(doc(rdb,'content','availability'),s=>{if(window.availApi)window.avail
 onSnapshot(doc(rdb,'content','busy'),s=>{if(window.availApi)window.availApi.setBusy(s.exists()?s.data():null)},()=>{});
 onSnapshot(doc(rdb,'content','rates'),s=>{if(window.availApi)window.availApi.setRates(s.exists()?s.data():null)},()=>{});
 onSnapshot(doc(rdb,'content','testimonials'),s=>{if(window.testiApi)window.testiApi.setDoc(s.exists()?s.data():null)},()=>{});
-onAuthStateChanged(auth,u=>{const ok=!!u&&u.email===OWNER&&u.emailVerified;
+onAuthStateChanged(auth,u=>{const viaGoogle=!!u&&Array.isArray(u.providerData)&&u.providerData.some(x=>x&&x.providerId==='google.com');const ok=!!u&&u.email===OWNER&&u.emailVerified===true&&viaGoogle;
 if(u&&!ok){signOut(auth);notify('The Google account ('+u.email+') is not the owner account. Sign in with '+OWNER+'.','error');return}
-login.hidden=ok;if(ok){try{localStorage.setItem('ownerDevice','1')}catch(e){}}document.dispatchEvent(new CustomEvent('own:auth',{detail:{ok,email:ok?u.email:''}}))});
+login.hidden=ok;if(ok){try{localStorage.setItem('ownerDevice','1')}catch(e){}}document.dispatchEvent(new CustomEvent('own:auth',{detail:{ok,email:ok?u.email:'',uid:ok?u.uid:'',provider:ok?'google.com':''}}))});
 }catch(e){window.__ownerLoginError=String((e&&e.message)||e);console.warn('Owner login unavailable',e)}}

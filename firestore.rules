@@ -1,10 +1,20 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    function isOwner() {
+    // Security S1: only a verified Google sign-in can be the owner.
+    function isGoogleSignIn() {
       return request.auth != null
-        && request.auth.token.email == 'fredespinosa86.app@gmail.com'
-        && request.auth.token.email_verified == true;
+        && request.auth.token.email_verified == true
+        && request.auth.token.firebase.sign_in_provider == 'google.com';
+    }
+    // Your Firebase account ID. Owner panel > Security shows it after you sign in.
+    // While this still says PASTE_YOUR_ACCOUNT_ID_HERE the e-mail check below is the way in.
+    // Once it holds your real ID and you have tested sign-in, delete the e-mail line (see README: "Strict owner mode").
+    function ownerUid() { return 'PASTE_YOUR_ACCOUNT_ID_HERE'; }
+    function isOwner() {
+      return isGoogleSignIn()
+        && (request.auth.uid == ownerUid()
+            || request.auth.token.email == 'fredespinosa86.app@gmail.com');
     }
     // Phase 2: true when the requested start time is not already confirmed (best effort, see README)
     function slotFree() {

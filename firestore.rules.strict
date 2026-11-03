@@ -1,0 +1,88 @@
+// STRICT OWNER MODE. Do NOT publish this file until PASTE_YOUR_ACCOUNT_ID_HERE below is replaced with your real account ID
+// (Owner panel > Security). Publishing it with the placeholder locks the owner out of the database (publish firestore.rules to undo).
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Security S1: only a verified Google sign-in can be the owner.
+    function isGoogleSignIn() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.firebase.sign_in_provider == 'google.com';
+    }
+    // Your Firebase account ID. Owner panel > Security shows it after you sign in.
+    // While this still says PASTE_YOUR_ACCOUNT_ID_HERE the e-mail check below is the way in.
+    // Once it holds your real ID and you have tested sign-in, delete the e-mail line (see README: "Strict owner mode").
+    function ownerUid() { return 'PASTE_YOUR_ACCOUNT_ID_HERE'; }
+    function isOwner() {
+      return isGoogleSignIn()
+        && request.auth.uid == ownerUid();
+    }
+    // Phase 2: true when the requested start time is not already confirmed (best effort, see README)
+    function slotFree() {
+      let ref = /databases/$(database)/documents/content/busy;
+      return !exists(ref) || !((request.resource.data.date + 'T' + request.resource.data.time) in get(ref).data.get('keys', []));
+    }
+    // Phase 7: true unless the owner panel has marked the business as full (content/capacity.open == false).
+    function capOpen() {
+      let cap = /databases/$(database)/documents/content/capacity;
+      return !exists(cap) || get(cap).data.get('open', true) != false;
+    }
+    match /settings/site { allow read: if true; allow write: if isOwner(); }
+    match /meetingRequests/{id} {
+      allow create: if request.resource.data.keys().hasOnly(['name','email','company','date','time','tz','platform','message','status','createdAt','service','formId','formName','answers'])
+        && request.resource.data.keys().hasAll(['name','email','company','date','time','tz','platform','message','status','createdAt'])
+        && request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 100
+        && request.resource.data.email is string && request.resource.data.email.size() > 4 && request.resource.data.email.size() <= 120
+        && request.resource.data.message is string && request.resource.data.message.size() > 0 && request.resource.data.message.size() <= 2000
+        && request.resource.data.company is string && request.resource.data.company.size() <= 120
+        && request.resource.data.platform is string && request.resource.data.platform.size() <= 60
+        && request.resource.data.date is string && request.resource.data.date.size() <= 20
+        && request.resource.data.time is string && request.resource.data.time.size() <= 20
+        && request.resource.data.tz is string && request.resource.data.tz.size() <= 60
+        && (request.resource.data.get('service', '') is string && request.resource.data.get('service', '').size() <= 60)
+        && (request.resource.data.get('formId', '') is string && request.resource.data.get('formId', '').size() <= 40)
+        && (request.resource.data.get('formName', '') is string && request.resource.data.get('formName', '').size() <= 100)
+        && (request.resource.data.get('answers', '') is string && request.resource.data.get('answers', '').size() <= 4000)
+        && request.resource.data.status == 'new'
+        && request.resource.data.createdAt == request.time
+        && capOpen()
+        && slotFree();
+      allow read, update, delete: if isOwner();
+    }
+    match /chatUnanswered/{id} {
+      allow create: if request.resource.data.keys().hasOnly(['question','response','sessionId','context','status','createdAt'])
+        && request.resource.data.keys().hasAll(['question','response','sessionId','context','status','createdAt'])
+        && request.resource.data.question is string && request.resource.data.question.size() > 0 && request.resource.data.question.size() <= 300
+        && request.resource.data.response is string && request.resource.data.response.size() <= 600
+        && request.resource.data.sessionId is string && request.resource.data.sessionId.size() <= 40
+        && request.resource.data.context is string && request.resource.data.context.size() <= 300
+        && request.resource.data.status == 'new'
+        && request.resource.data.createdAt == request.time;
+      allow read, update, delete: if isOwner();
+    }
+    match /activity/{id} {
+      allow read, create, delete: if isOwner();
+    }
+    // Phase 2: private business data. Never readable by visitors.
+    // Phase 3: anonymous visit counter. Visitors may only create; only the owner reads or deletes.
+    match /visits/{id} {
+      allow create: if request.resource.data.keys().hasOnly(['vid','sid','type','path','ref','device','browser','createdAt'])
+        && request.resource.data.keys().hasAll(['vid','sid','type','path','ref','device','browser','createdAt'])
+        && request.resource.data.vid is string && request.resource.data.vid.size() == 24
+        && request.resource.data.sid is string && request.resource.data.sid.size() == 24
+        && request.resource.data.type in ['view','section']
+        && request.resource.data.path is string && request.resource.data.path.size() <= 40
+        && request.resource.data.ref is string && request.resource.data.ref.size() <= 100
+        && request.resource.data.device in ['desktop','tablet','mobile']
+        && request.resource.data.browser is string && request.resource.data.browser.size() <= 20
+        && request.resource.data.createdAt == request.time;
+      allow read, delete: if isOwner();
+    }
+    match /clients/{id} { allow read, write: if isOwner(); }
+    match /ownerPrivate/{doc} { allow read, write: if isOwner(); }
+    match /content/{doc} {
+      allow read: if true;
+      allow write: if isOwner();
+    }
+  }
+}
