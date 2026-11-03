@@ -315,3 +315,10 @@ dialog.vplayer{width:min(960px,96vw);background:#0b1020;border-radius:16px;overf
 .pdlg{background:var(--paper,#fff);color:var(--ink,#1b2333);overflow:auto;max-height:calc(100vh - 32px)}
 .pdlg h2{color:var(--navy,#1b2333)}.pdlg p,.pdlg label{color:inherit}.pdlg .dhelp{color:var(--muted,#5b6578);font-size:14px;margin:6px 0 0}
 .pdlg::backdrop{background:rgba(7,12,24,.72)}
+
+/* Security S3.2: header Owner login button (icon only on small screens) */
+.hdr-login{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-width:44px;height:44px;flex:none;padding:0 12px;border-radius:22px;border:1px solid var(--line);background:var(--paper);color:var(--navy);font:600 14px var(--sans,system-ui,sans-serif);cursor:pointer;transition:background .2s}
+.hdr-login:hover{background:var(--hov)}.hdr-login[hidden]{display:none}
+.hdr-login svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+#ownerLogin{display:none}
+@media(max-width:1100px){.hdr-login{order:2;padding:0;width:44px}.hdr-login .hl-t{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}.dm-toggle{margin-left:0!important}.hdr-login{margin-left:auto}}

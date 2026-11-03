@@ -10,7 +10,7 @@
 (function () {
   'use strict';
   const CACHE = 'availCfg';
-  const DEFAULT = { days: [1, 2, 3, 4, 5, 6], start: '08:00', end: '21:00', slot: 30, tz: 'Asia/Manila', blocked: [] };
+  const DEFAULT = { days: [1, 2, 3, 4, 5, 6], start: '08:00', end: '21:00', slot: 30, tz: 'Asia/Manila', blocked: [], sameDay: false, sameDayHours: 4 };
   const SLOTS = [15, 30, 45, 60];
   let cfg = DEFAULT, busy = { keys: [], items: [] }, rates = { currency: 'USD', hourly: null, monthly: null };
   const listeners = [];
@@ -30,7 +30,8 @@
       const from = ymd(b && b.from), to = ymd(b && b.to) || from;
       return from ? { from, to: to < from ? from : to, label: String((b && b.label) || '').replace(/[\u0000-\u001f<>]/g, ' ').trim().slice(0, 60) } : null;
     }).filter(Boolean);
-    return { days, start, end, slot: SLOTS.includes(+r.slot) ? +r.slot : DEFAULT.slot, tz: tzOk(r.tz) ? r.tz : DEFAULT.tz, blocked };
+    const sh = Math.round(Number(r.sameDayHours)); 
+    return { days, start, end, slot: SLOTS.includes(+r.slot) ? +r.slot : DEFAULT.slot, tz: tzOk(r.tz) ? r.tz : DEFAULT.tz, blocked, sameDay: r.sameDay === true, sameDayHours: sh >= 1 && sh <= 24 ? sh : DEFAULT.sameDayHours };
   }
   const cleanBusy = raw => {
     const r = raw && typeof raw === 'object' ? raw : {};
@@ -63,11 +64,13 @@
   function daySlots(date, now, c, b) {
     c = c || cfg; b = b || busy; now = now == null ? Date.now() : now;
     if (!c.days.includes(dowOf(date)) || isBlocked(date, c)) return [];
-    const out = [], len = c.slot;
+    const out = [], len = c.slot, isToday = date === today(c.tz, now), earliest = c.sameDay ? now + c.sameDayHours * 3600000 : Infinity;
     for (let t = mins(c.start); t + len <= mins(c.end); t += len) {
       const time = pad(Math.floor(t / 60)) + ':' + pad(t % 60), ms = wallToMs(date, time, c.tz), end = ms + len * 60000;
       let state = 'free';
-      if (ms <= now) state = 'past';
+      /* Security S3.2: slots of TODAY need the owner's same-day notice (or are all closed when same-day is off) */
+      if (isToday && ms < earliest) state = 'notice';
+      else if (ms <= now) state = 'past';
       else if (b.items.some(i => ms < i.u + i.m * 60000 && end > i.u)) state = 'taken';
       out.push({ time, ms, state });
     }
@@ -103,6 +106,8 @@
     const runs = []; days.forEach(d => { const l = runs[runs.length - 1]; if (l && l[1] === d - 1) l[1] = d; else runs.push([d, d]); });
     return runs.map(([a, b]) => a === b ? DAYS[a] : b === a + 1 ? DAYS[a] + ' and ' + DAYS[b] : DAYS[a] + ' to ' + DAYS[b]).join(', ');
   }
+  /* Security S3.2: text about same-day meetings for the chatbot and the schedule note */
+  const sameDayNote = c => { c = c || cfg; return c.sameDay ? 'Same-day meetings need at least ' + c.sameDayHours + (c.sameDayHours === 1 ? ' hour' : ' hours') + ' notice.' : 'Meetings can be booked from tomorrow onward.'; };
   const sentence = c => { c = c || cfg; return daysText(c.days) + ', ' + t12(c.start) + ' to ' + t12(c.end) + ' ' + tzName(c.tz); };
 
   const emit = () => listeners.forEach(f => { try { f(); } catch (e) { /* ignore */ } });
@@ -123,7 +128,7 @@
     setCfg: raw => { cfg = clean(raw); save(); emit(); },
     setBusy: raw => { busy = cleanBusy(raw); save(); emit(); },
     setRates: raw => { const r = raw && typeof raw === 'object' ? raw : {}; rates = { currency: String(r.currency || 'USD').replace(/[^A-Za-z$€£₱ ]/g, '').slice(0, 5) || 'USD', hourly: money(r.hourly), monthly: money(r.monthly) }; save(); renderRates(); emit(); },
-    parts, wallToMs, today, addDays, dowOf, isBlocked, blockLabel, daySlots, buildBusy, conflict, requestToMs, sentence, daysText, t12, tzName,
+    parts, wallToMs, today, addDays, dowOf, isBlocked, blockLabel, daySlots, buildBusy, conflict, requestToMs, sentence, sameDayNote, daysText, t12, tzName,
     onChange: f => listeners.push(f)
   };
   try { const c = JSON.parse(localStorage.getItem(CACHE) || 'null'); if (c) { cfg = clean(c.c); busy = cleanBusy(c.b); rates = c.r || rates; } } catch (e) { /* ignore */ }

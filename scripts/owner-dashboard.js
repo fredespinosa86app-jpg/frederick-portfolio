@@ -14,6 +14,8 @@
     services: 'Services', toolkit: 'Toolkit', testimonials: 'Testimonials', video: 'Intro video', theme: 'Theme & effects', hero: 'Hero', social: 'Social media & contact', general: 'General settings' };
   const REQ_STATUS = { new: 'New', pending: 'Pending', confirmed: 'Confirmed', completed: 'Completed', cancelled: 'Cancelled' };
   const Q_STATUS = { new: 'New', reviewed: 'Reviewed', addressed: 'Addressed', archived: 'Archived' };
+  /* Security S3.2: small tag when the requested day is the day the request was sent */
+  const sameDayTag = r => { try { const ms = toDate(r.createdAt), tz = window.availApi.tzOk(r.tz) ? r.tz : window.availApi.cfg().tz; return ms && r.date && window.availApi.parts(+ms, tz).date === r.date ? el('span', { class: 'chip svc' }, 'Same day') : ''; } catch (e) { return ''; } };
   const normReq = s => REQ_STATUS[s] ? s : (s === 'read' ? 'pending' : 'new');
   const normQ = s => Q_STATUS[s] ? s : 'new';
 
@@ -198,7 +200,7 @@
         return el('tr', { class: s === 'new' ? 'unread' : '' },
           el('td', { 'data-label': 'Client' }, el('strong', {}, r.name || '-'), el('br'), el('small', {}, r.email || '')),
           el('td', { 'data-label': 'Purpose' }, r.service ? el('span', { class: 'chip svc' }, String(r.service).slice(0, 60)) : '', r.service ? el('br') : '', msg.slice(0, 80) + (msg.length > 80 ? '…' : '')),
-          el('td', { 'data-label': 'Requested' }, [r.date, r.time].filter(Boolean).join(' '), el('br'), el('small', {}, r.tz || '')),
+          el('td', { 'data-label': 'Requested' }, [r.date, r.time].filter(Boolean).join(' '), sameDayTag(r), el('br'), el('small', {}, r.tz || '')),
           el('td', { 'data-label': 'Submitted' }, fmt(toDate(r.createdAt))),
           el('td', { 'data-label': 'Status' }, chip(REQ_STATUS[s], s)),
           el('td', { 'data-label': 'Actions' }, el('button', { class: 'dbtn sm', type: 'button', onclick: () => openRequest(r.id) }, 'View'),

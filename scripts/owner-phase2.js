@@ -136,6 +136,8 @@
     $('bkDays').replaceChildren(...[1, 2, 3, 4, 5, 6, 0].map(d => el('label', { class: 'tog' }, el('input', { type: 'checkbox', value: d, checked: c.days.includes(d), onchange: flag }), av.DAYS[d])));
     $('bkStart').value = c.start; $('bkEnd').value = c.end; $('bkTz').value = c.tz;
     $('bkSlot').replaceChildren(...av.SLOTS.map(n => el('option', { value: n, selected: n === c.slot }, n + ' minutes')));
+    $('bkSameH').replaceChildren(...Array.from({ length: 24 }, (_, i) => i + 1).map(n => el('option', { value: n, selected: n === c.sameDayHours }, n + (n === 1 ? ' hour' : ' hours'))));
+    $('bkSame').checked = c.sameDay; sameDayPreview();
     $('bkCap').value = priv.capacity || 0; $('bkCur').value = priv.currency || 'USD';
     $('bkHr').value = priv.hourly == null ? '' : priv.hourly; $('bkMo').value = priv.monthly == null ? '' : priv.monthly;
     $('bkHrPub').checked = !!priv.showHourly; $('bkMoPub').checked = !!priv.showMonthly;
@@ -146,6 +148,16 @@
       el('div', { class: 'mmain' }, el('strong', {}, b.from === b.to ? b.from : b.from + ' to ' + b.to), el('small', {}, b.label || 'Unavailable')),
       el('div', { class: 'mctl' }, del(b.from, 'blocked period', () => { drafts.blocked.splice(i, 1); renderBlocks(); flag(); })))) : [el('p', { class: 'dstate' }, 'No blocked dates.')]));
   }
+  /* Security S3.2: live example of the earliest bookable time today with the values on screen */
+  function sameDayPreview() {
+    const on = $('bkSame').checked, hrs = +$('bkSameH').value || 4; $('bkSameH').disabled = !on;
+    const c = Object.assign({}, av.cfg(), { sameDay: on, sameDayHours: hrs, tz: av.tzOk($('bkTz').value.trim()) ? $('bkTz').value.trim() : av.cfg().tz });
+    const now = Date.now(), nowT = av.parts(now, c.tz).time;
+    if (!on) { $('bkSameP').textContent = 'Same-day meetings are off. Today is greyed out for visitors.'; return; }
+    const first = av.daySlots(av.today(c.tz, now), now, c).find(s => s.state === 'free');
+    $('bkSameP').textContent = 'Now ' + av.t12(nowT) + ' in ' + c.tz + '. ' + (first ? 'Earliest time visitors can pick today: ' + av.t12(first.time) + '. Earlier times today are greyed out.' : 'No time is left today for this notice, so today stays greyed out.');
+  }
+  ['bkSame', 'bkSameH', 'bkTz', 'bkStart', 'bkEnd', 'bkSlot'].forEach(id => { $(id).addEventListener('input', sameDayPreview); $(id).addEventListener('change', sameDayPreview); });
   $('bkBlockAdd').addEventListener('click', () => {
     const from = av.ymd($('bkFrom').value), to = av.ymd($('bkTo').value) || from;
     if (!from) return notify('Choose the first date to block.', 'error');
@@ -154,7 +166,7 @@
     drafts.blocked.push({ from, to, label: $('bkLbl').value.trim().slice(0, 60) }); drafts.blocked.sort((a, b) => a.from.localeCompare(b.from));
     $('bkFrom').value = ''; $('bkTo').value = ''; $('bkLbl').value = ''; renderBlocks(); flag();
   });
-  ['bkStart', 'bkEnd', 'bkSlot', 'bkTz', 'bkCap', 'bkCur', 'bkHr', 'bkMo', 'bkHrPub', 'bkMoPub'].forEach(id => { $(id).addEventListener('input', flag); $(id).addEventListener('change', flag); });
+  ['bkSame', 'bkSameH', 'bkStart', 'bkEnd', 'bkSlot', 'bkTz', 'bkCap', 'bkCur', 'bkHr', 'bkMo', 'bkHrPub', 'bkMoPub'].forEach(id => { $(id).addEventListener('input', flag); $(id).addEventListener('change', flag); });
   try { if (Intl.supportedValuesOf) $('bkTzList').replaceChildren(...Intl.supportedValuesOf('timeZone').map(z => el('option', { value: z }))); } catch (e) { /* optional */ }
   const num = v => { v = String(v).trim(); if (v === '') return null; const n = Number(v); return isFinite(n) && n >= 0 ? n : NaN; };
   $('bkSave').addEventListener('click', async () => {
@@ -169,7 +181,7 @@
     const f = own().fs, P = Object.assign({}, priv, { capacity: cap, currency: cur, hourly: hr, monthly: mo, showHourly: $('bkHrPub').checked && hr != null, showMonthly: $('bkMoPub').checked && mo != null });
     $('bkSave').disabled = true;
     try {
-      await f.setDoc(f.doc(own().db, 'content', 'availability'), { days, start, end, slot: +$('bkSlot').value, tz, blocked: drafts.blocked, updatedAt: Date.now() });
+      await f.setDoc(f.doc(own().db, 'content', 'availability'), { days, start, end, slot: +$('bkSlot').value, tz, blocked: drafts.blocked, sameDay: $('bkSame').checked, sameDayHours: +$('bkSameH').value || 4, updatedAt: Date.now() });
       await f.setDoc(f.doc(own().db, 'content', 'rates'), { currency: P.currency, hourly: P.showHourly ? hr : null, monthly: P.showMonthly ? mo : null, updatedAt: Date.now() });
       await f.setDoc(f.doc(own().db, 'ownerPrivate', 'config'), Object.assign({ updatedAt: Date.now() }, P), { merge: true });
       priv = P; own().log('Availability, rates and capacity updated'); notify('Settings saved. The meeting form is updated.', 'success'); renderStats(); clearFlag();

@@ -17,13 +17,14 @@ const dayInfo=d=>{const c=A.cfg(),t=A.today(c.tz);
 if(d<t)return{ok:false,why:'in the past'};if(d>lastDay())return{ok:false,why:'too far ahead'};
 if(!c.days.includes(A.dowOf(d)))return{ok:false,why:'not an available day'};
 if(A.isBlocked(d))return{ok:false,why:A.blockLabel(d)||'unavailable'};
-if(!A.daySlots(d).some(s=>s.state==='free'))return{ok:false,why:'fully booked or past'};return{ok:true}};
+if(d===t&&!c.sameDay)return{ok:false,why:'same-day meetings are not available'};
+if(!A.daySlots(d).some(s=>s.state==='free'))return{ok:false,why:d===t?'too late for same-day booking':'fully booked or past'};return{ok:true}};
 const local=ms=>{if(!VTZ||VTZ===A.cfg().tz)return'';try{return new Intl.DateTimeFormat([],{timeZone:VTZ,hour:'numeric',minute:'2-digit',weekday:'short'}).format(new Date(ms))}catch(e){return''}};
 function set(date,time){sel=date;selTime=time;mf.elements.date.value=date;mf.elements.time.value=time;mf.elements.tz.value=A.cfg().tz;
 if(date&&time){const s=A.daySlots(date).find(x=>x.time===time);const l=s&&local(s.ms);info.textContent='Selected: '+date+' at '+A.t12(time)+' '+A.tzName(A.cfg().tz)+(l?' (your time: '+l+')':'')+'.'}
 else info.textContent=date?'Now choose a time.':'Select an available date, then a time.'}
 function drawSlots(){slotsBox.textContent='';if(!sel)return;const c=A.cfg();
-A.daySlots(sel).filter(s=>s.state!=='past').forEach(s=>{const b=node('button','slot');b.type='button';b.disabled=s.state==='taken';b.setAttribute('aria-pressed',String(s.time===selTime));
+A.daySlots(sel).filter(s=>s.state!=='past').forEach(s=>{const b=node('button','slot');b.type='button';b.disabled=s.state!=='free';if(s.state==='notice'){b.title='Too soon: same-day meetings need '+c.sameDayHours+' hours notice';b.appendChild(node('span','st',A.t12(s.time)));b.appendChild(node('small','','Too soon'));slotsBox.appendChild(b);return}b.setAttribute('aria-pressed',String(s.time===selTime));
 b.appendChild(node('span','st',A.t12(s.time)));const l=local(s.ms);if(l&&s.state==='free')b.appendChild(node('small','',l));if(s.state==='taken'){b.title='Already booked';b.appendChild(node('small','','Booked'))}
 b.addEventListener('click',()=>{set(sel,s.time);drawSlots()});slotsBox.appendChild(b)});
 if(!slotsBox.children.length)slotsBox.appendChild(node('p','fine','No times left on this date.'))}
@@ -44,6 +45,8 @@ function refresh(){const c=A.cfg();tzl.textContent='All times are in '+A.tzName(
 if(sel&&!dayInfo(sel).ok){set('','')}else if(selTime&&!(A.daySlots(sel).find(s=>s.time===selTime&&s.state==='free'))){set(sel,'')}
 drawCal();drawSlots();if(!sel)set('','')}
 A.onChange(refresh);refresh();
+/* Security S3.2: the same-day notice moves with the clock, so slots that have just become too soon switch off without a reload */
+setInterval(refresh,60000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh()});
 return{reset:()=>{sel='';selTime='';view='';set('','');refresh()},valid:()=>{const s=sel&&selTime&&A.daySlots(sel).find(x=>x.time===selTime);return!!s&&s.state==='free'}}})();
 mf.elements.tz.value=window.availApi.cfg().tz;
 /* service type + service-specific questions (Phase 6). Hidden unless the owner switches the feature on. */

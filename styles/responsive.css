@@ -42,3 +42,6 @@ section{padding:64px 0}}
 .cal-g{grid-template-columns:repeat(7,minmax(0,1fr))}
 .cal-b{min-width:0}
 @media(max-width:380px){.mform{padding:14px}.mform fieldset.pick{padding:10px 8px}.cal-g{gap:3px}.cal-b{min-height:28px;border-radius:8px;padding:0;font-size:14px}}
+
+/* Security S3.2: keep the header on one line on very small screens when the Owner login button is shown */
+@media(max-width:420px){.bar{gap:8px}.brand{min-width:0;flex:0 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
