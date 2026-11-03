@@ -86,9 +86,9 @@ service cloud.firestore {
         && request.auth.token.firebase.sign_in_provider == 'google.com';
     }
     // Your Firebase account ID. Owner panel > Security shows it after you sign in.
-    // While this still says PASTE_YOUR_ACCOUNT_ID_HERE the e-mail check below is the way in.
+    // While this still says 3p2YvH4NSVYAAfA0E6HC2kkyc5F3 the e-mail check below is the way in.
     // Once it holds your real ID and you have tested sign-in, delete the e-mail line (see README: "Strict owner mode").
-    function ownerUid() { return 'PASTE_YOUR_ACCOUNT_ID_HERE'; }
+    function ownerUid() { return '3p2YvH4NSVYAAfA0E6HC2kkyc5F3'; }
     function isOwner() {
       return isGoogleSignIn()
         && (request.auth.uid == ownerUid()
@@ -266,9 +266,9 @@ No Firestore rule change is needed (new documents live under `content/{doc}`: pu
 2. Sign in, open Owner panel > Security, press **Copy account ID** and send it to the assistant (or keep it for step 2). It is an identifier, not a password.
 
 **Step 2 - Strict owner mode (after the ID is known and sign-in has been tested)**
-1. Open `firestore.rules.strict`, replace `PASTE_YOUR_ACCOUNT_ID_HERE` with your ID.
+1. Open `firestore.rules.strict`, replace `3p2YvH4NSVYAAfA0E6HC2kkyc5F3` with your ID.
 2. Publish it. Sign out and in again; check Inbox, Settings and one save.
-3. If anything is refused, publish `firestore.rules` again to go back. Never publish the strict file while the placeholder is still in it: it would lock you out of your own database until you publish the transition file again.
+3. If anything is refused, publish `firestore.rules` again to go back. If the ID in the strict file ever differs from the one shown on the Security page, you would be locked out until you publish the transition file again.
 
 **Firebase console checklist** (also on the Security page): only Google sign-in enabled; authorised domains only yours; API key restricted to your site address; published rules equal this file; a budget alert.
 

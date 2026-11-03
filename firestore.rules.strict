@@ -1,5 +1,5 @@
-// STRICT OWNER MODE. Do NOT publish this file until PASTE_YOUR_ACCOUNT_ID_HERE below is replaced with your real account ID
-// (Owner panel > Security). Publishing it with the placeholder locks the owner out of the database (publish firestore.rules to undo).
+// STRICT OWNER MODE: only the account ID below is the owner (no e-mail fallback).
+// Publish, then sign in again and test. If locked out, publish firestore.rules (transition file) to go back.
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -10,9 +10,7 @@ service cloud.firestore {
         && request.auth.token.firebase.sign_in_provider == 'google.com';
     }
     // Your Firebase account ID. Owner panel > Security shows it after you sign in.
-    // While this still says PASTE_YOUR_ACCOUNT_ID_HERE the e-mail check below is the way in.
-    // Once it holds your real ID and you have tested sign-in, delete the e-mail line (see README: "Strict owner mode").
-    function ownerUid() { return 'PASTE_YOUR_ACCOUNT_ID_HERE'; }
+    function ownerUid() { return '3p2YvH4NSVYAAfA0E6HC2kkyc5F3'; }
     function isOwner() {
       return isGoogleSignIn()
         && request.auth.uid == ownerUid();
