@@ -161,3 +161,17 @@ dialog.dmodal{--d-bg:#f4f6fa;--d-card:#fff;--d-ink:#1b2333;--d-muted:#5b6578;--d
 
 .dstate-line.bad{color:#a02020}
 .dwarn{margin-left:auto;background:#b3261e;color:#fff;border-radius:50%;width:18px;height:18px;display:inline-grid;place-items:center;font-size:12px;font-weight:700}
+
+/* Enhancement E3: image library */
+.libmeter{height:12px;background:#e7ebf3;border-radius:8px;overflow:hidden}.libmeter i{display:block;height:100%;width:0;background:#2f6fdb;transition:width .3s}.libmeter i.warn{background:#c77d00}.libmeter i.bad{background:#b3261e}
+.dhelp.warn{color:#8a5a00}.dhelp.bad{color:#b3261e;font-weight:600}
+.libdrop{display:grid;gap:4px;place-items:center;text-align:center;padding:26px 14px;border:2px dashed #9aa6bd;border-radius:12px;cursor:pointer;color:#1b2333;font-weight:600}.libdrop small{font-weight:400;color:#4a5568}
+.libdrop:hover,.libdrop:focus-visible,.libdrop.over{border-color:#2f6fdb;background:#eef3fc;outline:none}
+.libgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:10px}
+.libtile{position:relative;display:grid;gap:4px;align-content:start;padding:8px;border:1px solid #d5dbe7;border-radius:10px;background:#fff;text-align:left;font:inherit;color:#1b2333}
+.libtile img{width:100%;height:auto;aspect-ratio:4/3;object-fit:cover;border-radius:6px;background:#eef1f7}
+.libtile>input[type=checkbox]{position:absolute;top:12px;left:12px;width:20px;height:20px}
+.libname{font-weight:600;font-size:13px;overflow-wrap:anywhere}.libmeta{font-size:12px;color:#4a5568}
+button.libtile.pickable{cursor:pointer;min-height:44px}button.libtile.pickable:hover,button.libtile.pickable:focus-visible{border-color:#2f6fdb;box-shadow:0 0 0 2px #2f6fdb55;outline:none}
+.libbig{max-width:100%;max-height:220px;border-radius:8px;justify-self:center}.libpick{width:min(720px,calc(100vw - 32px))}
+.libbtn{margin-top:6px}.libfile{display:inline-flex;align-items:center;cursor:pointer}.liberrs{margin:6px 0 0;padding-left:18px}

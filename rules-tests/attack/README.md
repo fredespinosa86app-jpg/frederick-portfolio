@@ -5,7 +5,7 @@ The Firebase emulator could not be downloaded in the build environment, so these
 It implements only the constructs this project's rules use; anything else raises an error instead of passing silently.
 It is not Google's engine. For a second opinion, run `rules-tests/owner.test.mjs` with the official emulator (needs Java and a download).
 
-    python3 rules-tests/attack/attack_cases.py .      # 168 cases: reads, extra fields, oversized/script payloads, forged timestamps, replays, wrong accounts, pause/capacity/busy state
-    python3 rules-tests/attack/mutation_check.py .    # weakens the rules 22 ways; every weakening must be caught
+    python3 rules-tests/attack/attack_cases.py .      # 217 cases: reads, extra fields, oversized/script payloads, forged timestamps, replays, wrong accounts, pause/capacity/busy state
+    python3 rules-tests/attack/mutation_check.py .    # weakens the rules 31 ways; every weakening must be caught
 
 Run them from the project folder after any change to `firestore.rules`. They need only Python 3.

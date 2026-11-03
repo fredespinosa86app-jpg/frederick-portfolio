@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-fGX5IcsLgeneh8q3k50FD0Z3izvKrJM1aduFLTysApk=' https://www.gstatic.com https://apis.google.com https://accounts.google.com https://www.google.com/recaptcha/; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; font-src 'self'; img-src 'self' data: blob: https:; media-src 'self' blob: https:; connect-src 'self' https:; frame-src https://www.youtube-nocookie.com https://www.youtube.com https://www.loom.com https://www.google.com https://recaptcha.google.com https://accounts.google.com https://apis.google.com https://*.firebaseapp.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
-<script src="scripts/frame-guard.js?v=e2"></script>
+<script src="scripts/frame-guard.js?v=e3"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Frederick Espinosa | Amazon Product Researcher &amp; VA</title>
 <meta name="description" content="Amazon product researcher and virtual assistant in the Philippines. I find profitable online arbitrage leads with SellerAmp SAS and Keepa, backed by data.">
@@ -33,16 +33,16 @@
 <meta name="twitter:image" content="https://fredespinosa86app-jpg.github.io/frederick-portfolio/assets/images/social/og-image.jpg">
 <meta name="twitter:image:alt" content="Frederick Espinosa, Amazon Product Researcher and Virtual Assistant">
 <script type="application/ld+json" id="ldjson">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","@id":"https://fredespinosa86app-jpg.github.io/frederick-portfolio/#website","url":"https://fredespinosa86app-jpg.github.io/frederick-portfolio/","name":"Frederick Espinosa","description":"Amazon product researcher and virtual assistant in the Philippines. I find profitable online arbitrage leads with SellerAmp SAS and Keepa, backed by data.","inLanguage":"en","publisher":{"@id":"https://fredespinosa86app-jpg.github.io/frederick-portfolio/#person"}},{"@type":"Person","@id":"https://fredespinosa86app-jpg.github.io/frederick-portfolio/#person","name":"Frederick Espinosa","url":"https://fredespinosa86app-jpg.github.io/frederick-portfolio/","image":"https://fredespinosa86app-jpg.github.io/frederick-portfolio/assets/images/hero/hero-portrait.webp","jobTitle":"Amazon Product Researcher & Virtual Assistant","description":"Amazon product researcher and virtual assistant in the Philippines. I find profitable online arbitrage leads with SellerAmp SAS and Keepa, backed by data.","address":{"@type":"PostalAddress","addressLocality":"Plaridel","addressRegion":"Bulacan","addressCountry":"PH"},"knowsAbout":["Amazon product research","Online arbitrage","Product sourcing","Keepa","SellerAmp SAS","Amazon Seller Central","Virtual assistance"],"sameAs":["https://www.linkedin.com/in/frederick-espinosa-4a03b03b9/","https://v2.onlinejobs.ph/jobseekers/info/4884720","https://www.upwork.com/freelancers/~017a9a8bf9e0f5c289"]}]}</script>
-<link rel="stylesheet" href="styles/boot.css?v=e2">
-<script src="scripts/boot-cover.js?v=e2"></script>
+<link rel="stylesheet" href="styles/boot.css?v=e3">
+<script src="scripts/boot-cover.js?v=e3"></script>
 <noscript><style>#boot{display:none}</style></noscript>
-<link rel="stylesheet" href="styles/fonts.css?v=e2">
+<link rel="stylesheet" href="styles/fonts.css?v=e3">
 <script>try{if(localStorage.getItem('portfolio-dark')==='1')document.documentElement.setAttribute('data-theme','dark')}catch(e){}</script>
-<link rel="stylesheet" href="styles/main.css?v=e2">
-<link rel="stylesheet" href="styles/components.css?v=e2">
-<link rel="stylesheet" href="styles/owner.css?v=e2">
-<link rel="stylesheet" href="styles/themes.css?v=e2">
-<link rel="stylesheet" href="styles/responsive.css?v=e2">
+<link rel="stylesheet" href="styles/main.css?v=e3">
+<link rel="stylesheet" href="styles/components.css?v=e3">
+<link rel="stylesheet" href="styles/owner.css?v=e3">
+<link rel="stylesheet" href="styles/themes.css?v=e3">
+<link rel="stylesheet" href="styles/responsive.css?v=e3">
 </head>
 <body>
 <div id="boot" role="status" aria-live="polite" aria-busy="true"><span class="bdots" aria-hidden="true"><i></i><i></i><i></i></span><span class="bsr">Loading the portfolio…</span></div>
@@ -330,6 +330,7 @@
 <button type="button" data-page="faq"><svg aria-hidden="true"><use href="#ic-help"/></svg><span class="dlabel">FAQ</span></button>
 <button type="button" data-page="experience"><svg aria-hidden="true"><use href="#ic-briefcase"/></svg><span class="dlabel">Experience</span></button>
 <button type="button" data-page="video"><svg aria-hidden="true"><use href="#ic-video"/></svg><span class="dlabel">Intro video</span></button>
+<button type="button" data-page="library"><svg aria-hidden="true"><use href="#ic-grid"/></svg><span class="dlabel">Image library</span></button>
 <h2>Business</h2>
 <button type="button" data-page="booking"><svg aria-hidden="true"><use href="#ic-cog"/></svg><span class="dlabel">Availability, rates &amp; capacity</span></button>
 <button type="button" data-page="svcforms"><svg aria-hidden="true"><use href="#ic-doc"/></svg><span class="dlabel">Service forms</span></button>
@@ -443,6 +444,25 @@
 <input type="url" id="introUrl" placeholder="YouTube or Loom link" aria-label="Video link (YouTube or Loom)" autocomplete="off">
 <div class="dact-row"><button type="button" class="dbtn primary" id="introSave">Save video settings</button><button type="button" class="dbtn danger" id="introRemove">Remove video</button></div>
 <p class="dhelp">Remove video clears the link and hides the section. Until you paste a new link, visitors see no intro video.</p></div></div></section>
+<section class="dpage" id="dp-library" hidden>
+<div class="dcard"><h2>Image library</h2><p class="dhelp">Keep pictures here and reuse them in any image field (look for <strong>Choose from library</strong>). Pictures are resized and compressed automatically and stored in your database. JPG, PNG and WebP only.</p>
+<div class="libmeter" id="libMeter" role="progressbar" aria-label="Library storage used" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="libBar"></i></div>
+<p class="dstate" id="libUse" role="status"></p><p class="dhelp" id="libNote"></p>
+<div class="ab"><label class="fld">Storage cap<select id="libCap"><option value="50">50 MB</option><option value="100">100 MB</option><option value="200">200 MB (default)</option><option value="300">300 MB</option><option value="400">400 MB</option><option value="500">500 MB</option></select></label>
+<button type="button" class="dbtn primary" id="libCapSave">Save cap</button></div>
+<p class="dstate" id="libState" role="status"></p></div>
+<div class="dcard"><h2>Add pictures</h2>
+<div class="libdrop" id="libDrop" tabindex="0" role="button" aria-label="Choose pictures to upload, or drop them here">Drop pictures here or press to choose<small>Up to 25 MB each. Each picture is shrunk to 250 KB or less. Up to 300 pictures.</small></div>
+<input type="file" id="libFile" accept="image/jpeg,image/png,image/webp" multiple hidden>
+<p class="dstate" id="libUpState" role="status"></p><ul class="dhelp liberrs" id="libErrs"></ul></div>
+<div class="dcard"><h2>Your pictures</h2>
+<div class="ab"><label class="fld">Search<input type="search" id="libSearch" placeholder="Name or tag" autocomplete="off"></label></div>
+<div class="dact-row"><button type="button" class="dbtn" id="libRefresh">Refresh</button><button type="button" class="dbtn" id="libNever">Select never-used</button><button type="button" class="dbtn danger" id="libDel" disabled>Delete selected</button></div>
+<div class="libgrid" id="libGrid"></div></div>
+<div class="dcard"><h2>Library backup</h2><p class="dhelp">A separate file with all pictures (the normal backup does not include them). Restoring skips pictures you already have and stops at your storage cap.</p>
+<div class="dact-row"><button type="button" class="dbtn" id="libBk">Download library backup</button><label class="dbtn libfile">Restore library backup<input type="file" id="libRs" accept="application/json,.json" hidden></label></div>
+<p class="dstate" id="libBkState" role="status"></p></div>
+</section>
 <section class="dpage" id="dp-theme" hidden>
 <div class="dcard"><h2>Theme &amp; effects</h2><p class="dhelp">Changes preview instantly on the site behind this panel. Save to publish them for every visitor. Visitors can only switch to Dark Mode for themselves.</p><div class="ab">
 <label class="fld">Theme mode<select id="thSel"><option value="gold-silver">Gold &amp; Silver (default)</option><option value="nature">Nature</option><option value="outer-space">Outer Space</option><option value="classic">Classic cream &amp; navy</option><option value="dark">Dark mode</option><option value="vegapunk">Vegapunk mode</option><option value="girly">Girly mode</option><option value="ocean">Ocean mode</option><option value="matrix">Dark Mode - Matrix</option><option value="netflix">Dark Mode - Netflix</option></select></label>
@@ -727,43 +747,44 @@
 <form id="chatForm" autocomplete="off"><input id="chatInput" type="text" placeholder="Type your question…" aria-label="Type your question" maxlength="200"><button type="submit">Send</button></form>
 </div>
 <dialog id="lb" aria-label="Enlarged image"><button type="button" id="close" aria-label="Close enlarged view">×</button><img alt="Enlarged view"></dialog>
-<script src="scripts/settings.js?v=e2"></script>
-<script src="scripts/contacts.js?v=e2"></script>
-<script src="scripts/content.js?v=e2"></script>
-<script src="scripts/testimonials.js?v=e2"></script>
-<script src="scripts/faq.js?v=e2"></script>
-<script src="scripts/videos.js?v=e2"></script>
-<script src="scripts/training.js?v=e2"></script>
-<script src="scripts/experience.js?v=e2"></script>
-<script src="scripts/section-bg.js?v=e2"></script>
-<script src="scripts/hero-photo.js?v=e2"></script>
-<script src="scripts/main.js?v=e2"></script>
-<script src="scripts/chat-engine.js?v=e2"></script>
-<script src="scripts/chatbot.js?v=e2"></script>
-<script src="scripts/video-section.js?v=e2"></script>
-<script src="scripts/theme-switcher.js?v=e2"></script>
-<script src="scripts/seo.js?v=e2"></script>
-<script src="scripts/site-settings.js?v=e2"></script>
-<script src="scripts/availability.js?v=e2"></script>
-<script src="scripts/capacity.js?v=e2"></script>
-<script src="scripts/service-forms.js?v=e2"></script>
-<script src="scripts/meeting-form.js?v=e2"></script>
-<script src="scripts/owner-ui.js?v=e2"></script>
-<script src="scripts/owner-dashboard.js?v=e2"></script>
-<script src="scripts/owner-content.js?v=e2"></script>
-<script src="scripts/owner-phase1.js?v=e2"></script>
-<script src="scripts/owner-phase2.js?v=e2"></script>
-<script src="scripts/analytics.js?v=e2"></script>
-<script src="scripts/owner-phase3.js?v=e2"></script>
-<script src="scripts/owner-phase5.js?v=e2"></script>
-<script src="scripts/owner-phase6.js?v=e2"></script>
-<script src="scripts/owner-phase7.js?v=e2"></script>
-<script src="scripts/owner-security.js?v=e2"></script>
-<script src="scripts/backup-core.js?v=e2"></script>
-<script src="scripts/owner-privacy.js?v=e2"></script>
-<script src="scripts/privacy-notice.js?v=e2"></script>
-<script src="scripts/owner-entry.js?v=e2"></script>
-<script src="scripts/owner-seo.js?v=e2"></script>
-<script type="module" src="scripts/owner-panel.js?v=e2"></script>
+<script src="scripts/settings.js?v=e3"></script>
+<script src="scripts/contacts.js?v=e3"></script>
+<script src="scripts/content.js?v=e3"></script>
+<script src="scripts/testimonials.js?v=e3"></script>
+<script src="scripts/faq.js?v=e3"></script>
+<script src="scripts/videos.js?v=e3"></script>
+<script src="scripts/training.js?v=e3"></script>
+<script src="scripts/experience.js?v=e3"></script>
+<script src="scripts/section-bg.js?v=e3"></script>
+<script src="scripts/hero-photo.js?v=e3"></script>
+<script src="scripts/main.js?v=e3"></script>
+<script src="scripts/chat-engine.js?v=e3"></script>
+<script src="scripts/chatbot.js?v=e3"></script>
+<script src="scripts/video-section.js?v=e3"></script>
+<script src="scripts/theme-switcher.js?v=e3"></script>
+<script src="scripts/seo.js?v=e3"></script>
+<script src="scripts/site-settings.js?v=e3"></script>
+<script src="scripts/availability.js?v=e3"></script>
+<script src="scripts/capacity.js?v=e3"></script>
+<script src="scripts/service-forms.js?v=e3"></script>
+<script src="scripts/meeting-form.js?v=e3"></script>
+<script src="scripts/owner-ui.js?v=e3"></script>
+<script src="scripts/owner-dashboard.js?v=e3"></script>
+<script src="scripts/owner-content.js?v=e3"></script>
+<script src="scripts/owner-phase1.js?v=e3"></script>
+<script src="scripts/owner-phase2.js?v=e3"></script>
+<script src="scripts/analytics.js?v=e3"></script>
+<script src="scripts/owner-phase3.js?v=e3"></script>
+<script src="scripts/owner-phase5.js?v=e3"></script>
+<script src="scripts/owner-phase6.js?v=e3"></script>
+<script src="scripts/owner-phase7.js?v=e3"></script>
+<script src="scripts/owner-security.js?v=e3"></script>
+<script src="scripts/backup-core.js?v=e3"></script>
+<script src="scripts/owner-privacy.js?v=e3"></script>
+<script src="scripts/owner-library.js?v=e3"></script>
+<script src="scripts/privacy-notice.js?v=e3"></script>
+<script src="scripts/owner-entry.js?v=e3"></script>
+<script src="scripts/owner-seo.js?v=e3"></script>
+<script type="module" src="scripts/owner-panel.js?v=e3"></script>
 </body>
 </html>

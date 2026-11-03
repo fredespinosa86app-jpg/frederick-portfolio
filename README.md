@@ -191,6 +191,32 @@ service cloud.firestore {
         && request.resource.data.secs.hasAll(resource.data.secs);
       allow read, delete: if isOwner();
     }
+    // E3: private image library. Owner only (read, write, delete); every write is shape- and size-limited.
+    match /library/{id} {
+      allow read, delete: if isOwner();
+      allow create, update: if isOwner()
+        && request.resource.data.keys().hasOnly(['name','tags','mime','w','h','bytes','hash','thumb','used','usedIn','createdAt'])
+        && request.resource.data.keys().hasAll(['name','tags','mime','w','h','bytes','hash','thumb','used','usedIn','createdAt'])
+        && request.resource.data.name is string && request.resource.data.name.size() >= 1 && request.resource.data.name.size() <= 80
+        && request.resource.data.tags is list && request.resource.data.tags.size() <= 10
+        && request.resource.data.mime == 'image/webp'
+        && request.resource.data.w is number && request.resource.data.h is number
+        && request.resource.data.w >= 1 && request.resource.data.w <= 4000 && request.resource.data.h >= 1 && request.resource.data.h <= 4000
+        && request.resource.data.bytes is number && request.resource.data.bytes >= 1 && request.resource.data.bytes <= 262144
+        && request.resource.data.hash is string && request.resource.data.hash.size() <= 64
+        && request.resource.data.thumb is string && request.resource.data.thumb.size() <= 24000
+        && request.resource.data.used is number && request.resource.data.usedIn is list && request.resource.data.usedIn.size() <= 8
+        && request.resource.data.createdAt is number;
+    }
+    match /libraryFull/{id} {
+      allow read, delete: if isOwner();
+      allow create, update: if isOwner()
+        && request.resource.data.keys().hasOnly(['data','bytes'])
+        && request.resource.data.keys().hasAll(['data','bytes'])
+        && request.resource.data.data is string && request.resource.data.data.size() <= 360000
+        && request.resource.data.data.matches('^data:image/webp;base64,[A-Za-z0-9+/]+={0,2}$')
+        && request.resource.data.bytes is number && request.resource.data.bytes <= 262144;
+    }
     match /clients/{id} { allow read, write: if isOwner(); }
     match /ownerPrivate/{doc} { allow read, write: if isOwner(); }
     match /content/{doc} {
@@ -420,3 +446,18 @@ No new feature. Added `rules-tests/attack/` (123 attack cases and a 15-way mutat
 - Data retention ("Delete records older than 90 days") and backup export already handle any `visits` document, so summaries are included.
 - Privacy notice wording updated: sections are saved together as one short list when the visitor leaves.
 - Rules tests: 168 attack cases and 22 mutations (`rules-tests/attack`).
+
+## Enhancement E3 – Image library with a storage cap
+
+**Owner panel → Content → Image library.** Pictures are resized and compressed in the browser to WebP (at most 1200 px wide, at most 250 KB each) and stored as database documents. No paid Storage product is used.
+
+- **Accepted:** JPG, PNG, WebP, checked by the file's first bytes (not the name). SVG, GIF, scripts and everything else are refused. Exact duplicates are refused.
+- **Where it lives:** `library/{id}` (name, tags, size, small thumbnail, hash, where it was used) and `libraryFull/{id}` (the compressed picture). Both are **owner only** (read, write, delete) in `firestore.rules` and `firestore.rules.strict`, with size/shape limits on every write. **You must republish `firestore.rules.strict`.**
+- **Storage cap (your setting):** 50 / 100 / 200 (default) / 300 / 400 / 500 MB, saved in `ownerPrivate/library`. A meter shows the use; a warning at 80%; uploads and restores are blocked at 100%. At most 300 pictures. The cap is enforced by this page because the free plan has no server code; the rules additionally cap each document. It measures the library only, not the other pictures stored in settings or content.
+- **Using a picture:** every image upload field in the owner panel (hero image, hero photo, chatbot picture, and the edit-dialog fields for services, toolkit, testimonials and training) has a **Choose from library** button. The picture is COPIED into the field through that field's own upload steps, so visitors cause no extra database reads, and deleting a library picture later never breaks the public site.
+- **Delete:** a picture that was copied into the site before shows a warning (it lists where). "Select never-used" helps clean up.
+- **Library backup:** its own file (`codeflow-image-library-DATE.json`, with the pictures inside, so keep it private). Restore skips duplicates and invalid items, checks every picture's hash, and stops at the cap or the 300 limit. The normal backup does not include the library.
+- **Reads:** opening the library page reads the small records once (about one read per picture); the full pictures are read only when you pick one, back up or restore.
+- Rules tests: 217 attack cases and 31 mutations (`rules-tests/attack`).
+
+See also `KNOWN-ISSUES.md` (open item KI-1: the Toolkit switch).

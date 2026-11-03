@@ -22,7 +22,7 @@ chk('control: visitor can create a valid visit record',A('create','visits/'+VID,
 chk('control: anyone can read public content and site settings',A('get','content/faq') and A('get','settings/site') and A('list','content'))
 chk('control: owner can read and write private data',all(A(o,'clients/c1',OWN,{'a':1},{'a':0}) for o in ('get','create','update','delete')) and A('list','ownerPrivate',OWN))
 # ---------------- 1. read private data as a visitor or wrong account
-PRIV=['clients','ownerPrivate','meetingRequests','chatUnanswered','activity','visits']
+PRIV=['clients','ownerPrivate','meetingRequests','chatUnanswered','activity','visits','library','libraryFull']
 for c in PRIV:
     chk(f'visitor cannot get/list {c}',not A('get',c+'/x') and not A('list',c))
     chk(f'signed-in stranger (Google) cannot get/list {c}',not A('get',c+'/x',STRANGER) and not A('list',c,STRANGER))
@@ -108,6 +108,24 @@ chk('E2 view record cannot be turned into a summary by update',not A('update','v
 chk('E2 summary: visitor cannot read or delete; owner can',not A('get','visits/'+SID) and not A('delete','visits/'+SID,None,None,SUM()) and A('get','visits/'+SID,OWN) and A('delete','visits/'+SID,OWN,None,SUM()))
 GP={'content/guard':{'pause':True}}
 chk('E2 PAUSE on: summary create and update are refused',not A('create','visits/'+SID,None,SUM(),docs=GP) and not A('update','visits/'+SID,None,SUM(secs=['intro','faq','contact']),SUM(),docs=GP))
+# ---------------- 8c. E3: private image library (owner only, shape and size limited)
+LIBR=lambda **k: dict({'name':'Hero','tags':['a'],'mime':'image/webp','w':1200,'h':800,'bytes':120000,'hash':'a'*64,'thumb':'data:image/webp;base64,AAAA','used':0,'usedIn':[],'createdAt':NOW},**k)
+FULL=lambda **k: dict({'data':'data:image/webp;base64,UklGRg==','bytes':100},**k)
+for nm,sim in (('transition',S),('strict',SS)):
+    chk(f'E3 [{nm}] control: owner can create, read, update, delete a library record',all([A('create','library/i1',OWN,LIBR(),sim=sim),A('get','library/i1',OWN,sim=sim),A('list','library',OWN,sim=sim),A('update','library/i1',OWN,LIBR(name='New'),LIBR(),sim=sim),A('delete','library/i1',OWN,None,LIBR(),sim=sim)]))
+    chk(f'E3 [{nm}] control: owner can create, read, delete a full picture',all([A('create','libraryFull/i1',OWN,FULL(),sim=sim),A('get','libraryFull/i1',OWN,sim=sim),A('delete','libraryFull/i1',OWN,None,FULL(),sim=sim)]))
+    for who,au in (('visitor',None),('stranger',STRANGER)):
+        chk(f'E3 [{nm}] {who}: no read, list, create, update or delete on library or libraryFull',not any([A(o,p,au,d,old,sim=sim) for p,d,old in (('library/i1',LIBR(),LIBR()),('libraryFull/i1',FULL(),FULL())) for o in ('get','create','update','delete')]+[A('list','library',au,sim=sim),A('list','libraryFull',au,sim=sim)]))
+LB=[('extra field',LIBR(x=1)),('missing field',{k:v for k,v in LIBR().items() if k!='hash'}),('empty name',LIBR(name='')),('name 81',LIBR(name='n'*81)),('name number',LIBR(name=5)),
+ ('tags 11',LIBR(tags=['t']*11)),('tags string',LIBR(tags='a')),('svg mime',LIBR(mime='image/svg+xml')),('png mime',LIBR(mime='image/png')),('html mime',LIBR(mime='text/html')),
+ ('w 0',LIBR(w=0)),('w 4001',LIBR(w=4001)),('h 0',LIBR(h=0)),('h 4001',LIBR(h=4001)),('bytes 0',LIBR(bytes=0)),('bytes 262145',LIBR(bytes=262145)),('bytes string',LIBR(bytes='9')),
+ ('hash 65',LIBR(hash='a'*65)),('thumb 24001',LIBR(thumb='t'*24001)),('thumb number',LIBR(thumb=1)),('usedIn 9',LIBR(usedIn=['x']*9)),('used string',LIBR(used='1')),('createdAt string',LIBR(createdAt='now'))]
+for n,d in LB: chk('E3 library record refused: '+n,not A('create','library/i1',OWN,d) and not A('create','library/i1',OWN,d,sim=SS))
+FB=[('svg data',FULL(data='data:image/svg+xml;base64,PHN2Zz4=')),('html data',FULL(data='data:text/html;base64,AAAA')),('png data',FULL(data='data:image/png;base64,AAAA')),('script chars',FULL(data='data:image/webp;base64,AA<script>')),
+ ('no prefix',FULL(data='https://evil.example/x.webp')),('empty payload',FULL(data='data:image/webp;base64,')),('size 360001',FULL(data='data:image/webp;base64,'+'A'*(360001-23))),('data number',FULL(data=5)),
+ ('bytes 262145',FULL(bytes=262145)),('bytes string',FULL(bytes='1')),('extra field',FULL(x=1)),('missing bytes',{'data':'data:image/webp;base64,UklGRg=='}),('missing data',{'bytes':1})]
+for n,d in FB: chk('E3 full picture refused: '+n,not A('create','libraryFull/i1',OWN,d) and not A('create','libraryFull/i1',OWN,d,sim=SS))
+chk('E3 full picture at exactly the size limit is accepted',A('create','libraryFull/i1',OWN,FULL(data='data:image/webp;base64,'+'A'*(360000-23))))
 # ---------------- 9. cross-check: strict file equals transition file apart from the owner check
 a=re.sub(r'\s+','',TXT); b=re.sub(r'\s+','',re.sub(r'^//.*\n','',STRICT,flags=re.M))
 chk('strict rules differ from the transition rules only in the owner e-mail fallback',a.replace("&&(request.auth.uid==ownerUid()||request.auth.token.email=='fredespinosa86.app@gmail.com');","&&request.auth.uid==ownerUid();")==b,'')

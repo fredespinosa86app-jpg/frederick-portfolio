@@ -114,6 +114,32 @@ service cloud.firestore {
         && request.resource.data.secs.hasAll(resource.data.secs);
       allow read, delete: if isOwner();
     }
+    // E3: private image library. Owner only (read, write, delete); every write is shape- and size-limited.
+    match /library/{id} {
+      allow read, delete: if isOwner();
+      allow create, update: if isOwner()
+        && request.resource.data.keys().hasOnly(['name','tags','mime','w','h','bytes','hash','thumb','used','usedIn','createdAt'])
+        && request.resource.data.keys().hasAll(['name','tags','mime','w','h','bytes','hash','thumb','used','usedIn','createdAt'])
+        && request.resource.data.name is string && request.resource.data.name.size() >= 1 && request.resource.data.name.size() <= 80
+        && request.resource.data.tags is list && request.resource.data.tags.size() <= 10
+        && request.resource.data.mime == 'image/webp'
+        && request.resource.data.w is number && request.resource.data.h is number
+        && request.resource.data.w >= 1 && request.resource.data.w <= 4000 && request.resource.data.h >= 1 && request.resource.data.h <= 4000
+        && request.resource.data.bytes is number && request.resource.data.bytes >= 1 && request.resource.data.bytes <= 262144
+        && request.resource.data.hash is string && request.resource.data.hash.size() <= 64
+        && request.resource.data.thumb is string && request.resource.data.thumb.size() <= 24000
+        && request.resource.data.used is number && request.resource.data.usedIn is list && request.resource.data.usedIn.size() <= 8
+        && request.resource.data.createdAt is number;
+    }
+    match /libraryFull/{id} {
+      allow read, delete: if isOwner();
+      allow create, update: if isOwner()
+        && request.resource.data.keys().hasOnly(['data','bytes'])
+        && request.resource.data.keys().hasAll(['data','bytes'])
+        && request.resource.data.data is string && request.resource.data.data.size() <= 360000
+        && request.resource.data.data.matches('^data:image/webp;base64,[A-Za-z0-9+/]+={0,2}$')
+        && request.resource.data.bytes is number && request.resource.data.bytes <= 262144;
+    }
     match /clients/{id} { allow read, write: if isOwner(); }
     match /ownerPrivate/{doc} { allow read, write: if isOwner(); }
     match /content/{doc} {
