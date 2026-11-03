@@ -9,7 +9,7 @@ if(FIREBASE_CONFIG){try{
 const B='https://www.gstatic.com/firebasejs/10.12.2/';
 const {initializeApp}=await import(B+'firebase-app.js');
 const {getAuth,GoogleAuthProvider,signInWithPopup,signOut,onAuthStateChanged,setPersistence,browserSessionPersistence,browserLocalPersistence}=await import(B+'firebase-auth.js');
-const {getFirestore,doc,onSnapshot,setDoc,collection,addDoc,serverTimestamp,query,orderBy,limit,updateDoc,deleteDoc,where,getDocs,getCountFromServer}=await import(B+'firebase-firestore.js');
+const {getFirestore,doc,onSnapshot,setDoc,collection,addDoc,serverTimestamp,query,orderBy,limit,updateDoc,deleteDoc,where,getDocs,getDoc,getCountFromServer}=await import(B+'firebase-firestore.js');
 const app=initializeApp(FIREBASE_CONFIG);
 /* Security S2: App Check (reCAPTCHA Fraud Defense Essentials, free, no billing; or classic v3 if appCheckProvider is 'v3'). Active only when settings.js holds a site key; a failure never blocks the site. */
 if(S.appCheckSiteKey){try{const AC=await import(B+'firebase-app-check.js');const Prov=S.appCheckProvider==='v3'?AC.ReCaptchaV3Provider:AC.ReCaptchaEnterpriseProvider;AC.initializeAppCheck(app,{provider:new Prov(S.appCheckSiteKey),isTokenAutoRefreshEnabled:true})}catch(e){console.warn('App Check could not start',e)}}
@@ -63,7 +63,7 @@ return setDoc(doc(rdb,'chatUnanswered',sid+'_'+hash(q.toLowerCase())),{question:
 window.recordVisit=d=>setDoc(doc(rdb,'visits',d.sid+'_'+d.type+'_'+d.path),{...d,createdAt:serverTimestamp()});
 /* every owner write is counted so the dashboard can lock "View site" while a save is running */
 const busy=f=>(...a)=>{window.dashBusy&&window.dashBusy(1);return Promise.resolve(f(...a)).finally(()=>window.dashBusy&&window.dashBusy(-1))};
-window.OWN={db:rdb,ref,save,fs:{collection,addDoc:busy(addDoc),doc,setDoc:busy(setDoc),updateDoc:busy(updateDoc),deleteDoc:busy(deleteDoc),onSnapshot,query,orderBy,limit,where,getDocs,serverTimestamp},
+window.OWN={db:rdb,ref,save,fs:{collection,addDoc:busy(addDoc),doc,setDoc:busy(setDoc),updateDoc:busy(updateDoc),deleteDoc:busy(deleteDoc),onSnapshot,query,orderBy,limit,where,getDocs,getDoc,serverTimestamp},
 count:async(c,sinceMs)=>(await getCountFromServer(query(collection(rdb,c),where('createdAt','>=',new Date(sinceMs))))).data().count,
 session:{signOut:()=>signOut(auth),setKeep:async on=>{try{localStorage.setItem('ownerKeep',on?'1':'0')}catch(e){}try{await setPersistence(auth,on?browserLocalPersistence:browserSessionPersistence)}catch(e){}},keep:()=>keepIn},
 log:text=>addDoc(collection(rdb,'activity'),{text:String(text).slice(0,200),createdAt:serverTimestamp()}).catch(()=>{})};

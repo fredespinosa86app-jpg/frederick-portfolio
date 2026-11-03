@@ -26,6 +26,9 @@
   async function readAll(cols) {
     const o = own(), f = o.fs, out = {};
     for (const c of cols) {
+      if (c === 'settings') {   // the rules only allow reading the single document settings/site, not listing the collection
+        const one = await f.getDoc(f.doc(o.db, 'settings', 'site')); out[c] = one.exists() ? [{ id: 'site', data: one.data() }] : []; continue;
+      }
       const s = await f.getDocs(f.query(f.collection(o.db, c), f.limit(c === 'visits' ? 5000 : 2000)));
       out[c] = s.docs.map(d => ({ id: d.id, data: d.data() }));
     }
