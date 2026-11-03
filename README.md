@@ -365,3 +365,6 @@ Google has retired classic reCAPTCHA for new keys, so use **Fraud Defense** (for
 **Incident checklist.** In the same page and in `INCIDENT-CHECKLIST.md`.
 **Limits.** Retention is manual (no background jobs on the free plan). A backup stored on your own computer is only as safe as that computer. Restore needs the owner to be signed in and cannot restore visitor-created collections. `node --test scripts/backup-core.test.mjs` runs the backup engine tests.
 **Phase 5.1 fix.** Download backup failed with "permission denied" because the rules allow reading only the single document `settings/site`, not listing the `settings` collection. The backup now reads that one document (rules unchanged). If the old page is still shown after uploading, hard-refresh (Ctrl+Shift+R): the version tag is `s51`.
+
+## Security S6 - Final attack test
+No new feature. Added `rules-tests/attack/` (123 attack cases and a 15-way mutation check that run the real `firestore.rules` text with no emulator, see its README), a final report `SECURITY-FINAL-REPORT.md` (status of every finding, results, limits, routine), and one hardening: the owner panel cannot be forced visible by a visitor any more (it hides itself again and starts no panel code without a verified owner sign-in). Version tag `s6`.

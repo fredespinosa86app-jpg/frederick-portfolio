@@ -73,7 +73,11 @@
   window.dashKit = { el, notify, confirmBox };   // shared with owner-content.js
 
   /* ---------- navigation ---------- */
+  /* Security S6: the panel only works for a verified owner sign-in. If someone forces the panel visible (developer tools) it is hidden again
+     and no panel code runs, so no private data is even requested. The database rules remain the real protection. */
+  let signedOwner = false;
   function go(page) {
+    if (!signedOwner) { dash.hidden = true; return; }
     if (!$('dp-' + page)) page = 'dashboard';
     document.querySelectorAll('.dpage').forEach(p => { p.hidden = p.id !== 'dp-' + page; });
     document.querySelectorAll('.dnav [data-page]').forEach(b => b.setAttribute('aria-current', b.dataset.page === page ? 'page' : 'false'));
@@ -84,6 +88,7 @@
     document.dispatchEvent(new CustomEvent('dash:page', { detail: page }));
   }
   function openDash() {
+    if (!signedOwner) { dash.hidden = true; return; }
     dash.hidden = false; document.body.classList.add('dash-lock');
     let p = 'dashboard'; try { p = sessionStorage.getItem('dash-page') || p; } catch (e) { /* ignore */ }
     go(p); $('dtitle').focus();
@@ -331,12 +336,13 @@
     notify(msg, 'error');
   });
   document.addEventListener('own:auth', e => {
-    const ok = e.detail.ok;
+    const ok = e.detail.ok; signedOwner = !!ok;
     openBtn.hidden = !ok;
     if (ok && window.__ownerJustSignedIn) { window.__ownerJustSignedIn = false; openDash(); notify('Signed in as owner.', 'success'); }
     if (ok) { $('adminEmail').textContent = e.detail.email; buildSocial(); start(); }
     else { stop(); if (!dash.hidden) closeDash(); }
   });
+  new MutationObserver(() => { if (!signedOwner && (!dash.hidden || dash.style.display === 'block')) { dash.hidden = true; dash.style.display = ''; document.body.classList.remove('dash-lock'); } }).observe(dash, { attributes: true, attributeFilter: ['hidden', 'style'] });
   renderAll();
   const ddClose = document.getElementById('ddClose'); if (ddClose) ddClose.addEventListener('click', () => document.getElementById('dDetail').close());
 })();
