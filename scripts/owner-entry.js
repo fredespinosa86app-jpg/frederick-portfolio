@@ -32,7 +32,7 @@
   /* ------------- owner-panel cards (General page) ------------- */
   const DEF = { on: true, max: 10, min: 0.6, fade: 0.35, bg: '#000000', dots: 'pulse' };
   const opt = (sel, vals, fmt) => { sel.replaceChildren(...vals.map(v => { const o = document.createElement('option'); o.value = String(v); o.textContent = fmt(v); return o; })); };
-  const MAXV = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], MINV = [0, 0.2, 0.4, 0.6, 0.8, 1, 1.5, 2], FADEV = [0.1, 0.2, 0.35, 0.5, 0.75, 1];
+  const MAXV = [5, 10, 15, 20, 25, 30], MINV = [0, 0.2, 0.4, 0.6, 0.8, 1, 1.5, 2], FADEV = [0.1, 0.2, 0.35, 0.5, 0.75, 1];
   const s = v => (v === 1 ? '1 second' : v + ' seconds');
   if ($('ldMax')) {
     opt($('ldMax'), MAXV, s); opt($('ldMin'), MINV, v => v === 0 ? 'No minimum' : s(v)); opt($('ldFade'), FADEV, s);
@@ -42,17 +42,19 @@
     };
     const put = o => {
       o = Object.assign({}, DEF, o || {});
+      o.max = MAXV.reduce((b, x) => Math.abs(x - o.max) < Math.abs(b - o.max) ? x : b, MAXV[0]);
       $('ldOn').checked = o.on !== false; $('ldMax').value = String(o.max); $('ldMin').value = String(o.min); $('ldFade').value = String(o.fade); $('ldBg').value = o.bg; $('ldDots').value = o.dots;
       ['ldMax', 'ldMin', 'ldFade', 'ldBg', 'ldDots'].forEach(id => { $(id).disabled = !$('ldOn').checked; });
     };
     const lum = h => { const r = parseInt(h.substr(1, 2), 16) / 255, g = parseInt(h.substr(3, 2), 16) / 255, b = parseInt(h.substr(5, 2), 16) / 255; return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
-    const note = () => { const o = read(); $('ldNote').textContent = o.on ? 'Visitors wait until the page is ready, at most ' + s(o.max) + ' (at least ' + (o.min ? s(o.min) : '0 seconds') + '). Dots are drawn in ' + (lum(o.bg) > 0.5 ? 'black' : 'white') + ' so they stay visible on this colour.' : 'The loading screen is off: the page appears as soon as it loads, and the default page may flash briefly.'; };
+    const note = () => { const o = read(); $('ldNote').textContent = o.on ? 'Visitors wait until the page is ready, at most ' + s(o.max) + ' (at least ' + (o.min ? s(o.min) : '0 seconds') + ')' + (o.max >= 20 ? '. A long limit only matters on very slow connections, but those visitors will see the loading screen for that long at most' : '') + '. Dots are drawn in ' + (lum(o.bg) > 0.5 ? 'black' : 'white') + ' so they stay visible on this colour.' : 'The loading screen is off: the page appears as soon as it loads, and the default page may flash briefly.'; };
     const fromCfg = () => { const c = window.__lastCfg || {}; put(c.loading); note(); if ($('lsShow')) $('lsShow').value = c.loginShow === 'everyone' ? 'everyone' : 'device'; };
     document.addEventListener('dash:page', e => { if (e.detail === 'general') fromCfg(); });
     document.addEventListener('site:applied', fromCfg);
     ['ldOn', 'ldMax', 'ldMin', 'ldFade', 'ldBg', 'ldDots'].forEach(id => $(id).addEventListener('change', () => { put(read()); note(); }));
     $('ldSave').addEventListener('click', () => { const o = read(); if (!window.OWN) return window.dashNotify && window.dashNotify('Could not save. Please sign in as the owner first.', 'error'); window.OWN.save({ loading: o }, 'Loading screen saved. Visitors see it on their next visit.'); });
     $('ldReset').addEventListener('click', () => { put(DEF); note(); window.dashNotify && window.dashNotify('Standard values restored. Press Save to keep them.', 'success'); });
+    if ($('secSave')) $('secSave').addEventListener('click', () => { if (!window.OWN) return window.dashNotify && window.dashNotify('Could not save. Please sign in as the owner first.', 'error'); window.OWN.save({ sections: { toolkit: $('sec_toolkit').checked, process: $('sec_process').checked } }, 'Sections saved.'); });
     $('ldPrev').addEventListener('click', () => { if (window.bootCover) window.bootCover.preview(read(), 2000); });
     $('lsSave').addEventListener('click', () => { if (!window.OWN) return; window.OWN.save({ loginShow: $('lsShow').value === 'everyone' ? 'everyone' : 'device' }, 'Owner login button setting saved.'); });
   }

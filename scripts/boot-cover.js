@@ -14,10 +14,12 @@
   var root = document.documentElement;
   var DEF = { on: true, max: 10, min: 0.6, fade: 0.35, bg: '#000000', dots: 'pulse' };
   function num(v, lo, hi, d) { v = Number(v); return isFinite(v) ? Math.min(hi, Math.max(lo, v)) : d; }
+  var MAXOPT = [5, 10, 15, 20, 25, 30];
+  function snapMax(v) { v = Number(v); if (!isFinite(v)) return DEF.max; return MAXOPT.reduce(function (b, x) { return Math.abs(x - v) < Math.abs(b - v) ? x : b; }, MAXOPT[0]); }
   function readCfg() {
     var l = {}; try { var c = JSON.parse(localStorage.getItem('siteCfg') || 'null'); if (c && c.loading && typeof c.loading === 'object') l = c.loading; } catch (e) { /* ignore */ }
     var o = {
-      on: l.on !== false, max: num(l.max, 1, 10, DEF.max), min: num(l.min, 0, 2, DEF.min), fade: num(l.fade, 0.1, 1, DEF.fade),
+      on: l.on !== false, max: snapMax(l.max), min: num(l.min, 0, 2, DEF.min), fade: num(l.fade, 0.1, 1, DEF.fade),
       bg: /^#[0-9a-fA-F]{6}$/.test(l.bg || '') ? l.bg : DEF.bg, dots: ['pulse', 'bounce', 'none'].indexOf(l.dots) >= 0 ? l.dots : DEF.dots
     };
     if (o.min > o.max) o.min = o.max;

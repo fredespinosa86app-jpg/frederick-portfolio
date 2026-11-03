@@ -157,13 +157,38 @@ service cloud.firestore {
         && request.resource.data.keys().hasAll(['vid','sid','type','path','ref','device','browser','createdAt'])
         && request.resource.data.vid is string && request.resource.data.vid.matches('^[0-9a-f]{24}$')
         && request.resource.data.sid is string && request.resource.data.sid.matches('^[0-9a-f]{24}$')
-        && request.resource.data.type in ['view','section']
+        && request.resource.data.type == 'view'
         && request.resource.data.path is string && request.resource.data.path.matches('^[A-Za-z0-9_-]{1,40}$')
         && id == request.resource.data.sid + '_' + request.resource.data.type + '_' + request.resource.data.path
         && request.resource.data.ref is string && request.resource.data.ref.size() <= 100
         && request.resource.data.device in ['desktop','tablet','mobile']
         && request.resource.data.browser is string && request.resource.data.browser.size() <= 20
         && request.resource.data.createdAt == request.time;
+      allow create: if intakeOpen()
+        && request.resource.data.keys().hasOnly(['vid','sid','type','path','ref','device','browser','createdAt','secs'])
+        && request.resource.data.keys().hasAll(['vid','sid','type','path','ref','device','browser','createdAt','secs'])
+        && request.resource.data.vid is string && request.resource.data.vid.matches('^[0-9a-f]{24}$')
+        && request.resource.data.sid is string && request.resource.data.sid.matches('^[0-9a-f]{24}$')
+        && request.resource.data.type == 'summary' && request.resource.data.path == 'sections'
+        && id == request.resource.data.sid + '_summary_sections'
+        && request.resource.data.ref == ''
+        && request.resource.data.device in ['desktop','tablet','mobile']
+        && request.resource.data.browser is string && request.resource.data.browser.size() <= 20
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.secs is list && request.resource.data.secs.size() >= 1 && request.resource.data.secs.size() <= 12
+        && request.resource.data.secs.hasOnly(['intro','services','training','experience','toolkit','process','testimonials','faq','thank-you','contact','schedule']);
+      // E2: a session's summary may only GROW (same fields, more sections), a few times at most
+      allow update: if intakeOpen()
+        && resource.data.type == 'summary'
+        && request.resource.data.keys().hasOnly(['vid','sid','type','path','ref','device','browser','createdAt','secs'])
+        && request.resource.data.vid == resource.data.vid && request.resource.data.sid == resource.data.sid
+        && request.resource.data.type == resource.data.type && request.resource.data.path == resource.data.path
+        && request.resource.data.ref == resource.data.ref && request.resource.data.device == resource.data.device
+        && request.resource.data.browser == resource.data.browser && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.secs is list && request.resource.data.secs.size() <= 12
+        && request.resource.data.secs.size() > resource.data.secs.size()
+        && request.resource.data.secs.hasOnly(['intro','services','training','experience','toolkit','process','testimonials','faq','thank-you','contact','schedule'])
+        && request.resource.data.secs.hasAll(resource.data.secs);
       allow read, delete: if isOwner();
     }
     match /clients/{id} { allow read, write: if isOwner(); }
@@ -368,3 +393,30 @@ Google has retired classic reCAPTCHA for new keys, so use **Fraud Defense** (for
 
 ## Security S6 - Final attack test
 No new feature. Added `rules-tests/attack/` (123 attack cases and a 15-way mutation check that run the real `firestore.rules` text with no emulator, see its README), a final report `SECURITY-FINAL-REPORT.md` (status of every finding, results, limits, routine), and one hardening: the owner panel cannot be forced visible by a visitor any more (it hides itself again and starts no panel code without a verified owner sign-in). Version tag `s6`.
+
+## Enhancement E1 – intro video, loading wait, optional sections
+
+**Intro video (Owner panel → Intro video)**
+- New **Remove video** button (asks first): saves an empty link and turns the section off. An empty saved link now stays empty. The default link is used only on a site that has never saved an intro setting.
+- The intro setting is applied from the locally cached settings at first paint. The old 1.2 s timer that showed the default video while waiting for the database was removed, so a saved Off or removed link never flashes the video.
+
+**Loading screen (General → Loading screen)**
+- "Wait until ready, but never longer than" now offers 5, 10, 15, 20, 25 or 30 seconds (default 10). Older saved values snap to the nearest option. Minimum time can never exceed the maximum. Choosing 20 s or more shows a note that only very slow connections wait that long.
+
+**Optional sections (General → Optional sections)**
+- Switches for the public **Toolkit** and **How I Work** sections (both On by default), stored in `settings/site.sections = {toolkit, process}`. Off hides the section and its menu link, from the cached settings, with no flash.
+- Toolkit / How I Work details inside each Training area are untouched. Hiding How I Work also hides the videos that are not assigned to a training area.
+- No Firestore rules change is needed for E1 (`settings/site` is already owner-write, public-read).
+
+## Enhancement E2 – fewer writes per visit
+
+**Before:** one `view` record plus one `section` record for every section a visitor scrolled to (up to 12 writes per visit).
+**Now:** one `view` record straight away, plus ONE summary record `visits/{sid}_summary_sections` with the list of sections seen (2 writes per visit, about 6 times fewer on a full read). Free-plan limit: 20,000 writes/day.
+
+- The summary is written when the visitor leaves (`visibilitychange` to hidden / `pagehide`) or after a fixed 2-minute idle cap. If the leave event never fires the view is still counted and only the sections are lost.
+- The same record may grow (more sections, same fields) at most twice more in one tab session. Double leave events write nothing. A failed write is retried on the next leave.
+- **Rules changed (both `firestore.rules` and `firestore.rules.strict`) – you must republish them:** visits now accept `type: view` (as before) or the new `summary` (fixed id, 1–12 ids from a fixed list of 11 section names, `ref` empty, create once, update only to add sections). The old per-section `type: section` create is no longer accepted; old records already stored are still read.
+- Visitors page: "Sections viewed" and "Most viewed sections" count summary lists plus any old section records, so history stays continuous (a summary counts each listed section once per visit).
+- Data retention ("Delete records older than 90 days") and backup export already handle any `visits` document, so summaries are included.
+- Privacy notice wording updated: sections are saved together as one short list when the visitor leaves.
+- Rules tests: 168 attack cases and 22 mutations (`rules-tests/attack`).

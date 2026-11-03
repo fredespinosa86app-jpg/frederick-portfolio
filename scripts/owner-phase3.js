@@ -38,7 +38,14 @@
     const f = own().fs;
     const snap = await f.getDocs(f.query(f.collection(own().db, 'visits'), f.where('createdAt', '>=', new Date(fromMs)), f.orderBy('createdAt'), f.limit(MAXDOCS)));
     truncated = snap.docs.length >= MAXDOCS;
-    return snap.docs.map(d => d.data()).map(d => Object.assign({}, d, { t: ms(d) })).filter(d => Number.isFinite(d.t));
+    /* E2: a summary record stands for one 'section' record per section it lists (older per-section records still work) */
+    const out = [];
+    snap.docs.map(d => d.data()).forEach(d => {
+      const t = ms(d); if (!Number.isFinite(t)) return;
+      if (d.type === 'summary') { (Array.isArray(d.secs) ? d.secs : []).forEach(id => out.push({ vid: d.vid, sid: d.sid, type: 'section', path: String(id), device: d.device, browser: d.browser, ref: '', t })); }
+      else out.push(Object.assign({}, d, { t }));
+    });
+    return out;
   }
   const pct = (n, tot) => tot ? Math.round(n * 1000 / tot) / 10 : 0;
   function bars(box, entries, empty, fmt) {

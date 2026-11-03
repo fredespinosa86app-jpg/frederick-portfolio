@@ -58,9 +58,32 @@
     send('view', page());
     window.addEventListener('hashchange', () => send('view', page()));
     if ('IntersectionObserver' in window) {
-      const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting && e.target.id) { send('section', e.target.id); io.unobserve(e.target); } }), { threshold: 0.35 });
+      const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting && e.target.id) { seen(e.target.id); io.unobserve(e.target); } }), { threshold: 0.35 });
       document.querySelectorAll('main section[id]').forEach(s => io.observe(s));
     }
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flush(); });
+    window.addEventListener('pagehide', flush);
+  }
+
+  /* Enhancement E2: sections are NOT written one by one any more. They are collected here and written as ONE summary
+     record when the visitor leaves (or after a fixed idle time). A visit therefore costs 2 writes (view + summary)
+     instead of up to 12. The same record may grow at most twice more (visitor comes back and reads further). */
+  const ALLOWED = ['intro', 'services', 'training', 'experience', 'toolkit', 'process', 'testimonials', 'faq', 'thank-you', 'contact', 'schedule'];
+  const secs = new Set((SS('ssecs') || '').split(',').filter(x => ALLOWED.indexOf(x) >= 0));
+  let idle = 0;
+  function seen(id) {
+    if (ALLOWED.indexOf(id) < 0 || secs.has(id) || skip()) return;
+    secs.add(id); SS('ssecs', [...secs].join(','));
+    if (!idle) idle = setTimeout(flush, 120000);          /* fixed idle cap: tab left open and visible */
+  }
+  function flush() {
+    clearTimeout(idle); idle = 0;
+    const done = Number(SS('ssent') || 0), n = Number(SS('sfl') || 0);
+    if (skip() || secs.size <= done || n >= 3 || typeof window.recordSummary !== 'function') return;
+    const list = [...secs].filter(x => ALLOWED.indexOf(x) >= 0).slice(0, 12);
+    SS('ssent', String(list.length)); SS('sfl', String(n + 1));       /* mark first: a second leave event writes nothing */
+    window.recordSummary({ vid, sid, type: 'summary', path: 'sections', ref: '', device: dev, browser: br, secs: list }, n === 0)
+      .catch(() => { SS('ssent', String(done)); SS('sfl', String(n)); });
   }
   window.analyticsApi = { optedOut, setOptOut: on => { LS('noTrack', on ? '1' : null); }, device: () => dev, browser: () => br, skip };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();

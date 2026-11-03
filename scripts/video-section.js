@@ -10,7 +10,9 @@ if((h==='loom.com'||h.endsWith('.loom.com'))&&(sg[0]==='share'||sg[0]==='embed')
 window.setIntro=(u,on)=>{window.__introSet=true;const s=document.getElementById('intro'),f=document.getElementById('introFrame'),b=document.getElementById('introBox'),p=on&&u?window.parseVideo(u):null;
 if(!p){s.hidden=true;f.removeAttribute('src');return}
 b.classList.toggle('v',p.v);if(f.getAttribute('src')!==p.src)f.src=p.src;s.hidden=false};
-setTimeout(()=>{if(!window.__introSet)window.setIntro(window.DEF_INTRO,true)},1200);
+/* No timer fallback: the video shows only once saved settings (cache or database) say so, so a saved Off or removed link never flashes the default video. */
+window.introFrom=d=>{d=d||{};window.setIntro(typeof d.introUrl==='string'?d.introUrl:window.DEF_INTRO,d.introEnabled!==false)};
+if(window.__lastCfg)window.introFrom(window.__lastCfg);
 
 /* ---- "A Quick Message Before You Go" video (configured in scripts/settings.js) ---- */
 (function () {

@@ -25,6 +25,8 @@ $('gHead').value=gh;$('gBody').value=gb;$('gSize').value=gs;$('gCol').checked=hc
 window.__heroImgData=img;hi.hidden=!on;if(on){if(hi.getAttribute('src')!==img)hi.src=img;hi.style.width=w+'%';hi.style.left=x+'%';hi.style.top=y+'%';hi.style.opacity=o/100;hi.classList.toggle('front',!!d.heroImgFront)}
 $('hiOn').checked=on;$('hiW').value=w;$('hiX').value=x;$('hiY').value=y;$('hiOp').value=o;$('hiFront').checked=!!d.heroImgFront;$('hiWv').textContent=w;$('hiXv').textContent=x;$('hiYv').textContent=y;$('hiOpv').textContent=o}
 document.getElementById('schedule').classList.toggle('closed',d.hireEnabled===false);
+if(window.introFrom)window.introFrom(d);
+{const sc=d.sections&&typeof d.sections==='object'?d.sections:{};[['toolkit','toolkit'],['process','process']].forEach(([k,id])=>{const on=sc[k]!==false,s=$(id);if(s)s.hidden=!on;document.querySelectorAll('a[href="#'+id+'"]').forEach(a=>{const li=a.closest('li');if(li)li.hidden=!on});const cb=$('sec_'+k);if(cb)cb.checked=on})}
 if(window.contactsApi)window.contactsApi.render();
 if(window.seoApi)window.seoApi.apply(d.seo);
 if(window.secBgApi)window.secBgApi.apply(d.secBg);

@@ -15,6 +15,13 @@ M=[('clients readable by everyone',"match /clients/{id} { allow read, write: if 
  ('provider check removed',"        && request.auth.token.firebase.sign_in_provider == 'google.com';","        && true;"),
  ('verified e-mail check removed',"        && request.auth.token.email_verified == true\n",""),
  ('visitors may read visits',"      allow read, delete: if isOwner();\n    }\n    match /clients","      allow read, delete: if true;\n    }\n    match /clients"),
+ ('summary section whitelist removed',"        && request.resource.data.secs.hasOnly([","        && request.resource.data.secs.hasAll([]) && request.resource.data.secs.hasOnly(['intro','faq','services','training','experience','toolkit','process','testimonials','thank-you','contact','schedule','admin','<script>','Intro','x',"),
+ ('summary id binding removed',"        && id == request.resource.data.sid + '_summary_sections'\n",""),
+ ('summary update may shrink',"        && request.resource.data.secs.size() > resource.data.secs.size()\n",""),
+ ('summary update superset check removed',"        && request.resource.data.secs.hasAll(resource.data.secs);","        && true;"),
+ ('summary update may change device',"request.resource.data.device == resource.data.device\n","true\n"),
+ ('summary update ignores pause',"      allow update: if intakeOpen()\n        && resource.data.type == 'summary'","      allow update: if true\n        && resource.data.type == 'summary'"),
+ ('section type accepted again',"request.resource.data.type == 'view'","request.resource.data.type in ['view','section']"),
  ('catch-all added',"    match /content/{doc} {","    match /{any=**} { allow read, write: if true; }\n    match /content/{doc} {")]
 miss=[]
 for n,a,b in M:

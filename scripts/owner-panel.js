@@ -22,7 +22,7 @@ login.hidden=false;
 /* S3.1: every first answer (data, empty or error) is reported to the loading cover */
 const BC=window.bootCover||{need(){},done(){},panel(){}};
 const watch=(k,r,f)=>{BC.need(k);let d=false;const m=()=>{if(!d){d=true;BC.done(k)}};onSnapshot(r,s=>{try{f(s)}finally{m()}},m)};
-watch('settings',ref,s=>{const d=s.exists()?s.data():{};const on=d.hireEnabled!==false;if(window.capacityApi)window.capacityApi.setHire(on);else hire.forEach(e=>e.hidden=!on);cb.checked=on;window.chatHook=d.chatAuto&&/^https:\/\//i.test(d.chatWebhook||'')?d.chatWebhook:'';hookUrl.value=d.chatWebhook||'';hookOn.checked=!!d.chatAuto;const iu=d.introUrl||window.DEF_INTRO,ie=d.introEnabled!==false;introOn.checked=ie;introUrl.value=iu;window.setIntro(iu,ie);window.applySite(d)});
+watch('settings',ref,s=>{const d=s.exists()?s.data():{};const on=d.hireEnabled!==false;if(window.capacityApi)window.capacityApi.setHire(on);else hire.forEach(e=>e.hidden=!on);cb.checked=on;window.chatHook=d.chatAuto&&/^https:\/\//i.test(d.chatWebhook||'')?d.chatWebhook:'';hookUrl.value=d.chatWebhook||'';hookOn.checked=!!d.chatAuto;const iu=typeof d.introUrl==='string'?d.introUrl:window.DEF_INTRO,ie=d.introEnabled!==false;introOn.checked=ie;introUrl.value=iu;window.applySite(d)});
 window.__ownerLoginReady=true;
 const authMsg=e=>{const c=(e&&e.code)||'';
 if(c==='auth/unauthorized-domain')return 'Sign-in is blocked because "'+location.hostname+'" is not an authorized domain. In Firebase open Authentication > Settings > Authorized domains and add it.';
@@ -45,6 +45,7 @@ $('thSave').addEventListener('click',()=>save({theme:$('thSel').value,fx:fxv()},
 $('thReset').addEventListener('click',()=>{if(confirm('Reset the theme and effects to default?'))save({theme:'gold-silver',fx:''},'Theme and effects reset.')});
 $('hiSave').addEventListener('click',()=>{const img=window.__heroImgData||'';save({heroImg:img,heroImgOn:$('hiOn').checked&&!!img,heroImgW:+$('hiW').value,heroImgX:+$('hiX').value,heroImgY:+$('hiY').value,heroImgOp:+$('hiOp').value,heroImgFront:$('hiFront').checked},'Hero image saved.')});
 $('hiRemove').addEventListener('click',()=>{if(confirm('Remove the hero image?'))save({heroImg:'',heroImgOn:false},'Hero image removed.')});
+$('introRemove').addEventListener('click',async()=>{if(!introUrl.value.trim()&&!introOn.checked){notify('There is no video link to remove.');return}if(!await window.dashKit.confirmBox('Remove the intro video?','The link is cleared and the video section is hidden from visitors. You can paste a new link at any time.'))return;setDoc(ref,{introUrl:'',introEnabled:false,updatedAt:Date.now()},{merge:true}).then(()=>{introUrl.value='';introOn.checked=false;notify('Intro video removed.');window.OWN&&window.OWN.log('Intro video removed.')}).catch(()=>notify('Could not save. Please check your Firestore rules.'))});
 $('introSave').addEventListener('click',()=>{const u=introUrl.value.trim();if(u&&!window.parseVideo(u)){notify('Please paste a valid YouTube or Loom link, starting with https://');return}
 setDoc(ref,{introUrl:u,introEnabled:introOn.checked,updatedAt:Date.now()},{merge:true}).then(()=>notify('Video settings saved.')).catch(()=>notify('Could not save. Please check your Firestore rules.'))});
 $('hookSave').addEventListener('click',()=>{const u=hookUrl.value.trim();if(u&&!u.startsWith('https://')){notify('The webhook URL must start with https://');return}
@@ -61,6 +62,8 @@ return setDoc(doc(rdb,'chatUnanswered',sid+'_'+hash(q.toLowerCase())),{question:
 /* Phase 3: anonymous visit counter (rules allow create-only with a fixed set of fields) */
 /* Security S2: the id is session+type+page, so the same record can never be created twice (the rules check it) */
 window.recordVisit=d=>setDoc(doc(rdb,'visits',d.sid+'_'+d.type+'_'+d.path),{...d,createdAt:serverTimestamp()});
+/* Enhancement E2: one summary record per visit (rules: create once, then only grow) */
+window.recordSummary=(d,first)=>{const r=doc(rdb,'visits',d.sid+'_summary_sections');return first?setDoc(r,{...d,createdAt:serverTimestamp()}):updateDoc(r,{secs:d.secs})};
 /* every owner write is counted so the dashboard can lock "View site" while a save is running */
 const busy=f=>(...a)=>{window.dashBusy&&window.dashBusy(1);return Promise.resolve(f(...a)).finally(()=>window.dashBusy&&window.dashBusy(-1))};
 window.OWN={db:rdb,ref,save,fs:{collection,addDoc:busy(addDoc),doc,setDoc:busy(setDoc),updateDoc:busy(updateDoc),deleteDoc:busy(deleteDoc),onSnapshot,query,orderBy,limit,where,getDocs,getDoc,serverTimestamp},

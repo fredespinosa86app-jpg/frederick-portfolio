@@ -233,9 +233,11 @@ class Sim:
             raise EvalErr('keys')
         if name=='hasOnly':
             if isinstance(o,KeySet): return all(k in a[0] for k in o.k)
+            if isinstance(o,list): return all(k in a[0] for k in o)
             raise EvalErr('hasOnly')
         if name=='hasAll':
             if isinstance(o,KeySet): return all(k in o.k for k in a[0])
+            if isinstance(o,list): return all(k in o for k in a[0])
             raise EvalErr('hasAll')
         if name=='get':
             if isinstance(o,dict): return o.get(a[0],a[1])

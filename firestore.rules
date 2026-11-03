@@ -79,13 +79,38 @@ service cloud.firestore {
         && request.resource.data.keys().hasAll(['vid','sid','type','path','ref','device','browser','createdAt'])
         && request.resource.data.vid is string && request.resource.data.vid.matches('^[0-9a-f]{24}$')
         && request.resource.data.sid is string && request.resource.data.sid.matches('^[0-9a-f]{24}$')
-        && request.resource.data.type in ['view','section']
+        && request.resource.data.type == 'view'
         && request.resource.data.path is string && request.resource.data.path.matches('^[A-Za-z0-9_-]{1,40}$')
         && id == request.resource.data.sid + '_' + request.resource.data.type + '_' + request.resource.data.path
         && request.resource.data.ref is string && request.resource.data.ref.size() <= 100
         && request.resource.data.device in ['desktop','tablet','mobile']
         && request.resource.data.browser is string && request.resource.data.browser.size() <= 20
         && request.resource.data.createdAt == request.time;
+      allow create: if intakeOpen()
+        && request.resource.data.keys().hasOnly(['vid','sid','type','path','ref','device','browser','createdAt','secs'])
+        && request.resource.data.keys().hasAll(['vid','sid','type','path','ref','device','browser','createdAt','secs'])
+        && request.resource.data.vid is string && request.resource.data.vid.matches('^[0-9a-f]{24}$')
+        && request.resource.data.sid is string && request.resource.data.sid.matches('^[0-9a-f]{24}$')
+        && request.resource.data.type == 'summary' && request.resource.data.path == 'sections'
+        && id == request.resource.data.sid + '_summary_sections'
+        && request.resource.data.ref == ''
+        && request.resource.data.device in ['desktop','tablet','mobile']
+        && request.resource.data.browser is string && request.resource.data.browser.size() <= 20
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.secs is list && request.resource.data.secs.size() >= 1 && request.resource.data.secs.size() <= 12
+        && request.resource.data.secs.hasOnly(['intro','services','training','experience','toolkit','process','testimonials','faq','thank-you','contact','schedule']);
+      // E2: a session's summary may only GROW (same fields, more sections), a few times at most
+      allow update: if intakeOpen()
+        && resource.data.type == 'summary'
+        && request.resource.data.keys().hasOnly(['vid','sid','type','path','ref','device','browser','createdAt','secs'])
+        && request.resource.data.vid == resource.data.vid && request.resource.data.sid == resource.data.sid
+        && request.resource.data.type == resource.data.type && request.resource.data.path == resource.data.path
+        && request.resource.data.ref == resource.data.ref && request.resource.data.device == resource.data.device
+        && request.resource.data.browser == resource.data.browser && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.secs is list && request.resource.data.secs.size() <= 12
+        && request.resource.data.secs.size() > resource.data.secs.size()
+        && request.resource.data.secs.hasOnly(['intro','services','training','experience','toolkit','process','testimonials','faq','thank-you','contact','schedule'])
+        && request.resource.data.secs.hasAll(resource.data.secs);
       allow read, delete: if isOwner();
     }
     match /clients/{id} { allow read, write: if isOwner(); }
