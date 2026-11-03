@@ -12,6 +12,9 @@
   const MAX_BYTES = 8 * 1024 * 1024, MAX_DOC = 1000000, MAX_DEPTH = 20, MAX_NODES = 300000, MAX_DOCS = 5000;
   const LABEL = { settings: 'Site settings', content: 'Site content', ownerPrivate: 'Private settings (rates, capacity)', clients: 'Clients', meetingRequests: 'Meeting requests', chatUnanswered: 'Chatbot questions', activity: 'Activity log', visits: 'Visit records' };
   const ID_OK = /^[A-Za-z0-9_-]{1,60}$/;
+  /* Enhancement E4: connection secrets (Google Sheets address + token) are never written to a backup and never restored from one */
+  const NEVER = { ownerPrivate: ['google'] };
+  const never = (c, id) => !!(NEVER[c] && NEVER[c].includes(id));
   const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 
   /* Firestore Timestamp / Date -> { __ts: ms }; anything not plain JSON is dropped */
@@ -44,7 +47,7 @@
     const data = {}, counts = {};
     Object.keys(docs).forEach(c => {
       if (!RESTORABLE.includes(c) && !EXPORT_ONLY.includes(c)) return;
-      data[c] = {}; (docs[c] || []).forEach(d => { if (ID_OK.test(d.id)) data[c][d.id] = encode(d.data); });
+      data[c] = {}; (docs[c] || []).forEach(d => { if (ID_OK.test(d.id) && !never(c, d.id)) data[c][d.id] = encode(d.data); });
       counts[c] = Object.keys(data[c]).length;
     });
     const body = JSON.stringify(data);
@@ -82,6 +85,7 @@
       const col = j.data[c]; if (!col || typeof col !== 'object' || Array.isArray(col)) { r.errors.push('Collection "' + c + '" is not valid.'); continue; }
       let n = 0;
       for (const id of Object.keys(col)) {
+        if (never(c, id)) { delete col[id]; r.warnings.push('Connection settings (' + c + '/' + id + ') are never restored: set them up again in the owner panel.'); continue; }
         if (!ID_OK.test(id)) { r.errors.push('Document name "' + String(id).slice(0, 30) + '" in ' + c + ' is not allowed.'); continue; }
         const d = col[id]; if (!d || typeof d !== 'object' || Array.isArray(d)) { r.errors.push('Document ' + c + '/' + id + ' is not valid.'); continue; }
         if (JSON.stringify(d).length > MAX_DOC) { r.errors.push('Document ' + c + '/' + id + ' is larger than the database allows.'); continue; }

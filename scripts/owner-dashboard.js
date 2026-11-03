@@ -108,6 +108,7 @@
 
   /* ---------- live data ---------- */
   const S = { req: [], q: [], act: [], loaded: {}, error: {} };
+  window.dashData = { requests: () => S.req.slice() };   /* read-only view for the Google Sheets sender (E4) */
   const F = { req: { search: '', status: 'all', since: '', sort: 'new' }, q: { search: '', status: 'active', since: '', sort: 'new' } };
   let unsubs = [];
 
@@ -238,7 +239,7 @@
     const r = S.req.find(x => x.id === id); if (!r) return;
     const d = $('dDetail'), s = normReq(r.status);
     const rows = [['Name', r.name], ['Email', el('a', { href: 'mailto:' + (r.email || '') }, r.email)], ['Company', r.company || '-'], ['Preferred date', r.date], ['Preferred time', r.time],
-      ['Service', r.service || '-'], ...(r.formName ? [['Form used', r.formName]] : []), ...answerRows(r), ['Time zone', r.tz], ['Platform', r.platform || '-'], ['Submitted', fmt(toDate(r.createdAt))], ['Status', chip(REQ_STATUS[s], s)], ['Message', el('span', { class: 'pre' }, r.message || '-')]];
+      ['Service', r.service || '-'], ...(r.formName ? [['Form used', r.formName]] : []), ...answerRows(r), ['Time zone', r.tz], ['Platform', r.platform || '-'], ...((window.googleHub && window.googleHub.linkFor(r.platform)) ? [['Meeting link', el('a', { href: window.googleHub.linkFor(r.platform), target: '_blank', rel: 'noopener noreferrer' }, window.googleHub.linkFor(r.platform))]] : []), ['Submitted', fmt(toDate(r.createdAt))], ['Status', chip(REQ_STATUS[s], s)], ['Message', el('span', { class: 'pre' }, r.message || '-')]];
     $('ddBody').replaceChildren(el('dl', { class: 'ddl' }, ...rows.flatMap(([k, v]) => [el('dt', {}, k), el('dd', {}, v == null ? '-' : v)])));
     $('ddActs').replaceChildren(
       ...[['new', 'Mark as New'], ['pending', 'Mark as Pending'], ['confirmed', 'Confirm Meeting'], ['completed', 'Mark as Completed'], ['cancelled', 'Cancel Request']].map(([k, l]) =>

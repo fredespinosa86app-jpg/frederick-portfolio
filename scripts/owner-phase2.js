@@ -188,6 +188,7 @@
     } catch (e) { notify('Could not save. ' + fmtErr(e), 'error'); $('bkSave').disabled = false; }
   });
   $('bkDiscard').addEventListener('click', () => { loadBooking(); notify('Changes discarded.'); });
+  window.clientsApi = { list: () => clients.slice() };   /* read-only view for the Google Sheets sender (E4) */
   document.addEventListener('dash:page', e => { if (e.detail === 'booking') loadBooking(); if (e.detail === 'clients') renderClients(); });
 
   /* ---------------------------------------------------------------- listeners + busy sync */

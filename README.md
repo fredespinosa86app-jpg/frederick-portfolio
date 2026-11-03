@@ -461,3 +461,25 @@ No new feature. Added `rules-tests/attack/` (123 attack cases and a 15-way mutat
 - Rules tests: 217 attack cases and 31 mutations (`rules-tests/attack`).
 
 See also `KNOWN-ISSUES.md` (open item KI-1: the Toolkit switch).
+
+## Enhancement E4 – Google hub: Sheets, Zoom link, Google Meet
+
+**Owner panel → Integrations** now starts with a hub that shows every Google tool at a glance: owner sign-in, Calendar, Google Meet, Sheets, the Zoom link, and **Drive and Gmail, which stay ON HOLD by the owner's decision**. No paid plan and no Firebase upgrade is needed for anything here.
+
+**Google Sheets (your own free Apps Script)**
+- Paste `server/google-sheets-script.gs` into a Google Sheet (Extensions > Apps Script), add a script property `TOKEN` (a long random text, 16+ characters), deploy it as a Web app (Execute as Me, access Anyone), then paste the Web app address and the same token in the owner panel and press Save and Test connection. The page shows the script and the steps too.
+- Buttons send **meeting requests**, **clients** and a **daily visitor summary** (the days loaded on the Visitors page; no raw visit records, no visitor IDs). Sending again updates rows by ID, so there are no duplicates. Batches of at most 200 rows with a short pause. A failed send stops, reports it, and does not advance the "last sent" time.
+- Only you can send (buttons in the signed-in owner panel). Visitors never send anything to your sheet. Personal details leave the database only to a sheet you own, after a confirmation.
+- Safety: the address must be `https://script.google.com/macros/s/…/exec`; the token must be 16+ characters; every cell that starts with `=`, `+`, `-` or `@` is neutralised both in the page and in the script, and the sheet columns are plain text.
+- The address and token are stored only in `ownerPrivate/google` (owner only) and are **never included in a backup or restored from one**. Disconnect deletes them.
+- Tests: `node --test server/google-sheets-script.test.mjs` runs the real script against a fake Google environment.
+
+**Zoom and Google Meet**
+- Save one reusable Zoom meeting link (`zoom.us` or `zoom.com`, paths `/j/`, `/my/`, `/w/`). It appears as "Meeting link" in the details of a request where the visitor chose Zoom, and in the Google Calendar event (location and description).
+- Optional switch: for requests that chose "Google Meet", the calendar event is created with a new Google Meet link (needs Google Calendar connected below).
+- This uses a saved link, not the Zoom API. Creating a different Zoom meeting for each request would need the Zoom API and a secret key held in your own Apps Script; it is not part of E4.
+
+**Proposed privacy wording (NOT added to the public notice yet; approve first):**
+"The site owner may keep a copy of meeting requests, client records and visit totals in a private Google Sheet that only the owner can open."
+
+No Firestore rules change in E4 (`ownerPrivate` is already owner only). Rules tests: 223 attack cases and 31 mutations.

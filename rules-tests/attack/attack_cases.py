@@ -126,6 +126,12 @@ FB=[('svg data',FULL(data='data:image/svg+xml;base64,PHN2Zz4=')),('html data',FU
  ('bytes 262145',FULL(bytes=262145)),('bytes string',FULL(bytes='1')),('extra field',FULL(x=1)),('missing bytes',{'data':'data:image/webp;base64,UklGRg=='}),('missing data',{'bytes':1})]
 for n,d in FB: chk('E3 full picture refused: '+n,not A('create','libraryFull/i1',OWN,d) and not A('create','libraryFull/i1',OWN,d,sim=SS))
 chk('E3 full picture at exactly the size limit is accepted',A('create','libraryFull/i1',OWN,FULL(data='data:image/webp;base64,'+'A'*(360000-23))))
+# ---------------- 8d. E4: Google connection settings stay owner only
+GOOG={'sheetsUrl':'https://script.google.com/macros/s/'+'A'*40+'/exec','sheetsToken':'t'*20,'zoomLink':'https://zoom.us/j/123456'}
+for nm,sim in (('transition',S),('strict',SS)):
+    chk(f'E4 [{nm}] owner can read and write ownerPrivate/google',A('get','ownerPrivate/google',OWN,sim=sim) and A('create','ownerPrivate/google',OWN,GOOG,sim=sim) and A('update','ownerPrivate/google',OWN,GOOG,GOOG,sim=sim))
+    for who,au in (('visitor',None),('stranger',STRANGER)):
+        chk(f'E4 [{nm}] {who}: cannot read, list, write or delete ownerPrivate/google',not any([A(o,'ownerPrivate/google',au,GOOG,GOOG,sim=sim) for o in ('get','create','update','delete')]) and not A('list','ownerPrivate',au,sim=sim))
 # ---------------- 9. cross-check: strict file equals transition file apart from the owner check
 a=re.sub(r'\s+','',TXT); b=re.sub(r'\s+','',re.sub(r'^//.*\n','',STRICT,flags=re.M))
 chk('strict rules differ from the transition rules only in the owner e-mail fallback',a.replace("&&(request.auth.uid==ownerUid()||request.auth.token.email=='fredespinosa86.app@gmail.com');","&&request.auth.uid==ownerUid();")==b,'')

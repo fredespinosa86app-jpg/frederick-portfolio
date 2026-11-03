@@ -175,3 +175,7 @@ dialog.dmodal{--d-bg:#f4f6fa;--d-card:#fff;--d-ink:#1b2333;--d-muted:#5b6578;--d
 button.libtile.pickable{cursor:pointer;min-height:44px}button.libtile.pickable:hover,button.libtile.pickable:focus-visible{border-color:#2f6fdb;box-shadow:0 0 0 2px #2f6fdb55;outline:none}
 .libbig{max-width:100%;max-height:220px;border-radius:8px;justify-self:center}.libpick{width:min(720px,calc(100vw - 32px))}
 .libbtn{margin-top:6px}.libfile{display:inline-flex;align-items:center;cursor:pointer}.liberrs{margin:6px 0 0;padding-left:18px}
+
+/* Enhancement E4: Google hub */
+.hubgrid{display:grid;grid-template-columns:minmax(120px,max-content) 1fr;gap:8px 16px;margin:8px 0 0}.hubgrid dt{font-weight:600;color:#1b2333}.hubgrid dd{margin:0}
+.gsscript{max-height:260px;overflow:auto;padding:12px;background:#f3f5fa;border:1px solid #d5dbe7;border-radius:8px;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere;color:#1b2333}

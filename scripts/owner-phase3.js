@@ -169,8 +169,10 @@
     const q = 'privateExtendedProperty=' + encodeURIComponent('portfolioRequestId=' + r.id) + '&timeMin=' + encodeURIComponent(iso(u - 864e5)) + '&timeMax=' + encodeURIComponent(iso(u + 2 * 864e5));
     const ex = await gcFetch('https://www.googleapis.com/calendar/v3/calendars/primary/events?' + q);
     if (ex && ex.items && ex.items.length) return { duplicate: true };
-    await gcFetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', { method: 'POST', body: JSON.stringify({
-      summary: 'Discovery call: ' + (r.name || 'Client'), description: 'Booked through the portfolio.\nEmail: ' + (r.email || '') + '\nPlatform: ' + (r.platform || '') + '\n\n' + String(r.message || '').slice(0, 800),
+    const hub = window.googleHub, zl = hub ? hub.linkFor(r.platform) : '', meet = !!(hub && hub.meetFor(r.platform));   /* E4: Zoom link / new Google Meet */
+    await gcFetch('https://www.googleapis.com/calendar/v3/calendars/primary/events' + (meet ? '?conferenceDataVersion=1' : ''), { method: 'POST', body: JSON.stringify({
+      summary: 'Discovery call: ' + (r.name || 'Client'), description: 'Booked through the portfolio.\nEmail: ' + (r.email || '') + '\nPlatform: ' + (r.platform || '') + (zl ? '\nJoin Zoom: ' + zl : '') + '\n\n' + String(r.message || '').slice(0, 800),
+      location: zl || undefined, conferenceData: meet ? { createRequest: { requestId: 'pf-' + String(r.id).replace(/[^A-Za-z0-9_-]/g, '').slice(0, 40), conferenceSolutionKey: { type: 'hangoutsMeet' } } } : undefined,
       start: { dateTime: iso(u), timeZone: av.tzOk(r.tz) ? r.tz : tz() }, end: { dateTime: iso(u + av.cfg().slot * 60000), timeZone: av.tzOk(r.tz) ? r.tz : tz() }, extendedProperties: { private: { portfolioRequestId: String(r.id) } } }) });
     return { duplicate: false };
   }
@@ -252,6 +254,15 @@
     const a = el('a', { href: URL.createObjectURL(new Blob([cfg.domain + '\n'], { type: 'application/octet-stream' })), download: 'CNAME' }); document.body.append(a); a.click(); a.remove();
   });
 
+  /* E4: per-day summary of the period currently loaded on the Visitors page (no extra database reads) */
+  window.visitorsApi = { daily: () => {
+    if (!loaded || !range || !range.from) return [];
+    const m = {}; rows.filter(x => x.t >= range.from && x.t <= range.to).forEach(x => {
+      const d = av.parts(x.t, tz()).date, o = m[d] || (m[d] = { s: new Set(), v: new Set(), views: 0, sections: 0 });
+      o.s.add(x.sid); o.v.add(x.vid); if (x.type === 'view') o.views++; if (x.type === 'section') o.sections++;
+    });
+    return Object.keys(m).sort().map(d => ({ date: d, visits: m[d].s.size, unique: m[d].v.size, views: m[d].views, sections: m[d].sections }));
+  } };
   /* ---------------------------------------------------------------- wiring */
   let unsub = null;
   document.addEventListener('own:auth', e => {

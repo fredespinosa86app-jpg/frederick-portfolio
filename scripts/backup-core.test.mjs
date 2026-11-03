@@ -51,3 +51,15 @@ test('skips documents with unsafe ids when building', async () => {
   const b = await BC.build({ content: [{ id: 'ok_1', data: { a: 1 } }, { id: 'bad/id', data: { a: 2 } }] });
   assert.deepEqual(Object.keys(b.data.content), ['ok_1']);
 });
+test('E4: Google connection settings (ownerPrivate/google) are never exported', async () => {
+  const b = await BC.build({ ownerPrivate: [{ id: 'config', data: { currency: 'USD' } }, { id: 'google', data: { sheetsUrl: 'https://script.google.com/macros/s/AAAA/exec', sheetsToken: 'secret-secret-secret' } }] });
+  assert.deepEqual(Object.keys(b.data.ownerPrivate), ['config']);
+  assert.ok(!JSON.stringify(b).includes('secret-secret') && !JSON.stringify(b).includes('script.google.com'));
+});
+test('E4: a backup that contains ownerPrivate/google is accepted but that document is dropped with a warning', async () => {
+  const data = { ownerPrivate: { config: { currency: 'USD' }, google: { sheetsToken: 'x'.repeat(20) } } };
+  const sha = await (async () => { const c = (await import('node:crypto')).webcrypto; const h = await c.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(data))); return Array.from(new Uint8Array(h)).map(x => x.toString(16).padStart(2, '0')).join(''); })();
+  const r = await BC.validate(JSON.stringify({ format: 'codeflow-portfolio-backup', version: 1, createdAt: new Date().toISOString(), app: 'x', counts: {}, data, sha256: sha }));
+  assert.equal(r.ok, true, r.errors.join());
+  assert.ok(!('google' in r.data.ownerPrivate)); assert.ok(r.warnings.some(w => /never restored/.test(w)));
+});

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-fGX5IcsLgeneh8q3k50FD0Z3izvKrJM1aduFLTysApk=' https://www.gstatic.com https://apis.google.com https://accounts.google.com https://www.google.com/recaptcha/; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; font-src 'self'; img-src 'self' data: blob: https:; media-src 'self' blob: https:; connect-src 'self' https:; frame-src https://www.youtube-nocookie.com https://www.youtube.com https://www.loom.com https://www.google.com https://recaptcha.google.com https://accounts.google.com https://apis.google.com https://*.firebaseapp.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
-<script src="scripts/frame-guard.js?v=e3"></script>
+<script src="scripts/frame-guard.js?v=e4"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Frederick Espinosa | Amazon Product Researcher &amp; VA</title>
 <meta name="description" content="Amazon product researcher and virtual assistant in the Philippines. I find profitable online arbitrage leads with SellerAmp SAS and Keepa, backed by data.">
@@ -33,16 +33,16 @@
 <meta name="twitter:image" content="https://fredespinosa86app-jpg.github.io/frederick-portfolio/assets/images/social/og-image.jpg">
 <meta name="twitter:image:alt" content="Frederick Espinosa, Amazon Product Researcher and Virtual Assistant">
 <script type="application/ld+json" id="ldjson">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","@id":"https://fredespinosa86app-jpg.github.io/frederick-portfolio/#website","url":"https://fredespinosa86app-jpg.github.io/frederick-portfolio/","name":"Frederick Espinosa","description":"Amazon product researcher and virtual assistant in the Philippines. I find profitable online arbitrage leads with SellerAmp SAS and Keepa, backed by data.","inLanguage":"en","publisher":{"@id":"https://fredespinosa86app-jpg.github.io/frederick-portfolio/#person"}},{"@type":"Person","@id":"https://fredespinosa86app-jpg.github.io/frederick-portfolio/#person","name":"Frederick Espinosa","url":"https://fredespinosa86app-jpg.github.io/frederick-portfolio/","image":"https://fredespinosa86app-jpg.github.io/frederick-portfolio/assets/images/hero/hero-portrait.webp","jobTitle":"Amazon Product Researcher & Virtual Assistant","description":"Amazon product researcher and virtual assistant in the Philippines. I find profitable online arbitrage leads with SellerAmp SAS and Keepa, backed by data.","address":{"@type":"PostalAddress","addressLocality":"Plaridel","addressRegion":"Bulacan","addressCountry":"PH"},"knowsAbout":["Amazon product research","Online arbitrage","Product sourcing","Keepa","SellerAmp SAS","Amazon Seller Central","Virtual assistance"],"sameAs":["https://www.linkedin.com/in/frederick-espinosa-4a03b03b9/","https://v2.onlinejobs.ph/jobseekers/info/4884720","https://www.upwork.com/freelancers/~017a9a8bf9e0f5c289"]}]}</script>
-<link rel="stylesheet" href="styles/boot.css?v=e3">
-<script src="scripts/boot-cover.js?v=e3"></script>
+<link rel="stylesheet" href="styles/boot.css?v=e4">
+<script src="scripts/boot-cover.js?v=e4"></script>
 <noscript><style>#boot{display:none}</style></noscript>
-<link rel="stylesheet" href="styles/fonts.css?v=e3">
+<link rel="stylesheet" href="styles/fonts.css?v=e4">
 <script>try{if(localStorage.getItem('portfolio-dark')==='1')document.documentElement.setAttribute('data-theme','dark')}catch(e){}</script>
-<link rel="stylesheet" href="styles/main.css?v=e3">
-<link rel="stylesheet" href="styles/components.css?v=e3">
-<link rel="stylesheet" href="styles/owner.css?v=e3">
-<link rel="stylesheet" href="styles/themes.css?v=e3">
-<link rel="stylesheet" href="styles/responsive.css?v=e3">
+<link rel="stylesheet" href="styles/main.css?v=e4">
+<link rel="stylesheet" href="styles/components.css?v=e4">
+<link rel="stylesheet" href="styles/owner.css?v=e4">
+<link rel="stylesheet" href="styles/themes.css?v=e4">
+<link rel="stylesheet" href="styles/responsive.css?v=e4">
 </head>
 <body>
 <div id="boot" role="status" aria-live="polite" aria-busy="true"><span class="bdots" aria-hidden="true"><i></i><i></i><i></i></span><span class="bsr">Loading the portfolio…</span></div>
@@ -599,6 +599,78 @@
 <div class="dcard"><h2>Data retention</h2><p class="dhelp">Visit records are small, but you can remove old ones at any time.</p><div class="dact-row"><button type="button" class="dbtn danger" id="vsPurge">Delete records older than 90 days</button></div></div></section>
 <section class="dpage" id="dp-integrations" hidden><div class="dcard"><h2>Integrations</h2>
 <p class="dhelp">Connections use Google’s official OAuth 2.0. Access tokens are kept only in this browser tab’s memory and are never saved to the database or the site files. This site has no server (free Firebase plan), so no refresh token can be stored: you reconnect after reloading the page.</p></div>
+<div class="dcard"><h2>Google &amp; meeting tools</h2>
+<p class="dhelp">One place for every Google tool this site can use. Everything runs through your own free Google account. Nothing here needs a paid plan.</p>
+<dl class="hubgrid">
+<dt>Google sign-in</dt><dd><span id="hubAuth" class="dstate-line"></span></dd>
+<dt>Google Calendar</dt><dd><span id="hubCal" class="dstate-line"></span></dd>
+<dt>Google Meet</dt><dd><span id="hubMeet" class="dstate-line"></span></dd>
+<dt>Google Sheets</dt><dd><span id="hubSheets" class="dstate-line"></span></dd>
+<dt>Zoom link</dt><dd><span id="hubZoom" class="dstate-line"></span></dd>
+<dt>Google Drive</dt><dd><span id="hubDrive" class="dstate-line"></span></dd>
+<dt>Gmail</dt><dd><span id="hubGmail" class="dstate-line"></span></dd></dl></div>
+<div class="dcard"><h3>Google Sheets</h3>
+<p class="dhelp">Copy meeting requests, clients and a daily visitor summary into a Google Sheet that you own. You press the button; visitors never send anything to your sheet. The address and token below are stored only in your private database area and are not part of any backup.</p>
+<label class="fld">Apps Script Web app address<input type="url" id="gsUrl" autocomplete="off" placeholder="https://script.google.com/macros/s/…/exec"></label>
+<label class="fld">Token (the same text as the script's TOKEN property)<input type="password" id="gsToken" autocomplete="off" spellcheck="false"></label>
+<div class="dact-row"><button type="button" class="dbtn primary" id="gsSave">Save</button><button type="button" class="dbtn" id="gsTest" disabled>Test connection</button><button type="button" class="dbtn danger" id="gsDisc" disabled>Disconnect</button></div>
+<div class="dact-row"><button type="button" class="dbtn" id="gsMeet" disabled>Send meeting requests</button><button type="button" class="dbtn" id="gsCli" disabled>Send clients</button><button type="button" class="dbtn" id="gsVis" disabled>Send visitor summary</button><button type="button" class="dbtn primary" id="gsAll" disabled>Send all three</button></div>
+<p class="dstate-line" id="gsState" role="status"></p><p class="dhelp" id="gsLast"></p>
+<p class="dhelp">The visitor summary sends the days loaded on the Visitors page (open it and pick a period first). Sending again updates rows instead of duplicating them. Personal details go only to your own sheet.</p>
+<details class="vtable"><summary>Setup instructions and script</summary><ol class="dhelp"><li>Create a new Google Sheet. Open <em>Extensions &gt; Apps Script</em>, delete the sample code and paste the script below.</li><li>Open <em>Project Settings</em> (gear icon) &gt; <em>Script properties</em> &gt; add a property named <strong>TOKEN</strong> with a long random text (at least 16 characters). Use the same text in the Token box above.</li><li>Press <em>Deploy &gt; New deployment</em>, type <em>Web app</em>, Execute as <em>Me</em>, Who has access <em>Anyone</em>. Authorise it and copy the Web app address.</li><li>Paste the address above, press Save, then Test connection.</li></ol>
+<div class="dact-row"><button type="button" class="dbtn sm" id="gsCopyScript">Copy script</button></div><pre class="gsscript" id="gsScript" tabindex="0">/* Google Sheets receiver for the portfolio owner panel (Enhancement E4).
+   SETUP (about 5 minutes, free, your own Google account):
+   1. Create a new Google Sheet. Open Extensions &gt; Apps Script and paste this whole file (replace the sample code).
+   2. Click the gear icon (Project Settings) &gt; Script properties &gt; Add script property:  name TOKEN,  value a long random
+      text (at least 16 characters, for example 4 random words and 6 digits). Keep a copy: the owner panel needs the same text.
+   3. Click Deploy &gt; New deployment &gt; type "Web app". Execute as: Me.  Who has access: Anyone.  Deploy and authorise.
+   4. Copy the Web app URL (ends with /exec). In the owner panel open Integrations &gt; Google Sheets, paste the URL and the TOKEN, press Save, then Test.
+   Only requests that carry your TOKEN are accepted. The sheet tabs are created for you. Re-sending the same rows updates them (no duplicates).
+   To stop: in the owner panel press Disconnect, and in Apps Script choose Deploy &gt; Manage deployments &gt; Archive. */
+var TABS = {
+  Meetings: ['id', 'created', 'status', 'name', 'email', 'company', 'service', 'date', 'time', 'timezone', 'platform', 'message'],
+  Clients: ['id', 'name', 'email', 'phone', 'company', 'rate', 'arrangement', 'invoice due', 'status', 'notes'],
+  Visitors: ['id', 'date', 'visits', 'unique visitors', 'page views', 'sections viewed']
+};
+function out_(o) { return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); }
+function clean_(v) {
+  v = String(v == null ? '' : v).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '').slice(0, 1000);
+  return /^[=+\-@\t\r]/.test(v) ? "'" + v : v;   // a cell can never start a formula
+}
+function doPost(e) {
+  try {
+    var b = JSON.parse(e.postData.contents);
+    var t = PropertiesService.getScriptProperties().getProperty('TOKEN');
+    if (!t || t.length &lt; 16 || !b.token || b.token !== t) return out_({ ok: false, error: 'denied' });
+    if (b.action === 'ping') return out_({ ok: true, pong: true });
+    var cols = TABS[b.tab];
+    if (!cols || !Array.isArray(b.rows) || b.rows.length &gt; 200) return out_({ ok: false, error: 'bad request' });
+    var lock = LockService.getScriptLock(); lock.waitLock(20000);
+    var added = 0, updated = 0;
+    try {
+      var ss = SpreadsheetApp.getActiveSpreadsheet(), sh = ss.getSheetByName(b.tab) || ss.insertSheet(b.tab);
+      if (sh.getLastRow() === 0) { sh.getRange(1, 1, 1, cols.length).setValues([cols]).setFontWeight('bold'); sh.setFrozenRows(1); }
+      sh.getRange(1, 1, Math.max(sh.getMaxRows(), 2), cols.length).setNumberFormat('@');   // plain text: never a formula
+      var last = sh.getLastRow(), ids = {};
+      if (last &gt; 1) sh.getRange(2, 1, last - 1, 1).getValues().forEach(function (r, i) { ids[String(r[0])] = i + 2; });
+      var fresh = [];
+      b.rows.forEach(function (r) {
+        if (!Array.isArray(r) || !r.length) return;
+        var row = []; for (var i = 0; i &lt; cols.length; i++) row.push(clean_(r[i]));
+        if (!row[0]) return;
+        if (ids[row[0]]) { sh.getRange(ids[row[0]], 1, 1, cols.length).setValues([row]); updated++; } else { fresh.push(row); }
+      });
+      if (fresh.length) { sh.getRange(sh.getLastRow() + 1, 1, fresh.length, cols.length).setValues(fresh); added = fresh.length; }
+    } finally { lock.releaseLock(); }
+    return out_({ ok: true, added: added, updated: updated });
+  } catch (err) { return out_({ ok: false, error: 'failed' }); }
+}
+</pre></details></div>
+<div class="dcard"><h3>Zoom and Google Meet</h3>
+<p class="dhelp">When a visitor picks <strong>Zoom</strong>, your saved Zoom link is shown in the request details and added to the calendar event. For <strong>Google Meet</strong> requests, a new Meet link can be created automatically on the calendar event (needs Google Calendar connected below).</p>
+<label class="fld">Your Zoom meeting link (a reusable personal meeting room)<input type="url" id="zmLink" autocomplete="off" placeholder="https://zoom.us/j/1234567890"></label>
+<div class="dact-row"><button type="button" class="dbtn primary" id="zmSave">Save Zoom link</button><button type="button" class="dbtn" id="zmClear">Clear</button></div>
+<label class="tog"><input type="checkbox" id="gmAuto"> Create a Google Meet link on the calendar event for “Google Meet” requests</label></div>
 <div class="dcard"><h3>Google Calendar</h3><p class="dstate-line" id="gcStatus" role="status"></p>
 <p class="dhelp">When connected: checks your calendar for conflicts before you confirm a meeting, and can add confirmed meetings to your calendar once (duplicates are detected). No invitations are emailed to visitors.</p>
 <label class="fld">Google OAuth Client ID (public identifier, not a secret)<input type="text" id="gcClient" autocomplete="off" placeholder="1234567890-abc.apps.googleusercontent.com"></label>
@@ -747,44 +819,45 @@
 <form id="chatForm" autocomplete="off"><input id="chatInput" type="text" placeholder="Type your question…" aria-label="Type your question" maxlength="200"><button type="submit">Send</button></form>
 </div>
 <dialog id="lb" aria-label="Enlarged image"><button type="button" id="close" aria-label="Close enlarged view">×</button><img alt="Enlarged view"></dialog>
-<script src="scripts/settings.js?v=e3"></script>
-<script src="scripts/contacts.js?v=e3"></script>
-<script src="scripts/content.js?v=e3"></script>
-<script src="scripts/testimonials.js?v=e3"></script>
-<script src="scripts/faq.js?v=e3"></script>
-<script src="scripts/videos.js?v=e3"></script>
-<script src="scripts/training.js?v=e3"></script>
-<script src="scripts/experience.js?v=e3"></script>
-<script src="scripts/section-bg.js?v=e3"></script>
-<script src="scripts/hero-photo.js?v=e3"></script>
-<script src="scripts/main.js?v=e3"></script>
-<script src="scripts/chat-engine.js?v=e3"></script>
-<script src="scripts/chatbot.js?v=e3"></script>
-<script src="scripts/video-section.js?v=e3"></script>
-<script src="scripts/theme-switcher.js?v=e3"></script>
-<script src="scripts/seo.js?v=e3"></script>
-<script src="scripts/site-settings.js?v=e3"></script>
-<script src="scripts/availability.js?v=e3"></script>
-<script src="scripts/capacity.js?v=e3"></script>
-<script src="scripts/service-forms.js?v=e3"></script>
-<script src="scripts/meeting-form.js?v=e3"></script>
-<script src="scripts/owner-ui.js?v=e3"></script>
-<script src="scripts/owner-dashboard.js?v=e3"></script>
-<script src="scripts/owner-content.js?v=e3"></script>
-<script src="scripts/owner-phase1.js?v=e3"></script>
-<script src="scripts/owner-phase2.js?v=e3"></script>
-<script src="scripts/analytics.js?v=e3"></script>
-<script src="scripts/owner-phase3.js?v=e3"></script>
-<script src="scripts/owner-phase5.js?v=e3"></script>
-<script src="scripts/owner-phase6.js?v=e3"></script>
-<script src="scripts/owner-phase7.js?v=e3"></script>
-<script src="scripts/owner-security.js?v=e3"></script>
-<script src="scripts/backup-core.js?v=e3"></script>
-<script src="scripts/owner-privacy.js?v=e3"></script>
-<script src="scripts/owner-library.js?v=e3"></script>
-<script src="scripts/privacy-notice.js?v=e3"></script>
-<script src="scripts/owner-entry.js?v=e3"></script>
-<script src="scripts/owner-seo.js?v=e3"></script>
-<script type="module" src="scripts/owner-panel.js?v=e3"></script>
+<script src="scripts/settings.js?v=e4"></script>
+<script src="scripts/contacts.js?v=e4"></script>
+<script src="scripts/content.js?v=e4"></script>
+<script src="scripts/testimonials.js?v=e4"></script>
+<script src="scripts/faq.js?v=e4"></script>
+<script src="scripts/videos.js?v=e4"></script>
+<script src="scripts/training.js?v=e4"></script>
+<script src="scripts/experience.js?v=e4"></script>
+<script src="scripts/section-bg.js?v=e4"></script>
+<script src="scripts/hero-photo.js?v=e4"></script>
+<script src="scripts/main.js?v=e4"></script>
+<script src="scripts/chat-engine.js?v=e4"></script>
+<script src="scripts/chatbot.js?v=e4"></script>
+<script src="scripts/video-section.js?v=e4"></script>
+<script src="scripts/theme-switcher.js?v=e4"></script>
+<script src="scripts/seo.js?v=e4"></script>
+<script src="scripts/site-settings.js?v=e4"></script>
+<script src="scripts/availability.js?v=e4"></script>
+<script src="scripts/capacity.js?v=e4"></script>
+<script src="scripts/service-forms.js?v=e4"></script>
+<script src="scripts/meeting-form.js?v=e4"></script>
+<script src="scripts/owner-ui.js?v=e4"></script>
+<script src="scripts/owner-dashboard.js?v=e4"></script>
+<script src="scripts/owner-content.js?v=e4"></script>
+<script src="scripts/owner-phase1.js?v=e4"></script>
+<script src="scripts/owner-phase2.js?v=e4"></script>
+<script src="scripts/analytics.js?v=e4"></script>
+<script src="scripts/owner-phase3.js?v=e4"></script>
+<script src="scripts/owner-phase5.js?v=e4"></script>
+<script src="scripts/owner-phase6.js?v=e4"></script>
+<script src="scripts/owner-phase7.js?v=e4"></script>
+<script src="scripts/owner-security.js?v=e4"></script>
+<script src="scripts/backup-core.js?v=e4"></script>
+<script src="scripts/owner-privacy.js?v=e4"></script>
+<script src="scripts/owner-library.js?v=e4"></script>
+<script src="scripts/owner-google.js?v=e4"></script>
+<script src="scripts/privacy-notice.js?v=e4"></script>
+<script src="scripts/owner-entry.js?v=e4"></script>
+<script src="scripts/owner-seo.js?v=e4"></script>
+<script type="module" src="scripts/owner-panel.js?v=e4"></script>
 </body>
 </html>
