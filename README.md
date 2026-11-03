@@ -311,3 +311,22 @@ Google has retired classic reCAPTCHA for new keys, so use **Fraud Defense** (for
 - Public reading of site content is open by design; App Check enforcement also covers reads.
 - Fraud Defense Essentials (free, no billing) allows 10,000 assessments a month for the whole Google organisation; each new visitor or device uses about one per token lifetime. If that is exceeded and App Check is enforced, new visitors would be refused: un-enforce, or leave App Check in monitoring mode.
 - Not done in S2: one analytics summary per visit (it would change the stored visit format and the visitors page), Cloudflare. Say so if you want either.
+
+## Security S3 - Browser defenses
+
+**What changed**
+- **Content Security Policy (CSP)** in `index.html` (a `<meta http-equiv="Content-Security-Policy">` line near the top). Only this site, Google sign-in/App Check, YouTube/Loom videos and Firebase may load scripts or frames. Injected scripts, inline event handlers, plug-ins (`object`), a changed `<base>` and forms that post to other sites are refused. The one inline script (dark-mode switch) is allowed by its fingerprint (hash). If you ever edit that script, its hash must be recomputed (the test in S3 shows the expected value).
+- **Anti-clickjacking:** `scripts/frame-guard.js` makes the page hide itself or break out if another website puts it in a frame. GitHub Pages cannot send the usual `X-Frame-Options` / `frame-ancestors` headers, so this is the best available protection on this host.
+- **Chatbot answers:** owner-typed values (rates, currency, availability text) placed inside Marcus' built-in answers are now escaped. AI/knowledge-base answers were already shown as plain text.
+- **Fonts hosted on this site** (`assets/fonts`, `styles/fonts.css`): visitors' browsers no longer contact Google Fonts, so no visitor IP address is shared with Google for fonts, and the CSP can stay tighter. (Fraunces uses its standard optical size instead of the variable one; the difference is barely visible.)
+- Referrer policy set to `strict-origin-when-cross-origin`.
+
+**If something stops working after S3** (sign-in popup, App Check, a video): open the browser Console (F12). A line starting "Refused to ..." names the blocked address. Quick undo: delete the one `Content-Security-Policy` line in `index.html` and upload; tell me the message and I will adjust the policy.
+
+**Honest limits**
+- A CSP in a `<meta>` tag cannot report violations and cannot set `frame-ancestors`; real HTTP headers need a host that supports them (for example Cloudflare in front of the site, not part of S3).
+- `style-src` still allows inline styles (the owner panel and several scripts set styles that way). Scripts are the main XSS risk, and they are locked down.
+- `connect-src` allows any `https:` address because the chatbot webhook, the custom-domain checker and Google Calendar call addresses you choose yourself. After those are final, it can be narrowed to the exact hosts.
+- Google sign-in, reCAPTCHA / App Check and the video players could not be run against the real Google servers here; the policy was written from their documented addresses and verified against the mocked site.
+- Not done in S3: Cloudflare / HTTP headers (you have not chosen it).
+

@@ -1,0 +1,4 @@
+These font files are copied unchanged (Latin subset, woff2) from the Fontsource packages of the Google Fonts families
+Fraunces, DM Sans, Playfair Display, Lora, Inter, Poppins, Orbitron and Quicksand.
+All eight are licensed under the SIL Open Font License 1.1 (https://openfontlicense.org), which allows free use,
+embedding and redistribution with the website. Copyright remains with each family's authors.

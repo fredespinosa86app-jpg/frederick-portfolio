@@ -23,9 +23,9 @@ const KB=[
 {k:['training','certificate','certified','course','learn'],a:`He completed a 6-week intensive Online Arbitrage VA training with The Ultimate VA for Online Arbitrage. See <a href="#training">Hands-on Training &amp; Research Experience</a>.`},
 {k:['communicat','slack','asana','discord','update'],a:`He works through Slack, Asana, Discord or email, whichever you prefer, and shares a status update before you have to ask.`},
 {k:['where','location','based','philippines','bulacan','plaridel'],a:`Frederick is based in Plaridel, Bulacan, Philippines.`},
-{k:[' rate',' price','pricing','how much','charge',' fee','quote','hourly','per hour','budget',' cost'],get a(){const r=window.availApi&&window.availApi.rates(),b=[];if(r&&r.hourly!=null)b.push(`${r.currency} ${r.hourly} per hour`);if(r&&r.monthly!=null)b.push(`${r.currency} ${r.monthly} per month`);
+{k:[' rate',' price','pricing','how much','charge',' fee','quote','hourly','per hour','budget',' cost'],get a(){const r=window.availApi&&window.availApi.rates(),b=[];if(r&&r.hourly!=null)b.push(`${esc(String(r.currency))} ${esc(String(r.hourly))} per hour`);if(r&&r.monthly!=null)b.push(`${esc(String(r.currency))} ${esc(String(r.monthly))} per month`);
 return b.length?`Frederick’s rates are ${b.join(' or ')}, depending on the arrangement. The final rate depends on the service. ${hire()}`:`Rates depend on the service. Online arbitrage product research starts at $3/hour. For automation-related services, the rate depends on the needs of the job. ${hire()}`}},
-{k:['available','availability','what time','schedule','working hours','hours','time zone','timezone','monday','saturday','when can'],get a(){return `Frederick is available ${window.availApi?window.availApi.sentence():'Monday to Saturday, 8:00 AM to 9:00 PM Philippine time (PHT, UTC+8)'}. To book a time, <a href="#schedule">request a meeting</a>.`}},
+{k:['available','availability','what time','schedule','working hours','hours','time zone','timezone','monday','saturday','when can'],get a(){return `Frederick is available ${window.availApi?esc(String(window.availApi.sentence())):'Monday to Saturday, 8:00 AM to 9:00 PM Philippine time (PHT, UTC+8)'}. To book a time, <a href="#schedule">request a meeting</a>.`}},
 {k:['hire','meeting','contact','email','whatsapp','reach','message','linkedin','upwork','onlinejobs','book','work with'],get a(){return hire()}}
 ];
 const FALLBACK=`I’m not sure about that one. I can answer questions about his services, tools, criteria, training and FBA experience. For anything else, ${hire()}`;
@@ -43,6 +43,7 @@ const welcome=()=>`Hi! I’m ${name()}, the automated assistant for Frederick’
 function stamp(d){const t=document.createElement('time'),now=new Date();t.className='ts';t.dateTime=now.toISOString();const s=E.stamp(now);t.textContent=s;
 let z='';try{z=Intl.DateTimeFormat().resolvedOptions().timeZone}catch(e){}t.title=s+(z?' ('+z+')':'');d.appendChild(t)}
 function add(t,c,h){const d=document.createElement('div');d.className='m '+c;const b=document.createElement('div');b.className='mt';if(h)b.innerHTML=fixLinks(t);else b.textContent=t;d.appendChild(b);stamp(d);ms.appendChild(d);ms.scrollTop=ms.scrollHeight;return d}
+/* Security S3: every owner-typed value placed inside an HTML answer goes through esc() first. */
 /* Keep links in bot answers in sync with the contact links configured by the owner. */
 function fixLinks(html){const api=window.contactsApi;if(!api)return html;const em=api.get('email'),wa=api.get('whatsapp');
 html=em?html.replace(/mailto:[^"?]*/g,em.href):html.replace(/<a href="mailto:[^"]*"[^>]*>email Frederick<\/a>, /g,'');
