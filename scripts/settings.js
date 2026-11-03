@@ -28,6 +28,9 @@ window.portfolioSettings = {
 
   /* Firebase web config (public identifiers, safe to publish).
      Security comes from Google sign-in + the Firestore rules in README.md. */
+  /* Security S2: public reCAPTCHA v3 SITE key for Firebase App Check (never the secret key). Leave empty until registered. */
+  appCheckSiteKey: "",
+
   firebase: {
     apiKey: "AIzaSyAZpd6CHagQyLTryW5HizqeeZXZ1crgPJQ",
     authDomain: "my-online-portfolio-db2a5.firebaseapp.com",

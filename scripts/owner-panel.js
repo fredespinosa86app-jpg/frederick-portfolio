@@ -9,8 +9,11 @@ if(FIREBASE_CONFIG){try{
 const B='https://www.gstatic.com/firebasejs/10.12.2/';
 const {initializeApp}=await import(B+'firebase-app.js');
 const {getAuth,GoogleAuthProvider,signInWithPopup,signOut,onAuthStateChanged,setPersistence,browserSessionPersistence,browserLocalPersistence}=await import(B+'firebase-auth.js');
-const {getFirestore,doc,onSnapshot,setDoc,collection,addDoc,serverTimestamp,query,orderBy,limit,updateDoc,deleteDoc,where,getDocs}=await import(B+'firebase-firestore.js');
-const app=initializeApp(FIREBASE_CONFIG),auth=getAuth(app),ref=doc(getFirestore(app),'settings','site');
+const {getFirestore,doc,onSnapshot,setDoc,collection,addDoc,serverTimestamp,query,orderBy,limit,updateDoc,deleteDoc,where,getDocs,getCountFromServer}=await import(B+'firebase-firestore.js');
+const app=initializeApp(FIREBASE_CONFIG);
+/* Security S2: App Check (free reCAPTCHA v3). Active only when settings.js holds a site key; a failure never blocks the site. */
+if(S.appCheckSiteKey){try{const {initializeAppCheck,ReCaptchaV3Provider}=await import(B+'firebase-app-check.js');initializeAppCheck(app,{provider:new ReCaptchaV3Provider(S.appCheckSiteKey),isTokenAutoRefreshEnabled:true})}catch(e){console.warn('App Check could not start',e)}}
+const auth=getAuth(app),ref=doc(getFirestore(app),'settings','site');
 /* Security S1: by default the owner session ends when the browser is closed; "keep me signed in" is an explicit per-device choice (Owner panel > Security). */
 let keepIn=false;try{keepIn=localStorage.getItem('ownerKeep')==='1'}catch(e){}
 try{await setPersistence(auth,keepIn?browserLocalPersistence:browserSessionPersistence)}catch(e){console.warn('Could not set sign-in persistence',e)}
@@ -53,10 +56,12 @@ window.recordUnanswered=r=>{const q=String(r.question||'').trim().slice(0,300);i
 return setDoc(doc(rdb,'chatUnanswered',sid+'_'+hash(q.toLowerCase())),{question:q,response:String(r.response||'').slice(0,600),sessionId:sid,context:String(r.context||'').slice(0,300),status:'new',createdAt:serverTimestamp()}).catch(()=>{})};
 /* Owner dashboard bridge (every call is checked by the Firestore rules, not by the UI) */
 /* Phase 3: anonymous visit counter (rules allow create-only with a fixed set of fields) */
-window.recordVisit=d=>addDoc(collection(rdb,'visits'),{...d,createdAt:serverTimestamp()});
+/* Security S2: the id is session+type+page, so the same record can never be created twice (the rules check it) */
+window.recordVisit=d=>setDoc(doc(rdb,'visits',d.sid+'_'+d.type+'_'+d.path),{...d,createdAt:serverTimestamp()});
 /* every owner write is counted so the dashboard can lock "View site" while a save is running */
 const busy=f=>(...a)=>{window.dashBusy&&window.dashBusy(1);return Promise.resolve(f(...a)).finally(()=>window.dashBusy&&window.dashBusy(-1))};
 window.OWN={db:rdb,ref,save,fs:{collection,addDoc:busy(addDoc),doc,setDoc:busy(setDoc),updateDoc:busy(updateDoc),deleteDoc:busy(deleteDoc),onSnapshot,query,orderBy,limit,where,getDocs,serverTimestamp},
+count:async(c,sinceMs)=>(await getCountFromServer(query(collection(rdb,c),where('createdAt','>=',new Date(sinceMs))))).data().count,
 session:{signOut:()=>signOut(auth),setKeep:async on=>{try{localStorage.setItem('ownerKeep',on?'1':'0')}catch(e){}try{await setPersistence(auth,on?browserLocalPersistence:browserSessionPersistence)}catch(e){}},keep:()=>keepIn},
 log:text=>addDoc(collection(rdb,'activity'),{text:String(text).slice(0,200),createdAt:serverTimestamp()}).catch(()=>{})};
 /* Public content (defaults live in scripts/content.js; the owner's published edits override them) */

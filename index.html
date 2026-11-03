@@ -34,11 +34,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=DM+Sans:wght@400;500;600&family=Playfair+Display:wght@500;600&family=Lora:wght@500;600&family=Inter:wght@400;500;600&family=Poppins:wght@400;500;600&family=Orbitron:wght@500;700&family=Quicksand:wght@400;500;600&display=swap" rel="stylesheet">
 <script>try{if(localStorage.getItem('portfolio-dark')==='1')document.documentElement.setAttribute('data-theme','dark')}catch(e){}</script>
-<link rel="stylesheet" href="styles/main.css?v=s1">
-<link rel="stylesheet" href="styles/components.css?v=s1">
-<link rel="stylesheet" href="styles/owner.css?v=s1">
-<link rel="stylesheet" href="styles/themes.css?v=s1">
-<link rel="stylesheet" href="styles/responsive.css?v=s1">
+<link rel="stylesheet" href="styles/main.css?v=s2">
+<link rel="stylesheet" href="styles/components.css?v=s2">
+<link rel="stylesheet" href="styles/owner.css?v=s2">
+<link rel="stylesheet" href="styles/themes.css?v=s2">
+<link rel="stylesheet" href="styles/responsive.css?v=s2">
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -627,6 +627,13 @@
 <p class="dhelp">These settings can only be changed in Google's consoles, so tick each one when you have checked it. Ticks are saved privately.</p>
 <ul class="seclist" id="secList"></ul>
 <p class="dhelp" id="secProg" role="status"></p></div>
+<div class="dcard"><h2>Abuse protection</h2>
+<p class="dhelp">Counts of public submissions on this site. A sudden jump can mean a bot is using up the free daily quota (20,000 writes). Checked when this page opens and every 5 minutes while it stays open.</p>
+<div class="twrap"><table class="dtable"><thead><tr><th scope="col">Public submissions</th><th scope="col">Last hour</th><th scope="col">Today</th><th scope="col">Warns above (per hour)</th></tr></thead><tbody id="secFlood"></tbody></table></div>
+<p class="dhelp" id="secFloodMsg" role="status"></p>
+<div class="ab"><button type="button" class="dbtn" id="secCheck">Check now</button><button type="button" class="dbtn" id="secPause">Pause public submissions</button></div>
+<p class="dhelp" id="secGuard" role="status"></p>
+<p class="dhelp">Pausing makes the database refuse new visits, meeting requests and chatbot questions from visitors until you resume. Your own panel keeps working. There is no background monitor on the free plan, so this only watches while the panel is open.</p></div>
 </section>
 <section class="dpage" id="dp-general" hidden>
 <div class="dcard"><h2>Hiring</h2><div class="ab">
@@ -645,39 +652,39 @@
 <form id="chatForm" autocomplete="off"><input id="chatInput" type="text" placeholder="Type your question…" aria-label="Type your question" maxlength="200"><button type="submit">Send</button></form>
 </div>
 <dialog id="lb" aria-label="Enlarged image"><button type="button" id="close" aria-label="Close enlarged view">×</button><img alt="Enlarged view"></dialog>
-<script src="scripts/settings.js?v=s1"></script>
-<script src="scripts/contacts.js?v=s1"></script>
-<script src="scripts/content.js?v=s1"></script>
-<script src="scripts/testimonials.js?v=s1"></script>
-<script src="scripts/faq.js?v=s1"></script>
-<script src="scripts/videos.js?v=s1"></script>
-<script src="scripts/training.js?v=s1"></script>
-<script src="scripts/experience.js?v=s1"></script>
-<script src="scripts/section-bg.js?v=s1"></script>
-<script src="scripts/hero-photo.js?v=s1"></script>
-<script src="scripts/main.js?v=s1"></script>
-<script src="scripts/chat-engine.js?v=s1"></script>
-<script src="scripts/chatbot.js?v=s1"></script>
-<script src="scripts/video-section.js?v=s1"></script>
-<script src="scripts/theme-switcher.js?v=s1"></script>
-<script src="scripts/seo.js?v=s1"></script>
-<script src="scripts/site-settings.js?v=s1"></script>
-<script src="scripts/availability.js?v=s1"></script>
-<script src="scripts/capacity.js?v=s1"></script>
-<script src="scripts/service-forms.js?v=s1"></script>
-<script src="scripts/meeting-form.js?v=s1"></script>
-<script src="scripts/owner-ui.js?v=s1"></script>
-<script src="scripts/owner-dashboard.js?v=s1"></script>
-<script src="scripts/owner-content.js?v=s1"></script>
-<script src="scripts/owner-phase1.js?v=s1"></script>
-<script src="scripts/owner-phase2.js?v=s1"></script>
-<script src="scripts/analytics.js?v=s1"></script>
-<script src="scripts/owner-phase3.js?v=s1"></script>
-<script src="scripts/owner-phase5.js?v=s1"></script>
-<script src="scripts/owner-phase6.js?v=s1"></script>
-<script src="scripts/owner-phase7.js?v=s1"></script>
-<script src="scripts/owner-security.js?v=s1"></script>
-<script src="scripts/owner-seo.js?v=s1"></script>
-<script type="module" src="scripts/owner-panel.js?v=s1"></script>
+<script src="scripts/settings.js?v=s2"></script>
+<script src="scripts/contacts.js?v=s2"></script>
+<script src="scripts/content.js?v=s2"></script>
+<script src="scripts/testimonials.js?v=s2"></script>
+<script src="scripts/faq.js?v=s2"></script>
+<script src="scripts/videos.js?v=s2"></script>
+<script src="scripts/training.js?v=s2"></script>
+<script src="scripts/experience.js?v=s2"></script>
+<script src="scripts/section-bg.js?v=s2"></script>
+<script src="scripts/hero-photo.js?v=s2"></script>
+<script src="scripts/main.js?v=s2"></script>
+<script src="scripts/chat-engine.js?v=s2"></script>
+<script src="scripts/chatbot.js?v=s2"></script>
+<script src="scripts/video-section.js?v=s2"></script>
+<script src="scripts/theme-switcher.js?v=s2"></script>
+<script src="scripts/seo.js?v=s2"></script>
+<script src="scripts/site-settings.js?v=s2"></script>
+<script src="scripts/availability.js?v=s2"></script>
+<script src="scripts/capacity.js?v=s2"></script>
+<script src="scripts/service-forms.js?v=s2"></script>
+<script src="scripts/meeting-form.js?v=s2"></script>
+<script src="scripts/owner-ui.js?v=s2"></script>
+<script src="scripts/owner-dashboard.js?v=s2"></script>
+<script src="scripts/owner-content.js?v=s2"></script>
+<script src="scripts/owner-phase1.js?v=s2"></script>
+<script src="scripts/owner-phase2.js?v=s2"></script>
+<script src="scripts/analytics.js?v=s2"></script>
+<script src="scripts/owner-phase3.js?v=s2"></script>
+<script src="scripts/owner-phase5.js?v=s2"></script>
+<script src="scripts/owner-phase6.js?v=s2"></script>
+<script src="scripts/owner-phase7.js?v=s2"></script>
+<script src="scripts/owner-security.js?v=s2"></script>
+<script src="scripts/owner-seo.js?v=s2"></script>
+<script type="module" src="scripts/owner-panel.js?v=s2"></script>
 </body>
 </html>

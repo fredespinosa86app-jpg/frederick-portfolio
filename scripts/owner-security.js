@@ -16,6 +16,8 @@
     ['domains', 'Authorised domains are only your own', 'Authentication > Settings > Authorised domains: keep localhost only while testing; remove anything you do not own.'],
     ['apikey', 'Web API key is restricted to your site', 'Google Cloud console > APIs & Services > Credentials > your browser key > Websites: add only your site address and the firebaseapp.com address.'],
     ['rules', 'Published rules match the file in this project', 'Firestore Database > Rules: the published text equals firestore.rules (Security S1 version), then press Publish.'],
+    ['appcheck', 'App Check is registered and in monitoring mode', 'Firebase console > App Check > Apps: register this site with reCAPTCHA v3, paste the SITE key into scripts/settings.js (appCheckSiteKey), watch the Firestore request graph for a few days.'],
+    ['enforce', 'App Check is enforced for Cloud Firestore', 'App Check > APIs > Cloud Firestore > Enforce, only after the graph shows your own visits as verified.'],
     ['budget', 'Budget alert is set', 'Google Cloud console > Billing > Budgets & alerts: a low alert (for example 1 USD) so any surprise charge is noticed. The project stays on the free plan.']
   ];
   const lsGet = (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch (e) { return d; } };
@@ -66,6 +68,34 @@
       state(ok ? 'Account ID copied.' : 'Could not copy automatically. Select the ID and copy it by hand.');
     });
   }
+  /* ---- abuse protection (Security S2) ---- */
+  const LIMITS = [['visits', 'Visits recorded', 400], ['meetingRequests', 'Meeting requests', 10], ['chatUnanswered', 'Chatbot questions', 60]];
+  let paused = false, flood = false;
+  const sod = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); };
+  function drawGuard() { $('secGuard').textContent = paused ? 'Public submissions are PAUSED. Visitors cannot send anything until you resume.' : 'Public submissions are open.'; $('secPause').textContent = paused ? 'Resume public submissions' : 'Pause public submissions'; }
+  async function loadGuard() { try { const o = own(); const s = await o.fs.getDocs(o.fs.query(o.fs.collection(o.db, 'content'))); paused = false; s.forEach(x => { if (x.id === 'guard' && x.data().pause === true) paused = true; }); } catch (e) { } drawGuard(); }
+  async function checkFlood() {
+    const o = own(); if (!o || !o.count) return; const tb = $('secFlood'); tb.textContent = ''; flood = false; let total = 0, failed = false;
+    for (const [c, label, lim] of LIMITS) {
+      let h = '?', d = '?';
+      try { h = await o.count(c, Date.now() - 3600000); d = await o.count(c, sod()); total += d; if (h > lim) flood = true; } catch (e) { failed = true; }
+      const tr = document.createElement('tr'); [label, h, d, lim].forEach((v, i) => { const t = document.createElement(i ? 'td' : 'th'); if (!i) t.scope = 'row'; t.textContent = String(v); tr.appendChild(t); });
+      tb.appendChild(tr);
+    }
+    $('secFloodMsg').textContent = failed ? 'Could not read the counts right now. Try again in a moment.' : (flood ? 'WARNING: one count is far above normal. If you did not expect this, press Pause public submissions.' : 'Looks normal. About ' + total + ' of the 20,000 daily writes are visible here (other writes are not counted).');
+    if (flood) notify('Unusually many public submissions in the last hour. See Security > Abuse protection.', 'error');
+  }
+  $('secCheck').addEventListener('click', () => { checkFlood(); loadGuard(); });
+  $('secPause').addEventListener('click', async () => {
+    const o = own(), want = !paused;
+    try { await o.fs.setDoc(o.fs.doc(o.db, 'content', 'guard'), { pause: want, at: Date.now() }, { merge: true }); paused = want; drawGuard(); notify(want ? 'Public submissions paused.' : 'Public submissions resumed.', 'success'); }
+    catch (e) { notify('Could not change the pause setting.', 'error'); }
+  });
+  let floodTimer = 0;
+  document.addEventListener('dash:page', e => {
+    const on = e.detail && (e.detail.page === 'security' || e.detail === 'security');
+    clearInterval(floodTimer); if (on) { checkFlood(); loadGuard(); floodTimer = setInterval(checkFlood, 300000); }
+  });
   wire();
 
   document.addEventListener('own:auth', async e => {

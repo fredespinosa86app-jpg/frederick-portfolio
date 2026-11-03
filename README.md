@@ -86,8 +86,6 @@ service cloud.firestore {
         && request.auth.token.firebase.sign_in_provider == 'google.com';
     }
     // Your Firebase account ID. Owner panel > Security shows it after you sign in.
-    // While this still says 3p2YvH4NSVYAAfA0E6HC2kkyc5F3 the e-mail check below is the way in.
-    // Once it holds your real ID and you have tested sign-in, delete the e-mail line (see README: "Strict owner mode").
     function ownerUid() { return '3p2YvH4NSVYAAfA0E6HC2kkyc5F3'; }
     function isOwner() {
       return isGoogleSignIn()
@@ -104,30 +102,41 @@ service cloud.firestore {
       let cap = /databases/$(database)/documents/content/capacity;
       return !exists(cap) || get(cap).data.get('open', true) != false;
     }
+    // Security S2: emergency pause. The owner panel (Security > Abuse protection) sets content/guard.pause = true,
+    // which makes every public write below refuse until it is switched back.
+    function intakeOpen() {
+      let g = /databases/$(database)/documents/content/guard;
+      return !exists(g) || get(g).data.get('pause', false) != true;
+    }
     match /settings/site { allow read: if true; allow write: if isOwner(); }
     match /meetingRequests/{id} {
       allow create: if request.resource.data.keys().hasOnly(['name','email','company','date','time','tz','platform','message','status','createdAt','service','formId','formName','answers'])
         && request.resource.data.keys().hasAll(['name','email','company','date','time','tz','platform','message','status','createdAt'])
         && request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 100
         && request.resource.data.email is string && request.resource.data.email.size() > 4 && request.resource.data.email.size() <= 120
+        && request.resource.data.email.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$')
         && request.resource.data.message is string && request.resource.data.message.size() > 0 && request.resource.data.message.size() <= 2000
         && request.resource.data.company is string && request.resource.data.company.size() <= 120
         && request.resource.data.platform is string && request.resource.data.platform.size() <= 60
-        && request.resource.data.date is string && request.resource.data.date.size() <= 20
-        && request.resource.data.time is string && request.resource.data.time.size() <= 20
-        && request.resource.data.tz is string && request.resource.data.tz.size() <= 60
+        && request.resource.data.date is string && request.resource.data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && request.resource.data.time is string && request.resource.data.time.matches('^[0-9]{2}:[0-9]{2}$')
+        && request.resource.data.tz is string && request.resource.data.tz.size() <= 60 && request.resource.data.tz.matches('^[A-Za-z0-9_+/-]+$')
         && (request.resource.data.get('service', '') is string && request.resource.data.get('service', '').size() <= 60)
         && (request.resource.data.get('formId', '') is string && request.resource.data.get('formId', '').size() <= 40)
         && (request.resource.data.get('formName', '') is string && request.resource.data.get('formName', '').size() <= 100)
         && (request.resource.data.get('answers', '') is string && request.resource.data.get('answers', '').size() <= 4000)
         && request.resource.data.status == 'new'
         && request.resource.data.createdAt == request.time
+        && intakeOpen()
         && capOpen()
         && slotFree();
       allow read, update, delete: if isOwner();
     }
     match /chatUnanswered/{id} {
-      allow create: if request.resource.data.keys().hasOnly(['question','response','sessionId','context','status','createdAt'])
+      allow create: if intakeOpen()
+        && request.resource.data.sessionId is string && request.resource.data.sessionId.matches('^[a-z0-9]{1,20}$')
+        && id.matches('^' + request.resource.data.sessionId + '_[a-z0-9]{1,12}$')
+        && request.resource.data.keys().hasOnly(['question','response','sessionId','context','status','createdAt'])
         && request.resource.data.keys().hasAll(['question','response','sessionId','context','status','createdAt'])
         && request.resource.data.question is string && request.resource.data.question.size() > 0 && request.resource.data.question.size() <= 300
         && request.resource.data.response is string && request.resource.data.response.size() <= 600
@@ -143,12 +152,14 @@ service cloud.firestore {
     // Phase 2: private business data. Never readable by visitors.
     // Phase 3: anonymous visit counter. Visitors may only create; only the owner reads or deletes.
     match /visits/{id} {
-      allow create: if request.resource.data.keys().hasOnly(['vid','sid','type','path','ref','device','browser','createdAt'])
+      allow create: if intakeOpen()
+        && request.resource.data.keys().hasOnly(['vid','sid','type','path','ref','device','browser','createdAt'])
         && request.resource.data.keys().hasAll(['vid','sid','type','path','ref','device','browser','createdAt'])
-        && request.resource.data.vid is string && request.resource.data.vid.size() == 24
-        && request.resource.data.sid is string && request.resource.data.sid.size() == 24
+        && request.resource.data.vid is string && request.resource.data.vid.matches('^[0-9a-f]{24}$')
+        && request.resource.data.sid is string && request.resource.data.sid.matches('^[0-9a-f]{24}$')
         && request.resource.data.type in ['view','section']
-        && request.resource.data.path is string && request.resource.data.path.size() <= 40
+        && request.resource.data.path is string && request.resource.data.path.matches('^[A-Za-z0-9_-]{1,40}$')
+        && id == request.resource.data.sid + '_' + request.resource.data.type + '_' + request.resource.data.path
         && request.resource.data.ref is string && request.resource.data.ref.size() <= 100
         && request.resource.data.device in ['desktop','tablet','mobile']
         && request.resource.data.browser is string && request.resource.data.browser.size() <= 20
@@ -275,3 +286,26 @@ No Firestore rule change is needed (new documents live under `content/{doc}`: pu
 **Honest limits**
 - The idle timeout and session choice work in your browser only. Without a server (the free plan has none) a sign-in token cannot be cancelled from elsewhere; it simply expires within about an hour. Signing out on this device is immediate.
 - Rules tests: `rules-tests/` contains an emulator-based test file. It was **not** run in the build environment (no emulator download available); run it on your computer with `npm install` then `npm test` inside that folder (needs Java and the Firebase emulator). The sandbox tests only check the owner logic and the rule text.
+
+## Security S2 - Abuse and quota protection
+
+**What changed**
+- **Stricter rules for visitor writes:** e-mail, date (`YYYY-MM-DD`), time (`HH:MM`) and time zone must have the right shape; visit and chatbot records must use their exact ID pattern.
+- **One record per visit/page:** a visit record's ID is now `session_type_page`, so the same record can never be created twice (existing visit records are untouched and still counted).
+- **Emergency pause:** Owner panel > Security > Abuse protection counts public submissions (last hour and today), warns above a limit, and has a **Pause public submissions** button. It writes `content/guard.pause`; the rules then refuse new visits, meeting requests and chatbot questions until you resume. Your owner panel keeps working.
+- **App Check (optional, free):** the site starts Firebase App Check with reCAPTCHA v3 when `appCheckSiteKey` in `scripts/settings.js` is filled in. Empty (the default) = nothing changes.
+- Two new items on the Security checklist (App Check registered, App Check enforced).
+
+**App Check set-up (do in this order; do not skip the monitoring step)**
+1. Firebase console > App Check > Apps > your web app > reCAPTCHA v3 > create the key pair at google.com/recaptcha/admin (type v3, add your site domain). Paste the **secret** key only into the Firebase console, never into a file.
+2. Paste the **site** key into `appCheckSiteKey` in `scripts/settings.js`, upload, and browse your site and owner panel once.
+3. App Check > APIs > Cloud Firestore: watch "verified vs unverified" for a few days. Only when your own traffic shows as verified, press **Enforce**. Enforcing too early blocks real visitors; you can un-enforce at any time.
+4. For testing on localhost, App Check needs a debug token (App Check > Apps > Manage debug tokens); do not publish a debug token.
+
+**Honest limits**
+- Firestore rules cannot count requests per person. A bot that changes its random ID can still send valid-looking records; the format rules, the pause button and App Check (once enforced) are what limit that. Free-plan quotas still apply (20,000 writes and 50,000 reads a day); at the limit, writes simply fail until the daily reset.
+- Each guarded write now costs one extra document read for the pause check (the existing capacity check already worked this way).
+- The flood counter only runs while the Security page is open; there is no background monitor on the free plan. Google's usage graphs (Firebase console > Usage) are the other signal.
+- Public reading of site content is open by design; App Check enforcement also covers reads.
+- reCAPTCHA v3 free limits are set by Google and I could not verify the current figure; check the reCAPTCHA admin page before relying on it. If it ever needs billing, skip App Check (nothing else depends on it).
+- Not done in S2: one analytics summary per visit (it would change the stored visit format and the visitors page), Cloudflare. Say so if you want either.
