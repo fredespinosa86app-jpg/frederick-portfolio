@@ -55,10 +55,11 @@ let best=null,top=0;for(const e of KB.concat(window.__chatExtra||[])){let n=0;fo
 lastFallback=!best;return best?best.a:FALLBACK}
 const SID=Math.random().toString(36).slice(2),HIST=[];
 async function viaHook(q){const c=new AbortController(),t=setTimeout(()=>c.abort(),HOOK_TIMEOUT);
-try{const r=await fetch(window.chatHook,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:q.slice(0,300),sessionId:SID,history:HIST.slice(-8).map(m=>({role:m.role,content:String(m.content).slice(0,600)})),page:location.origin+location.pathname}),signal:c.signal});
+try{const r=await fetch(window.chatHook,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:q.slice(0,300),sessionId:SID,history:HIST.filter(m=>m.role==='user').slice(-6).map(m=>({role:'user',content:String(m.content).slice(0,300)})),page:location.origin+location.pathname}),signal:c.signal});
 if(!r.ok)throw 0;const ct=r.headers.get('content-type')||'';let x=ct.includes('json')?await r.json():await r.text();
 if(Array.isArray(x))x=x[0];if(x&&typeof x==='object')x=x.reply??x.output??x.text??x.message??x.response;
-if(typeof x!=='string'||!x.trim())throw 0;return x.trim().slice(0,2000)}finally{clearTimeout(t)}}
+if(typeof x!=='string')throw 0;x=E.cleanText(x.replace(/<[^>]*>/g,' '),2000);if(!x)throw 0;return x}finally{clearTimeout(t)}}
+function ownLink(u){try{const x=new URL(u.replace(/&amp;/g,'&'));return x.protocol==='https:'&&x.hostname===location.hostname}catch(e){return false}}
 function esc(s){return s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 const wait=t=>new Promise(r=>setTimeout(r,t));
 function typing(){const w=document.createElement('div');w.className='m bot typing';w.innerHTML='<span class="dots" aria-hidden="true"><span></span><span></span><span></span></span><span class="sr">Typing…</span>';ms.appendChild(w);ms.scrollTop=ms.scrollHeight;return w}
@@ -81,14 +82,14 @@ let a=null,html=true,local=false;
 try{
 const m=E.matchKb(q,E.kb());                       // owner-approved and predefined answers come first
 if(m){a=m.item.a;html=false;local=true}
-else if(window.chatHook){try{a=await viaHook(q);html=false}catch(e){a=null}}
+else if(window.chatHook&&!E.injection(q)){try{a=await viaHook(q);html=false}catch(e){a=null}}   // instruction-override attempts never reach the AI webhook
 if(a==null){a=answer(q);html=true;local=true}
 const target=local?E.replyDelay(a.length):E.MIN_MS;   // controlled 2-8 s for stored answers; webhook answers show as soon as they arrive (after 2 s minimum)
 const rem=target-(Date.now()-t0);if(rem>0)await wait(rem);
 const unanswered=html&&lastFallback&&!m;
 w.classList.remove('typing');w.textContent='';
 const b=document.createElement('div');b.className='mt';
-if(html)b.innerHTML=fixLinks(a);else b.innerHTML=esc(a).replace(/(https?:\/\/[^\s<]+)/g,'<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>').replace(/\n/g,'<br>');
+if(html)b.innerHTML=fixLinks(a);else b.innerHTML=esc(a).replace(/(https?:\/\/[^\s<]+)/g,u=>ownLink(u)?'<a href="'+u+'" target="_blank" rel="noopener noreferrer">'+u+'</a>':u).replace(/\n/g,'<br>');   // answers from outside can only link to this site
 w.append(b);stamp(w);HIST.push({role:'assistant',content:b.textContent});
 if(unanswered)trackUnanswered(q,b.textContent);
 }catch(e){w.classList.remove('typing');w.textContent='';const b=document.createElement('div');b.className='mt';b.textContent=SLOW_MSG;w.append(b);stamp(w)}

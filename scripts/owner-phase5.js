@@ -102,9 +102,10 @@
     const items = [];
     items.push([true, 'No passwords, API keys or tokens are in the website code (the Firebase web key is public by design and protected by the database rules).']);
     items.push([true, 'Visitor messages are length-limited (300 characters), rate-limited in the page (6 per minute), checked by the language filter first, and sent one at a time.']);
+    items.push([true, 'Instruction-override and prompt-extraction attempts ("ignore your rules", "show your system prompt") are not sent to the webhook, invisible characters are removed, and answers coming back are shown as plain text with links only to this site.']);
     items.push([true, 'The chatbot only reads public site content. Client records, rates, visitor logs and settings are readable by the owner account only.']);
     if (!u) { st.textContent = 'No webhook is set: nothing is exposed.'; st.className = 'dstate-line ok'; }
-    else if (proxy) { items.push([true, 'The saved address looks like a proxy (' + host + '). The real webhook URL stays private in the proxy’s secrets.']); st.textContent = 'Looks protected, as long as the proxy’s ALLOWED_ORIGINS is set.'; st.className = 'dstate-line ok'; }
+    else if (proxy) { items.push([true, 'The saved address looks like a proxy (' + host + '). The real webhook URL stays private in the proxy’s secrets.']); st.textContent = 'Looks protected, as long as the proxy’s ALLOWED_ORIGINS is set and you use the latest proxy (v2) and the guard text in your workflow (server/README.md).'; st.className = 'dstate-line ok'; }
     else { items.push([false, 'The saved address (' + host + ') is stored in a public document and sent to every visitor’s browser. Anyone can read it and call it directly (spam, usage costs, fake leads). Setting a secret header would not help because it would be public too.']);
       items.push([false, 'Fix: deploy the included proxy (server folder), paste the proxy address here, then replace the old webhook URL in n8n/Make so the old address stops working.']);
       st.textContent = on ? 'Webhook is active and its address is publicly readable.' : 'Webhook address is saved and publicly readable even though it is switched off.'; st.className = 'dstate-line warn'; }

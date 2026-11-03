@@ -61,6 +61,22 @@
     return 'ok';
   }
 
+
+  /* ---------------- prompt-injection screen (Security S4) ---------------- */
+  /* text from the webhook or the visitor is never trusted: invisible characters are removed and obvious instruction-override attempts are not sent to the AI webhook */
+  const INVIS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F­͏؜᠋-᠎​-‏‪-‮⁠-⁯︀-️﻿￹-￼]/g;
+  const cleanText = (s, max) => String(s == null ? '' : s).normalize('NFKC').replace(INVIS, '').replace(/[\u{E0000}-\u{E007F}]/gu, '').trim().slice(0, max || 2000);
+  const INJ = [
+    /\b(ignore|disregard|forget|override|bypass|skip)\b[^.\n]{0,40}\b(previous|prior|above|earlier|all|any|your|the|these|those|system)\b[^.\n]{0,30}\b(instruction|prompt|rule|direction|guideline|command|message|context|polic)/i,
+    /\b(reveal|show|print|repeat|display|leak|tell me|give me|output|dump|share)\b[^.\n]{0,40}\b(system|hidden|initial|original|developer|secret)\b[^.\n]{0,20}\b(prompt|instruction|message|rule|config)/i,
+    /\b(reveal|show|print|leak|give me|what is|what's|tell me|dump)\b[^.\n]{0,30}\b(api[ _-]?key|secret|password|token|webhook|credential|env(ironment)? variable|private key|upstream)/i,
+    /\b(you are now|from now on you|act as|pretend (to be|you)|roleplay as|simulate|switch (to|into)|enter|enable)\b[^.\n]{0,30}\b(dan|jailbreak|developer mode|god mode|unrestricted|unfiltered|no (rules|restrictions|filter)|root access|system prompt)\b/i,
+    /\b(jailbreak|do anything now|prompt injection|developer mode)\b/i,
+    /(^|\n)\s*(system|assistant|developer|tool)\s*:/i,
+    /<\s*\/?\s*(system|assistant|instruction|prompt|script|iframe|img|svg|style)\b|\[\s*\/?(INST|SYS)\s*\]|<\|[a-z_]+\|>/i
+  ];
+  const injection = text => { const t = cleanText(text, 1000); return INJ.some(r => r.test(t)); };
+
   /* ---------------- time + delay ---------------- */
   function stamp(d, tz) {
     const o = tz ? { timeZone: tz } : {};
@@ -101,7 +117,7 @@
   const CACHE = 'chatCfg';
   const save = () => { try { localStorage.setItem(CACHE, JSON.stringify({ i: ident, k: kb })); } catch (e) { /* ignore */ } };
   const api = {
-    DEFAULT_KB, DEF_ID, tokens, score, matchKb, classify, stamp, replyDelay, MIN_MS, MAX_MS, TH, cleanId, cleanKb, BAD,
+    DEFAULT_KB, DEF_ID, tokens, score, matchKb, classify, injection, cleanText, stamp, replyDelay, MIN_MS, MAX_MS, TH, cleanId, cleanKb, BAD,
     identity: () => ident, kb: () => (kb == null ? DEFAULT_KB : kb), hasCustomKb: () => kb != null,
     setIdentity: d => { ident = cleanId(d); save(); emit(); },
     setKb: d => { kb = d ? cleanKb(d) : null; save(); emit(); },

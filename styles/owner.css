@@ -158,3 +158,6 @@ dialog.dmodal{--d-bg:#f4f6fa;--d-card:#fff;--d-ink:#1b2333;--d-muted:#5b6578;--d
 .dash.collapsed .dsignout{justify-content:center}
 #secUid{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:14px}
 .seclist{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:10px}.seclist li{display:block}.seclist label{display:flex;gap:10px;align-items:flex-start;font-weight:500}.seclist small{display:block;color:var(--d-muted);font-weight:400}
+
+.dstate-line.bad{color:#a02020}
+.dwarn{margin-left:auto;background:#b3261e;color:#fff;border-radius:50%;width:18px;height:18px;display:inline-grid;place-items:center;font-size:12px;font-weight:700}
