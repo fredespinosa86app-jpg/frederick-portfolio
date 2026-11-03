@@ -293,19 +293,21 @@ No Firestore rule change is needed (new documents live under `content/{doc}`: pu
 - **Stricter rules for visitor writes:** e-mail, date (`YYYY-MM-DD`), time (`HH:MM`) and time zone must have the right shape; visit and chatbot records must use their exact ID pattern.
 - **One record per visit/page:** a visit record's ID is now `session_type_page`, so the same record can never be created twice (existing visit records are untouched and still counted).
 - **Emergency pause:** Owner panel > Security > Abuse protection counts public submissions (last hour and today), warns above a limit, and has a **Pause public submissions** button. It writes `content/guard.pause`; the rules then refuse new visits, meeting requests and chatbot questions until you resume. Your owner panel keeps working.
-- **App Check (optional, free):** the site starts Firebase App Check with reCAPTCHA v3 when `appCheckSiteKey` in `scripts/settings.js` is filled in. Empty (the default) = nothing changes.
+- **App Check (optional, free):** the site starts Firebase App Check with a reCAPTCHA / Fraud Defense key when `appCheckSiteKey` in `scripts/settings.js` is filled in. Empty (the default) = nothing changes.
 - Two new items on the Security checklist (App Check registered, App Check enforced).
 
 **App Check set-up (do in this order; do not skip the monitoring step)**
-1. Firebase console > App Check > Apps > your web app > reCAPTCHA v3 > create the key pair at google.com/recaptcha/admin (type v3, add your site domain). Paste the **secret** key only into the Firebase console, never into a file.
-2. Paste the **site** key into `appCheckSiteKey` in `scripts/settings.js`, upload, and browse your site and owner panel once.
-3. App Check > APIs > Cloud Firestore: watch "verified vs unverified" for a few days. Only when your own traffic shows as verified, press **Enforce**. Enforcing too early blocks real visitors; you can un-enforce at any time.
-4. For testing on localhost, App Check needs a debug token (App Check > Apps > Manage debug tokens); do not publish a debug token.
+Google has retired classic reCAPTCHA for new keys, so use **Fraud Defense** (formerly reCAPTCHA Enterprise). Its Essentials tier is free and needs **no billing account**: up to 10,000 assessments per month, and past that it answers with an error (429) instead of charging. If any screen asks you to enable billing or add a card, stop and do not continue.
+1. Google Cloud console (project my-online-portfolio-db2a5) > Security > Fraud Defense (reCAPTCHA) > Create key: platform **Website**, add your site domain (fredespinosa86app-jpg.github.io), score-based. Enable the API if asked (no billing needed). Copy the **site key** (the public ID).
+2. Firebase console > App Check > Apps > your web app > **Fraud Defense** > enter that site key, set Token time to live to **7 days** (fewer assessments), Save.
+3. Paste the same **site key** into `appCheckSiteKey` in `scripts/settings.js` (keep `appCheckProvider: "enterprise"`), upload, then browse the site and the owner panel once. No secret key goes into any file.
+4. App Check > APIs > Cloud Firestore: watch verified vs unverified for a few days. Only when your own traffic shows as verified, press **Enforce**. If real visitors are ever blocked (for example the 10,000/month allowance runs out), un-enforce at once.
+5. For testing on localhost App Check needs a debug token (App Check > Apps > Manage debug tokens); never publish a debug token.
 
 **Honest limits**
 - Firestore rules cannot count requests per person. A bot that changes its random ID can still send valid-looking records; the format rules, the pause button and App Check (once enforced) are what limit that. Free-plan quotas still apply (20,000 writes and 50,000 reads a day); at the limit, writes simply fail until the daily reset.
 - Each guarded write now costs one extra document read for the pause check (the existing capacity check already worked this way).
 - The flood counter only runs while the Security page is open; there is no background monitor on the free plan. Google's usage graphs (Firebase console > Usage) are the other signal.
 - Public reading of site content is open by design; App Check enforcement also covers reads.
-- reCAPTCHA v3 free limits are set by Google and I could not verify the current figure; check the reCAPTCHA admin page before relying on it. If it ever needs billing, skip App Check (nothing else depends on it).
+- Fraud Defense Essentials (free, no billing) allows 10,000 assessments a month for the whole Google organisation; each new visitor or device uses about one per token lifetime. If that is exceeded and App Check is enforced, new visitors would be refused: un-enforce, or leave App Check in monitoring mode.
 - Not done in S2: one analytics summary per visit (it would change the stored visit format and the visitors page), Cloudflare. Say so if you want either.
