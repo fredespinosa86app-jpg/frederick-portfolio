@@ -19,7 +19,10 @@ let keepIn=false;try{keepIn=localStorage.getItem('ownerKeep')==='1'}catch(e){}
 try{await setPersistence(auth,keepIn?browserLocalPersistence:browserSessionPersistence)}catch(e){console.warn('Could not set sign-in persistence',e)}
 const $=id=>document.getElementById(id),hire=document.querySelectorAll('.hire-cta'),login=$('ownerLogin'),cb=$('hireToggle'),hookUrl=$('hookUrl'),hookOn=$('hookOn'),introOn=$('introOn'),introUrl=$('introUrl');
 login.hidden=false;
-onSnapshot(ref,s=>{const d=s.exists()?s.data():{};const on=d.hireEnabled!==false;if(window.capacityApi)window.capacityApi.setHire(on);else hire.forEach(e=>e.hidden=!on);cb.checked=on;window.chatHook=d.chatAuto&&/^https:\/\//i.test(d.chatWebhook||'')?d.chatWebhook:'';hookUrl.value=d.chatWebhook||'';hookOn.checked=!!d.chatAuto;const iu=d.introUrl||window.DEF_INTRO,ie=d.introEnabled!==false;introOn.checked=ie;introUrl.value=iu;window.setIntro(iu,ie);window.applySite(d)},()=>{});
+/* S3.1: every first answer (data, empty or error) is reported to the loading cover */
+const BC=window.bootCover||{need(){},done(){},panel(){}};
+const watch=(k,r,f)=>{BC.need(k);let d=false;const m=()=>{if(!d){d=true;BC.done(k)}};onSnapshot(r,s=>{try{f(s)}finally{m()}},m)};
+watch('settings',ref,s=>{const d=s.exists()?s.data():{};const on=d.hireEnabled!==false;if(window.capacityApi)window.capacityApi.setHire(on);else hire.forEach(e=>e.hidden=!on);cb.checked=on;window.chatHook=d.chatAuto&&/^https:\/\//i.test(d.chatWebhook||'')?d.chatWebhook:'';hookUrl.value=d.chatWebhook||'';hookOn.checked=!!d.chatAuto;const iu=d.introUrl||window.DEF_INTRO,ie=d.introEnabled!==false;introOn.checked=ie;introUrl.value=iu;window.setIntro(iu,ie);window.applySite(d)});
 window.__ownerLoginReady=true;
 const authMsg=e=>{const c=(e&&e.code)||'';
 if(c==='auth/unauthorized-domain')return 'Sign-in is blocked because "'+location.hostname+'" is not an authorized domain. In Firebase open Authentication > Settings > Authorized domains and add it.';
@@ -65,22 +68,23 @@ count:async(c,sinceMs)=>(await getCountFromServer(query(collection(rdb,c),where(
 session:{signOut:()=>signOut(auth),setKeep:async on=>{try{localStorage.setItem('ownerKeep',on?'1':'0')}catch(e){}try{await setPersistence(auth,on?browserLocalPersistence:browserSessionPersistence)}catch(e){}},keep:()=>keepIn},
 log:text=>addDoc(collection(rdb,'activity'),{text:String(text).slice(0,200),createdAt:serverTimestamp()}).catch(()=>{})};
 /* Public content (defaults live in scripts/content.js; the owner's published edits override them) */
-onSnapshot(doc(rdb,'content','services'),s=>{if(s.exists()&&Array.isArray(s.data().items)&&window.contentApi)window.contentApi.setServices(s.data().items,s.data().view)},()=>{});
-onSnapshot(doc(rdb,'content','toolkit'),s=>{if(s.exists()&&Array.isArray(s.data().categories)&&window.contentApi)window.contentApi.setToolkit(s.data().categories,s.data().view)},()=>{});
-onSnapshot(doc(rdb,'content','training'),s=>{if(s.exists()&&Array.isArray(s.data().items)&&window.trainingApi)window.trainingApi.set(s.data().items)},()=>{});
-onSnapshot(doc(rdb,'content','videos'),s=>{if(s.exists()&&Array.isArray(s.data().items)&&window.videosApi)window.videosApi.set(s.data().items,s.data().view)},()=>{});
-onSnapshot(doc(rdb,'content','faq'),s=>{if(s.exists()&&Array.isArray(s.data().items)&&window.faqApi)window.faqApi.set(s.data().items)},()=>{});
-onSnapshot(doc(rdb,'content','heroPhoto'),s=>{if(window.heroPhotoApi)window.heroPhotoApi.setDoc(s.exists()?s.data():null)},()=>{});
-onSnapshot(doc(rdb,'content','experience'),s=>{if(window.experienceApi)window.experienceApi.set(s.exists()?s.data():null)},()=>{});
-onSnapshot(doc(rdb,'content','serviceForms'),s=>{if(window.serviceFormsApi)window.serviceFormsApi.set(s.exists()?s.data():null)},()=>{});
-onSnapshot(doc(rdb,'content','capacity'),s=>{if(window.capacityApi)window.capacityApi.set(s.exists()?s.data():null)},()=>{});
-onSnapshot(doc(rdb,'content','chatbot'),s=>{if(window.chatEngine)window.chatEngine.setIdentity(s.exists()?s.data():null)},()=>{});
-onSnapshot(doc(rdb,'content','chatKb'),s=>{if(window.chatEngine)window.chatEngine.setKb(s.exists()?s.data():null)},()=>{});
-onSnapshot(doc(rdb,'content','availability'),s=>{if(window.availApi)window.availApi.setCfg(s.exists()?s.data():null)},()=>{});
-onSnapshot(doc(rdb,'content','busy'),s=>{if(window.availApi)window.availApi.setBusy(s.exists()?s.data():null)},()=>{});
-onSnapshot(doc(rdb,'content','rates'),s=>{if(window.availApi)window.availApi.setRates(s.exists()?s.data():null)},()=>{});
-onSnapshot(doc(rdb,'content','testimonials'),s=>{if(window.testiApi)window.testiApi.setDoc(s.exists()?s.data():null)},()=>{});
+watch('services',doc(rdb,'content','services'),s=>{if(s.exists()&&Array.isArray(s.data().items)&&window.contentApi)window.contentApi.setServices(s.data().items,s.data().view)});
+watch('toolkit',doc(rdb,'content','toolkit'),s=>{if(s.exists()&&Array.isArray(s.data().categories)&&window.contentApi)window.contentApi.setToolkit(s.data().categories,s.data().view)});
+watch('training',doc(rdb,'content','training'),s=>{if(s.exists()&&Array.isArray(s.data().items)&&window.trainingApi)window.trainingApi.set(s.data().items)});
+watch('videos',doc(rdb,'content','videos'),s=>{if(s.exists()&&Array.isArray(s.data().items)&&window.videosApi)window.videosApi.set(s.data().items,s.data().view)});
+watch('faq',doc(rdb,'content','faq'),s=>{if(s.exists()&&Array.isArray(s.data().items)&&window.faqApi)window.faqApi.set(s.data().items)});
+watch('heroPhoto',doc(rdb,'content','heroPhoto'),s=>{if(window.heroPhotoApi)window.heroPhotoApi.setDoc(s.exists()?s.data():null)});
+watch('experience',doc(rdb,'content','experience'),s=>{if(window.experienceApi)window.experienceApi.set(s.exists()?s.data():null)});
+watch('serviceForms',doc(rdb,'content','serviceForms'),s=>{if(window.serviceFormsApi)window.serviceFormsApi.set(s.exists()?s.data():null)});
+watch('capacity',doc(rdb,'content','capacity'),s=>{if(window.capacityApi)window.capacityApi.set(s.exists()?s.data():null)});
+watch('chatbot',doc(rdb,'content','chatbot'),s=>{if(window.chatEngine)window.chatEngine.setIdentity(s.exists()?s.data():null)});
+watch('chatKb',doc(rdb,'content','chatKb'),s=>{if(window.chatEngine)window.chatEngine.setKb(s.exists()?s.data():null)});
+watch('availability',doc(rdb,'content','availability'),s=>{if(window.availApi)window.availApi.setCfg(s.exists()?s.data():null)});
+watch('busy',doc(rdb,'content','busy'),s=>{if(window.availApi)window.availApi.setBusy(s.exists()?s.data():null)});
+watch('rates',doc(rdb,'content','rates'),s=>{if(window.availApi)window.availApi.setRates(s.exists()?s.data():null)});
+watch('testimonials',doc(rdb,'content','testimonials'),s=>{if(window.testiApi)window.testiApi.setDoc(s.exists()?s.data():null)});
 onAuthStateChanged(auth,u=>{const viaGoogle=!!u&&Array.isArray(u.providerData)&&u.providerData.some(x=>x&&x.providerId==='google.com');const ok=!!u&&u.email===OWNER&&u.emailVerified===true&&viaGoogle;
 if(u&&!ok){signOut(auth);notify('The Google account ('+u.email+') is not the owner account. Sign in with '+OWNER+'.','error');return}
 login.hidden=ok;if(ok){try{localStorage.setItem('ownerDevice','1')}catch(e){}}document.dispatchEvent(new CustomEvent('own:auth',{detail:{ok,email:ok?u.email:'',uid:ok?u.uid:'',provider:ok?'google.com':''}}))});
 }catch(e){window.__ownerLoginError=String((e&&e.message)||e);console.warn('Owner login unavailable',e)}}
+try{window.bootCover&&window.bootCover.panel()}catch(e){}

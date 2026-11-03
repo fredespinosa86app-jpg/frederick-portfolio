@@ -330,3 +330,15 @@ Google has retired classic reCAPTCHA for new keys, so use **Fraud Defense** (for
 - Google sign-in, reCAPTCHA / App Check and the video players could not be run against the real Google servers here; the policy was written from their documented addresses and verified against the mocked site.
 - Not done in S3: Cloudflare / HTTP headers (you have not chosen it).
 
+
+## Security Phase 3.1 - Loading cover
+
+**What it does:** on every page load or refresh a black screen with three pulsing dots covers the page until your saved settings have been applied, so nobody sees the default page first. It then fades out (about 0.35 s).
+
+**It is released when all of these are true:** the page has finished loading; fonts are ready; the settings and all 15 content documents have each answered from Firebase (data, empty or an error counts); the pictures at the top are decoded; and at least 0.6 s have passed. **Hard limit: 10 seconds** after the page starts loading, whatever is still missing. On a normal connection it lasts about 1 second.
+
+**It never traps anyone:** search-engine bots, visitors with JavaScript off, and any script error skip or release it. It appears once per page load only (not on in-page links such as #schedule, and not when you open or close the owner panel). With "reduce motion" on, the dots do not animate and the fade is instant.
+
+**Adjust or remove:** the limits are `MIN` and `MAX` at the top of `scripts/boot-cover.js` (milliseconds). To switch it off, add `display:none` to `#boot` in `styles/boot.css`, or delete the `<div id="boot">` line in `index.html`.
+
+**Limits:** while Firebase itself is slow, visitors see the dots for up to 10 s instead of the default page. The cover colour is black; the fade is the only transition. Deciding on a different colour or style is a one-line change in `styles/boot.css`.
