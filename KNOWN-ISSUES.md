@@ -2,10 +2,12 @@
 
 No open defects.
 
-## Open verification items (4.5.0 P0)
-- **V-1 Emulator tests not yet run.** `rules-tests/emulator/registry.test.mjs` tests the registry rules in Google's real rules engine. The build environment could not download the emulator, so it has not been executed. Run the workflow "Firestore rules (emulator)" (Actions tab) and keep the result. Until then the rules are verified only by the project's own simulator.
-- **V-2 Real Firebase check.** After publishing `firestore.rules.strict`, add one client ID, archive and restore it, and open its History.
+## Verification status (4.5.0)
+- **P0 Client IDs: VERIFIED.** The real-engine emulator tests (workflow "Firestore rules (emulator)") passed 24 of 24, and the live Client IDs page was tested by the owner (add, custom ID, notes, archive and restore with reasons, history, two tabs).
+- **W1-E Emulator tests for WorkTrack: AWAITING EXTERNAL VERIFICATION.** `rules-tests/emulator/worktrack.test.mjs` was written but could not be executed in the build environment (no emulator download). Run the workflow "Firestore rules (emulator)" from the Actions tab. All tests, including the 108-case state-machine comparison and the concurrent clock-in test, must pass.
+- **W1-R Real Firebase check.** After publishing `firestore.rules.strict`: clock in, take a break and come back, clock out, reload mid-session, then open the page in two tabs and press a punch in the second (it must say the page changed in another tab).
 - **Note (public repository):** the site is served with `.nojekyll`, so every file in the repository (including `internal-docs/` and these notes) is publicly readable.
+- **Known limits of W1:** someone with Firebase console access can still change data (the tamper-evident chain is planned for W3); the "counter in the event ID" is built by the page and checked by the rules, but a hand-written record by the owner account could still use a wrong time zone name or date text (the time itself is always the server's).
 
 ## FIXED in E4.1: KI-1 Toolkit still appeared after "Show the Toolkit section" was unchecked
 - **Cause (found and reproduced):** `scripts/content.js` re-evaluated the Toolkit section every time the toolkit list was applied (`sec.hidden = !shown`), which switched the section back on after the owner's switch had hidden it. The menu link stayed hidden, so only the section reappeared. How I Work was unaffected because no other script touches it.

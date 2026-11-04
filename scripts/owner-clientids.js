@@ -83,7 +83,7 @@
           err.textContent = ''; const n = inp.value.trim();
           try {
             const cur = await fresh(r.id); if (!cur) { err.textContent = 'That ID no longer exists.'; return; }
-            if ((cur.notes || '') === n) { d.close(); return; }
+            if ((cur.notes || '') === n) { d.close(); notify('No change to save: the note is already exactly this.', 'info'); return; }
             await commit('update', r.id, cur, { status: cur.status, notes: n }, { action: 'notes', prev: cur.notes || '', next: n, reason: '' });
             d.close(); notify('Note saved.', 'success'); await load(true); draw();
           } catch (e) { err.textContent = 'Could not save. ' + errText(e); }

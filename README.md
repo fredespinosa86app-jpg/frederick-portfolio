@@ -112,6 +112,31 @@ service cloud.firestore {
     function validClientId(id) { return id.matches('^[A-Z][A-Z0-9-]{1,22}[A-Z0-9]$') && !id.matches('.*--.*'); }
     function regDoc(cid) { return /databases/$(database)/documents/clientRegistry/$(cid); }
     function regAudit(aid) { return /databases/$(database)/documents/clientRegistryAudit/$(aid); }
+    // W1 (4.5.0): WorkTrack helpers. Sessions, events and the current-state record. Owner only; see the match blocks below.
+    function wkState() { return /databases/$(database)/documents/workState/main; }
+    function wkSess(sid) { return /databases/$(database)/documents/workSessions/$(sid); }
+    function wkEvt(eid) { return /databases/$(database)/documents/workEvents/$(eid); }
+    function wkSid(s) { return s is string && s.matches('^[A-Za-z0-9]{16,40}$'); }
+    // The event ID is the session ID, two underscores and the event counter (1 to 12), so counters cannot be skipped or reused.
+    function wkEid(sid, n, eid) {
+      return (n == 1 && eid == sid + '__1') || (n == 2 && eid == sid + '__2') || (n == 3 && eid == sid + '__3') || (n == 4 && eid == sid + '__4')
+        || (n == 5 && eid == sid + '__5') || (n == 6 && eid == sid + '__6') || (n == 7 && eid == sid + '__7') || (n == 8 && eid == sid + '__8')
+        || (n == 9 && eid == sid + '__9') || (n == 10 && eid == sid + '__10') || (n == 11 && eid == sid + '__11') || (n == 12 && eid == sid + '__12');
+    }
+    function wkKeep(b, a) { return a.fb == b.fb && a.lu == b.lu && a.lb == b.lb; }
+    // The transition table. t = punch, b = state before the batch, a = state after the batch. Anything not listed is refused.
+    function wkStep(t, b, a) {
+      return (t == 'CLOCK_IN' && b.state == 'NOT_STARTED' && a.state == 'WORKING' && a.n == 1 && a.fb == false && a.lu == false && a.lb == false)
+        || (a.sid == b.sid && a.n == b.n + 1 && (
+             (t == 'FIRST_BREAK_OUT' && b.state == 'WORKING' && b.fb == false && a.state == 'FIRST_BREAK' && a.fb == true && a.lu == b.lu && a.lb == b.lb)
+          || (t == 'FIRST_BREAK_IN' && b.state == 'FIRST_BREAK' && a.state == 'WORKING' && wkKeep(b, a))
+          || (t == 'LUNCH_OUT' && b.state == 'WORKING' && b.lu == false && a.state == 'LUNCH' && a.lu == true && a.fb == b.fb && a.lb == b.lb)
+          || (t == 'LUNCH_IN' && b.state == 'LUNCH' && a.state == 'WORKING' && wkKeep(b, a))
+          || (t == 'LAST_BREAK_OUT' && b.state == 'WORKING' && b.lb == false && a.state == 'LAST_BREAK' && a.lb == true && a.fb == b.fb && a.lu == b.lu)
+          || (t == 'LAST_BREAK_IN' && b.state == 'LAST_BREAK' && a.state == 'WORKING' && wkKeep(b, a))
+          || (t == 'CLOCK_OUT' && b.state == 'WORKING' && a.state == 'NOT_STARTED' && wkKeep(b, a))
+          || (t == 'CLOSE_INCOMPLETE' && b.state in ['WORKING','FIRST_BREAK','LUNCH','LAST_BREAK'] && a.state == 'NOT_STARTED' && wkKeep(b, a))));
+    }
     match /settings/site { allow read: if true; allow write: if isOwner(); }
     match /meetingRequests/{id} {
       allow create: if request.resource.data.keys().hasOnly(['name','email','company','date','time','tz','platform','message','status','createdAt','service','formId','formName','answers'])
@@ -267,6 +292,57 @@ service cloud.firestore {
         && (request.resource.data.action != 'create' || request.resource.data.next == getAfter(regDoc(request.resource.data.clientId)).data.status)
         && (request.resource.data.action != 'status' || (request.resource.data.prev == get(regDoc(request.resource.data.clientId)).data.status && request.resource.data.next == getAfter(regDoc(request.resource.data.clientId)).data.status))
         && (request.resource.data.action != 'notes' || (request.resource.data.prev == get(regDoc(request.resource.data.clientId)).data.notes && request.resource.data.next == getAfter(regDoc(request.resource.data.clientId)).data.notes));
+    }
+    // W1 (4.5.0): WorkTrack. Owner only. Sessions and events are create-only (no edit, no delete), time is the server's (request.time).
+    // Every punch is ONE batch: a brand-new event + the current-state record moved by exactly one valid step (revision +1, counter +1).
+    // A second tab that tries the same step is refused, because the state it read is already out of date.
+    match /workState/{id} {
+      allow read: if isOwner();
+      allow create: if isOwner() && id == 'main'
+        && request.resource.data.keys().hasOnly(['state','sid','n','fb','lu','lb','lastEid','rev','updatedAt'])
+        && request.resource.data.keys().hasAll(['state','sid','n','fb','lu','lb','lastEid','rev','updatedAt'])
+        && request.resource.data.state == 'NOT_STARTED' && request.resource.data.sid == '' && request.resource.data.n == 0
+        && request.resource.data.fb == false && request.resource.data.lu == false && request.resource.data.lb == false
+        && request.resource.data.lastEid == '' && request.resource.data.rev == 1 && request.resource.data.updatedAt == request.time;
+      allow update: if isOwner() && id == 'main'
+        && request.resource.data.keys().hasOnly(['state','sid','n','fb','lu','lb','lastEid','rev','updatedAt'])
+        && request.resource.data.keys().hasAll(['state','sid','n','fb','lu','lb','lastEid','rev','updatedAt'])
+        && request.resource.data.state in ['NOT_STARTED','WORKING','FIRST_BREAK','LUNCH','LAST_BREAK']
+        && wkSid(request.resource.data.sid)
+        && request.resource.data.n is number && request.resource.data.n >= 1 && request.resource.data.n <= 12
+        && request.resource.data.fb is bool && request.resource.data.lu is bool && request.resource.data.lb is bool
+        && request.resource.data.lastEid is string && request.resource.data.lastEid.matches('^[A-Za-z0-9]{16,40}__[0-9]{1,2}$')
+        && request.resource.data.rev is number && request.resource.data.rev == resource.data.rev + 1
+        && request.resource.data.updatedAt == request.time
+        && !exists(wkEvt(request.resource.data.lastEid)) && existsAfter(wkEvt(request.resource.data.lastEid));
+    }
+    match /workSessions/{sid} {
+      allow read: if isOwner();
+      allow create: if isOwner() && wkSid(sid)
+        && request.resource.data.keys().hasOnly(['tz','date','startedAt','by'])
+        && request.resource.data.keys().hasAll(['tz','date','startedAt','by'])
+        && request.resource.data.tz is string && request.resource.data.tz.size() <= 60 && request.resource.data.tz.matches('^[A-Za-z0-9_+/-]+$')
+        && request.resource.data.date is string && request.resource.data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && request.resource.data.startedAt == request.time && request.resource.data.by == request.auth.uid
+        && existsAfter(wkEvt(sid + '__1')) && getAfter(wkEvt(sid + '__1')).data.type == 'CLOCK_IN';
+    }
+    match /workEvents/{eid} {
+      allow read: if isOwner();
+      allow create: if isOwner()
+        && request.resource.data.keys().hasOnly(['sid','n','type','at','by','reason'])
+        && request.resource.data.keys().hasAll(['sid','n','type','at','by','reason'])
+        && wkSid(request.resource.data.sid)
+        && request.resource.data.n is number && request.resource.data.n >= 1 && request.resource.data.n <= 12
+        && wkEid(request.resource.data.sid, request.resource.data.n, eid)
+        && request.resource.data.type in ['CLOCK_IN','FIRST_BREAK_OUT','FIRST_BREAK_IN','LUNCH_OUT','LUNCH_IN','LAST_BREAK_OUT','LAST_BREAK_IN','CLOCK_OUT','CLOSE_INCOMPLETE']
+        && request.resource.data.at == request.time && request.resource.data.by == request.auth.uid
+        && request.resource.data.reason is string
+        && ((request.resource.data.type == 'CLOSE_INCOMPLETE' && request.resource.data.reason.size() >= 3 && request.resource.data.reason.size() <= 200)
+            || (request.resource.data.type != 'CLOSE_INCOMPLETE' && request.resource.data.reason == ''))
+        && exists(wkState()) && existsAfter(wkState())
+        && getAfter(wkState()).data.lastEid == eid && getAfter(wkState()).data.sid == request.resource.data.sid && getAfter(wkState()).data.n == request.resource.data.n
+        && wkStep(request.resource.data.type, get(wkState()).data, getAfter(wkState()).data)
+        && (request.resource.data.type != 'CLOCK_IN' || (!exists(wkSess(request.resource.data.sid)) && existsAfter(wkSess(request.resource.data.sid))));
     }
     match /clients/{id} { allow read, write: if isOwner(); }
     match /ownerPrivate/{doc} { allow read, write: if isOwner(); }
@@ -548,3 +624,12 @@ No Firestore rules change in E4 (`ownerPrivate` is already owner only). Rules te
 - **Backup:** Client IDs and their history can be included in the normal backup (saved, not restorable).
 - **Tests:** `node --test scripts/*.test.mjs server/*.test.mjs`; `python3 rules-tests/attack/attack_cases.py .` and `mutation_check.py .`; real-emulator tests in `rules-tests/emulator` (run by the GitHub workflow "Firestore rules (emulator)", or locally with Java 17: `cd rules-tests/emulator && npm install && npm test`).
 - **Docs:** `internal-docs/4.5.0-P0-inspection-and-schema.md`. This repository is public, so nothing secret belongs there.
+
+## 4.5.0 - Phase W1: WorkTrack punches and live clock
+- **Owner Panel > WorkTrack:** eight punches (Clock in, First break out/in, Lunch out/in, Last break out/in, Clock out) with a live clock. Session time keeps running during breaks; working time pauses. Times are shown in Asia/Manila. Breaks are optional, free in order, and each can be used once per session. Only the punches that are allowed right now can be pressed; the others say why.
+- **Records:** `workState/main` (current position), `workSessions/{id}` (one per day worked, with its time zone) and `workEvents/{session}__{number}` (one per punch). Sessions and events are create-only: no edit, no delete. The time of every punch is the database's time. No names, e-mails, phones or companies are stored.
+- **One punch = one transaction** (event + state + session at clock in). A second tab or device holding an old view is refused and the page refreshes ("changed in another tab"). Punching needs a connection on purpose, so a delayed write can never carry a later time.
+- **Forgot to clock out:** after 16 hours the page warns. "Close as incomplete" closes the session with a mandatory reason (3 to 200 characters) and keeps no working-time total. Proper corrections arrive in a later phase.
+- **Rules:** new collections `workState`, `workSessions`, `workEvents` in both rules files. **Publish `firestore.rules.strict` again** or the page will say permission denied.
+- **Tests:** `node --test scripts/*.test.mjs`; `python3 rules-tests/attack/attack_cases.py .` (the page's own state machine is compared with the rules for all 108 punch/state cases) and `mutation_check.py .`; real-engine tests in `rules-tests/emulator/worktrack.test.mjs` (run by the GitHub workflow "Firestore rules (emulator)").
+- **Not in W1:** client assignment (W2), corrections and the tamper-evident chain (W3), history and reports (W4). Events written now have no hash yet; W3 decides how the chain starts.

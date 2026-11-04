@@ -191,3 +191,18 @@ button.libtile.pickable{cursor:pointer;min-height:44px}button.libtile.pickable:h
 .cidnote{margin:0}
 .cidhist{display:grid;gap:8px;max-height:50vh;overflow:auto;margin:8px 0}
 .cidh{display:grid;gap:2px;padding:6px 8px;border-left:3px solid #2f6fdb;background:rgba(47,111,219,.06)}
+
+/* W1 (4.5.0): WorkTrack */
+.wtclock{border:1px solid var(--d-line);border-radius:12px;padding:14px;background:var(--d-card);display:grid;gap:10px;margin:10px 0}
+.wtstatus{font-weight:700;font-size:1.1rem}
+.wtstatus[data-state="WORKING"]{color:#14612e}.wtstatus[data-state="NOT_STARTED"]{color:#46526a}.wtstatus[data-state="FIRST_BREAK"],.wtstatus[data-state="LUNCH"],.wtstatus[data-state="LAST_BREAK"]{color:#8a4b00}
+.wtgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.wtlab{display:block;font-size:.8rem;opacity:.8}
+.wtbig{font-family:ui-monospace,Menlo,Consolas,monospace;font-variant-numeric:tabular-nums;font-size:1.7rem;letter-spacing:.02em}
+.wtbtns{display:grid;gap:10px;margin:8px 0}
+.wtrow{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.wtbw{display:grid;gap:3px;align-content:start}
+.wtb{min-height:48px;width:100%}
+.wtwhy{font-size:.78rem;opacity:.8}
+.wtlist{display:grid;gap:6px}
+.wtev{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline;padding:6px 8px;border-left:3px solid #2f6fdb;background:rgba(47,111,219,.06)}

@@ -62,6 +62,9 @@ M=[('clients readable by everyone',"match /clients/{id} { allow read, write: if 
  ('P0 audit notes old/new check removed',"        && (request.resource.data.action != 'notes' || (request.resource.data.prev == get(regDoc(request.resource.data.clientId)).data.notes && request.resource.data.next == getAfter(regDoc(request.resource.data.clientId)).data.notes));","        ;"),
  ('P0 audit reason size limit removed',"request.resource.data.reason is string && request.resource.data.reason.size() <= 200","request.resource.data.reason is string"),
  ('catch-all added',"    match /content/{doc} {","    match /{any=**} { allow read, write: if true; }\n    match /content/{doc} {")]
+sys.path.insert(0,SP)
+from mutations_w1 import W1
+M=M+W1
 miss=[]
 for n,a,b in M:
     if a not in TXT: print('SKIP (pattern not found):',n); miss.append(n); continue

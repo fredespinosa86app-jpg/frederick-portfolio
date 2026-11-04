@@ -194,6 +194,119 @@ for nm,sim in (('transition',S),('strict',SS)):
     chk(f'P0 [{nm}] audit create refused: notes next does not match what was stored',not P('create',AP(AID3),OWN,dict(ANO,prev='real old',next='different'),None,{RP:NOLD},AFTER(NREG,dict(ANO,prev='real old',next='different'),AID3)))
     chk(f'P0 [{nm}] audit create refused: create action whose next is not the stored status',not P('create',AP(AID1),OWN,AUD(next='archived'),None,None,AFTER(REG(),AUD(next='archived'),AID1)))
     chk(f'P0 [{nm}] pause switch does not affect the owner registry (owner-only data, not public intake)',P('create',RP,OWN,REG(),None,{'content/guard':{'pause':True}},AFTER(REG(),AUD(),AID1)))
+# ---------------- 8f. W1 (4.5.0): WorkTrack state machine, event counter, create-only records
+import json, subprocess, shutil
+SID='sess0000000000000001'; NEWSID='sess0000000000000002'
+SPATH='workState/main'; EP=lambda e:'workEvents/'+e; SSP=lambda s:'workSessions/'+s; EID=lambda n,sid=SID: f'{sid}__{n}'
+def T(d):
+    d=dict(d)
+    for k in ('updatedAt','at','startedAt'):
+        if k in d and d[k]=='NOW': d[k]=TSNOW
+    return d
+WST=lambda **k: dict({'state':'WORKING','sid':SID,'n':3,'fb':False,'lu':False,'lb':False,'lastEid':EID(3),'rev':5,'updatedAt':TSNOW},**k)
+WEV=lambda **k: dict({'sid':SID,'n':4,'type':'LUNCH_OUT','at':TSNOW,'by':UID,'reason':''},**k)
+WSES=lambda **k: dict({'tz':'Asia/Manila','date':'2026-11-04','startedAt':TSNOW,'by':UID},**k)
+GEN=None
+if shutil.which('node'):
+    r=subprocess.run(['node',os.path.dirname(os.path.abspath(__file__))+'/gen_worktrack_cases.mjs',ROOT],capture_output=True,text=True)
+    if r.returncode==0: GEN=json.loads(r.stdout)
+chk('W1 the case generator ran (the page state machine and the rules are compared case by case)',GEN is not None and len(GEN['cases'])>=100,'node missing or generator failed')
+chk('W1 the page writes exactly the documents the accepted rules cases use (plan() parity)',GEN is not None and GEN['planMismatch']==0)
+for nm,sim in (('transition',S),('strict',SS)):
+    P=lambda op,path,au=None,new=None,old=None,docs=None,after=None: A(op,path,au,new,old,docs,sim=sim) if after is None else sim.allowed(op,path,au,new,old,docs,NOW,after)
+    # ---- every punch from every state: the rules verdict must equal the page's verdict
+    if GEN:
+        bad=[]; okc=0
+        for c in GEN['cases']:
+            b=dict(c['before'],updatedAt=TSNOW); a=dict(c['after'],updatedAt=TSNOW); e=dict(c['event'],at=TSNOW,by=UID)
+            eid=EID(e['n'],e['sid']); after={SPATH:a,EP(eid):e}
+            if c['newSession']: after[SSP(e['sid'])]=WSES()
+            docs={SPATH:b}
+            v=P('create',EP(eid),OWN,e,None,docs,after) and P('update',SPATH,OWN,a,b,docs,after) and (not c['newSession'] or P('create',SSP(e['sid']),OWN,WSES(),None,docs,after))
+            if bool(v)!=bool(c['js']): bad.append(c['name'])
+            okc+=bool(v)
+        chk(f'W1 [{nm}] all {len(GEN["cases"])} punch/state cases: the rules accept exactly the punches the page allows ({okc} accepted)',not bad and okc==sum(1 for c in GEN['cases'] if c['js']),bad[:5])
+    # ---- positive controls and who
+    INIT=dict({'state':'NOT_STARTED','sid':'','n':0,'fb':False,'lu':False,'lb':False,'lastEid':'','rev':1,'updatedAt':TSNOW})
+    chk(f'W1 [{nm}] control: the state record can be created once, in its starting form',P('create',SPATH,OWN,INIT))
+    B0=WST(); A0=WST(state='LUNCH',n=4,lu=True,lastEid=EID(4),rev=6); E0=WEV(); AF0={SPATH:A0,EP(EID(4)):E0}
+    chk(f'W1 [{nm}] control: lunch out is accepted as one batch (event + state)',P('create',EP(EID(4)),OWN,E0,None,{SPATH:B0},AF0) and P('update',SPATH,OWN,A0,B0,{SPATH:B0},AF0))
+    chk(f'W1 [{nm}] control: owner can read and list all three collections',all(P(o,x,OWN) for o,x in (('get',SPATH),('get',EP(EID(1))),('get',SSP(SID)),('list','workEvents'),('list','workSessions'))))
+    for who,au in (('visitor',None),('stranger',STRANGER),('anonymous provider',dict(OWN,provider='anonymous')),('owner uid, unverified',dict(OWN,verified=False)),('owner e-mail, other uid (strict only)',{'uid':'other','email':EMAIL})):
+        if who.endswith('(strict only)') and nm=='transition': continue
+        chk(f'W1 [{nm}] {who}: no read, list, create, update or delete on workState, workEvents or workSessions',not any([P(o,SPATH,au,A0,B0,{SPATH:B0},AF0) for o in ('get','create','update','delete')]+[P(o,EP(EID(4)),au,E0,E0,{},AF0) for o in ('get','create','update','delete')]+[P(o,SSP(SID),au,WSES(),WSES(),{},{SSP(SID):WSES(),EP(EID(1)):WEV(type='CLOCK_IN',n=1)}) for o in ('get','create','update','delete')]+[P('list','workEvents',au),P('list','workSessions',au),P('get',SPATH,au)]))
+    chk(f'W1 [{nm}] owner cannot edit or delete an event or a session, and cannot delete the state record',not any([P('update',EP(EID(4)),OWN,WEV(reason=''),WEV(),{EP(EID(4)):WEV()},AF0),P('delete',EP(EID(4)),OWN,None,WEV(),{EP(EID(4)):WEV()}),P('update',SSP(SID),OWN,WSES(tz='UTC'),WSES(),{SSP(SID):WSES()}),P('delete',SSP(SID),OWN,None,WSES(),{SSP(SID):WSES()}),P('delete',SPATH,OWN,None,B0,{SPATH:B0})]))
+    # ---- event refusals (everything else legitimate: lunch out from WORKING n=3)
+    def EVT(n,e,eid=None,after=None,docs=None,state_after=None):
+        eid=eid or EID(e.get('n',4) if isinstance(e.get('n'),int) and 1<=e.get('n',4)<=12 else 4)
+        a=state_after or A0
+        chk(f'W1 [{nm}] event create refused: {n}',not P('create',EP(eid),OWN,e,None,docs if docs is not None else {SPATH:B0},after if after is not None else {SPATH:a,EP(eid):e}))
+    EVT('extra field (a name)',WEV(name='Ann')); EVT('extra field (email)',WEV(email='a@b.co')); EVT('missing reason',{k:v for k,v in WEV().items() if k!='reason'}); EVT('missing by',{k:v for k,v in WEV().items() if k!='by'})
+    EVT('unknown punch type',WEV(type='LUNCH_BREAK')); EVT('type in lower case',WEV(type='lunch_out')); EVT('type is a number',WEV(type=5))
+    EVT('time is not the server time (past)',WEV(at=TS(NOW-1000))); EVT('time is not the server time (future)',WEV(at=TS(NOW+1000))); EVT('time sent as a client number',WEV(at=NOW))
+    EVT('recorded for someone else',WEV(by='someoneelse123')); EVT('counter 0',WEV(n=0),eid=EID(4)); EVT('counter 13',WEV(n=13),eid=EID(4)); EVT('counter is a string',WEV(n='4'),eid=EID(4))
+    EVT('event ID does not match its counter',WEV(),eid=EID(5),state_after=WST(state='LUNCH',n=4,lu=True,lastEid=EID(5),rev=6))
+    EVT('event ID does not start with its session',WEV(),eid='other0000000000000099__4',state_after=WST(state='LUNCH',n=4,lu=True,lastEid='other0000000000000099__4',rev=6))
+    EVT('session ID too short',WEV(sid='abc'),eid='abc__4',state_after=WST(state='LUNCH',sid='abc',n=4,lu=True,lastEid='abc__4',rev=6))
+    EVT('reason on a normal punch',WEV(reason='note')); EVT('close as incomplete with no reason',WEV(type='CLOSE_INCOMPLETE'),state_after=WST(state='NOT_STARTED',n=4,lastEid=EID(4),rev=6))
+    EVT('close as incomplete with a 2-character reason',WEV(type='CLOSE_INCOMPLETE',reason='ab'),state_after=WST(state='NOT_STARTED',n=4,lastEid=EID(4),rev=6))
+    EVT('close as incomplete with a 201-character reason',WEV(type='CLOSE_INCOMPLETE',reason='r'*201),state_after=WST(state='NOT_STARTED',n=4,lastEid=EID(4),rev=6))
+    chk(f'W1 [{nm}] event create accepted: close as incomplete with a proper reason (control for the reason cases)',P('create',EP(EID(4)),OWN,WEV(type='CLOSE_INCOMPLETE',reason='Forgot to clock out'),None,{SPATH:B0},{SPATH:WST(state='NOT_STARTED',n=4,lastEid=EID(4),rev=6),EP(EID(4)):WEV(type='CLOSE_INCOMPLETE',reason='Forgot to clock out')}))
+    chk(f'W1 [{nm}] event create refused: orphan (no state record in the same batch)',not P('create',EP(EID(4)),OWN,E0,None,{SPATH:B0},{EP(EID(4)):E0}))
+    chk(f'W1 [{nm}] event create refused: the state record points at a different event',not P('create',EP(EID(4)),OWN,E0,None,{SPATH:B0},{SPATH:WST(state='LUNCH',n=4,lu=True,lastEid=EID(5),rev=6),EP(EID(4)):E0}))
+    chk(f'W1 [{nm}] event create refused: counter skips ahead (n=5 after 3)',not P('create',EP(EID(5)),OWN,WEV(n=5),None,{SPATH:B0},{SPATH:WST(state='LUNCH',n=5,lu=True,lastEid=EID(5),rev=6),EP(EID(5)):WEV(n=5)}))
+    chk(f'W1 [{nm}] event create refused: counter repeats (n=3 again)',not P('create',EP(EID(3)),OWN,WEV(n=3),None,{SPATH:B0},{SPATH:WST(state='LUNCH',n=3,lu=True,lastEid=EID(3),rev=6),EP(EID(3)):WEV(n=3)}))
+    chk(f'W1 [{nm}] event create refused: state moved to a different session than the event',not P('create',EP(EID(4)),OWN,E0,None,{SPATH:B0},{SPATH:WST(state='LUNCH',sid=NEWSID,n=4,lu=True,lastEid=EID(4,NEWSID),rev=6),EP(EID(4)):E0}))
+    chk(f'W1 [{nm}] event create refused: replay of an event that already exists',not P('update',EP(EID(4)),OWN,E0,E0,{SPATH:B0,EP(EID(4)):E0},AF0))
+    chk(f'W1 [{nm}] event create refused: the state record does not exist yet',not P('create',EP(EID(1)),OWN,WEV(type='CLOCK_IN',n=1,sid=NEWSID),None,{},{SPATH:dict(WST(sid=NEWSID,n=1,lastEid=EID(1,NEWSID),rev=2)),EP(EID(1,NEWSID)):WEV(type='CLOCK_IN',n=1,sid=NEWSID),SSP(NEWSID):WSES()}))
+    # ---- state record refusals
+    def STU(n,a,b=None,after=None,docs=None):
+        b=b or B0; eid=a.get('lastEid') if isinstance(a.get('lastEid'),str) and a.get('lastEid') else EID(4)
+        chk(f'W1 [{nm}] state update refused: {n}',not P('update',SPATH,OWN,a,b,docs if docs is not None else {SPATH:b},after if after is not None else {SPATH:a,EP(eid):WEV()}))
+    G4=lambda **k: WST(**dict({'state':'LUNCH','n':4,'lu':True,'lastEid':EID(4),'rev':6},**k))
+    STU('revision not one higher (same)',G4(rev=5)); STU('revision jumps by two',G4(rev=7)); STU('revision goes backwards',G4(rev=4)); STU('revision is a string',G4(rev='6'))
+    STU('extra field',G4(name='Ann')); STU('field removed',{k:v for k,v in G4().items() if k!='fb'}); STU('updatedAt not server time',G4(updatedAt=TS(NOW-1)))
+    STU('unknown state',G4(state='SLEEPING')); STU('flag is not a boolean',G4(lu='yes')); STU('counter above 12',G4(n=13,lastEid=EID(12))); STU('counter is not a number',G4(n='4'))
+    STU('lastEid has a wrong shape',G4(lastEid='nope')); STU('lastEid empty',G4(lastEid='')); STU('session ID empty',G4(sid=''))
+    chk(f'W1 [{nm}] state update refused: no event in the same batch',not P('update',SPATH,OWN,G4(),B0,{SPATH:B0},{SPATH:G4()}))
+    chk(f'W1 [{nm}] state update refused: points at an event that already exists (replay)',not P('update',SPATH,OWN,G4(),B0,{SPATH:B0,EP(EID(4)):E0},{SPATH:G4(),EP(EID(4)):E0}))
+    chk(f'W1 [{nm}] state update refused: state jumps with no valid punch (WORKING straight to LAST_BREAK with the wrong event)',not (P('update',SPATH,OWN,G4(state='LAST_BREAK',lb=True,lu=False),B0,{SPATH:B0},{SPATH:G4(state='LAST_BREAK',lb=True,lu=False),EP(EID(4)):WEV()}) and P('create',EP(EID(4)),OWN,WEV(),None,{SPATH:B0},{SPATH:G4(state='LAST_BREAK',lb=True,lu=False),EP(EID(4)):WEV()})))
+    chk(f'W1 [{nm}] state create refused: not the starting form, wrong ID, extra field',not any([P('create',SPATH,OWN,dict(INIT,state='WORKING')),P('create',SPATH,OWN,dict(INIT,rev=2)),P('create',SPATH,OWN,dict(INIT,n=1)),P('create',SPATH,OWN,dict(INIT,fb=True)),P('create','workState/other',OWN,INIT),P('create',SPATH,OWN,dict(INIT,name='Ann')),P('create',SPATH,OWN,dict(INIT,updatedAt=TS(NOW-1))),P('create',SPATH,OWN,dict(INIT,lastEid=EID(1)))]))
+    # ---- two tabs: the second tab acts on a state that is already out of date
+    B_new=WST(state='LUNCH',n=4,lu=True,lastEid=EID(4),rev=6)       # what the database holds after tab 1 went to lunch
+    stale_ev=WEV(type='FIRST_BREAK_OUT',n=4); stale_st=WST(state='FIRST_BREAK',n=4,fb=True,lastEid=EID(4)+'x'.replace('x',''),rev=6)
+    chk(f'W1 [{nm}] two tabs: tab 2 (still thinks WORKING) cannot start a break while tab 1 already put you on lunch',not (P('create',EP('sess0000000000000001__4'),OWN,stale_ev,None,{SPATH:B_new,EP(EID(4)):E0},{SPATH:stale_st,EP(EID(4)):stale_ev}) or P('update',SPATH,OWN,stale_st,B_new,{SPATH:B_new,EP(EID(4)):E0},{SPATH:stale_st,EP(EID(4)):stale_ev})))
+    chk(f'W1 [{nm}] two tabs: tab 2 sending the same lunch-out again is refused (event exists, revision stale)',not (P('create',EP(EID(4)),OWN,E0,None,{SPATH:B_new,EP(EID(4)):E0},AF0) or P('update',SPATH,OWN,A0,B_new,{SPATH:B_new,EP(EID(4)):E0},AF0)))
+    chk(f'W1 [{nm}] two tabs: two clock-ins in a row are refused (second sees WORKING)',not P('create',EP(EID(1,NEWSID)),OWN,WEV(type='CLOCK_IN',n=1,sid=NEWSID),None,{SPATH:WST(sid=SID,n=1,rev=2),SSP(SID):WSES()},{SPATH:WST(sid=NEWSID,n=1,lastEid=EID(1,NEWSID),rev=3),EP(EID(1,NEWSID)):WEV(type='CLOCK_IN',n=1,sid=NEWSID),SSP(NEWSID):WSES()}))
+    # ---- session record
+    CI_E=WEV(type='CLOCK_IN',n=1,sid=NEWSID); CI_S=WST(state='WORKING',sid=NEWSID,n=1,lastEid=EID(1,NEWSID),rev=6); NS=dict(c0:='x') if False else None
+    BN=WST(state='NOT_STARTED',n=4,lastEid=EID(4))
+    def SES(n,s,after_ev=None,docs=None,sid=NEWSID):
+        ev=after_ev if after_ev is not None else CI_E
+        chk(f'W1 [{nm}] session create refused: {n}',not P('create',SSP(sid),OWN,s,None,docs if docs is not None else {SPATH:BN},{SPATH:CI_S,EP(EID(1,NEWSID)):ev,SSP(sid):s}))
+    chk(f'W1 [{nm}] control: clock in creates the session, the first event and the state together',P('create',SSP(NEWSID),OWN,WSES(),None,{SPATH:BN},{SPATH:CI_S,EP(EID(1,NEWSID)):CI_E,SSP(NEWSID):WSES()}))
+    SES('extra field (a client name)',WSES(client='Ann')); SES('missing tz',{k:v for k,v in WSES().items() if k!='tz'}); SES('time zone with spaces',WSES(tz='Asia Manila')); SES('time zone 61 characters',WSES(tz='A'*61))
+    SES('date in the wrong shape',WSES(date='4 Nov 2026')); SES('date is a number',WSES(date=20261104)); SES('start time not the server time',WSES(startedAt=TS(NOW-1))); SES('recorded for someone else',WSES(by='someoneelse123'))
+    SES('first event is not a clock in',WSES(),after_ev=WEV(type='LUNCH_OUT',n=1,sid=NEWSID)); SES('session ID too short',WSES(),sid='abc')
+    chk(f'W1 [{nm}] session create refused: no first event in the same batch',not P('create',SSP(NEWSID),OWN,WSES(),None,{SPATH:BN},{SSP(NEWSID):WSES()}))
+    chk(f'W1 [{nm}] session create refused: the session already exists (replay)',not P('update',SSP(NEWSID),OWN,WSES(),WSES(),{SPATH:BN,SSP(NEWSID):WSES()},{SPATH:CI_S,EP(EID(1,NEWSID)):CI_E,SSP(NEWSID):WSES()}))
+    chk(f'W1 [{nm}] clock in refused: no session record in the same batch',not (P('create',EP(EID(1,NEWSID)),OWN,CI_E,None,{SPATH:BN},{SPATH:CI_S,EP(EID(1,NEWSID)):CI_E})))
+    chk(f'W1 [{nm}] clock in refused: the session already exists (reusing an old session ID)',not P('create',EP(EID(1,NEWSID)),OWN,CI_E,None,{SPATH:BN,SSP(NEWSID):WSES()},{SPATH:CI_S,EP(EID(1,NEWSID)):CI_E,SSP(NEWSID):WSES()}))
+    # ---- the "already used" flags cannot be reset or set by hand during other punches
+    def FLG(n,before,after,etype,ev_n=4):
+        e=WEV(type=etype,n=ev_n,reason='Forgot to clock out' if etype=='CLOSE_INCOMPLETE' else ''); eid=EID(ev_n)
+        chk(f'W1 [{nm}] flags cannot be tampered with: {n}',not (P('create',EP(eid),OWN,e,None,{SPATH:before},{SPATH:after,EP(eid):e}) and P('update',SPATH,OWN,after,before,{SPATH:before},{SPATH:after,EP(eid):e})))
+    FLG('lunch in that also clears the first-break flag',WST(state='LUNCH',fb=True,lu=True,lastEid=EID(3)),WST(state='WORKING',fb=False,lu=True,n=4,lastEid=EID(4),rev=6),'LUNCH_IN')
+    FLG('lunch in that also clears the lunch flag (to take lunch twice)',WST(state='LUNCH',lu=True,lastEid=EID(3)),WST(state='WORKING',lu=False,n=4,lastEid=EID(4),rev=6),'LUNCH_IN')
+    FLG('first break out that clears the lunch flag',WST(state='WORKING',lu=True),WST(state='FIRST_BREAK',fb=True,lu=False,n=4,lastEid=EID(4),rev=6),'FIRST_BREAK_OUT')
+    FLG('last break out that clears the first-break flag',WST(state='WORKING',fb=True),WST(state='LAST_BREAK',fb=False,lb=True,n=4,lastEid=EID(4),rev=6),'LAST_BREAK_OUT')
+    FLG('clock out that clears every flag',WST(state='WORKING',fb=True,lu=True,lb=True),WST(state='NOT_STARTED',n=4,lastEid=EID(4),rev=6),'CLOCK_OUT')
+    FLG('close as incomplete that clears a flag',WST(state='LUNCH',lu=True),WST(state='NOT_STARTED',lu=False,n=4,lastEid=EID(4),rev=6),'CLOSE_INCOMPLETE')
+    FLG('first break in that sets the lunch flag',WST(state='FIRST_BREAK',fb=True),WST(state='WORKING',fb=True,lu=True,n=4,lastEid=EID(4),rev=6),'FIRST_BREAK_IN')
+    chk(f'W1 [{nm}] control for the flag cases: lunch in that keeps every flag is accepted',(lambda b,a,e:P('create',EP(EID(4)),OWN,e,None,{SPATH:b},{SPATH:a,EP(EID(4)):e}) and P('update',SPATH,OWN,a,b,{SPATH:b},{SPATH:a,EP(EID(4)):e}))(WST(state='LUNCH',fb=True,lu=True,lastEid=EID(3)),WST(state='WORKING',fb=True,lu=True,n=4,lastEid=EID(4),rev=6),WEV(type='LUNCH_IN')))
+    # ---- a session cannot be switched in the middle: the state must keep the same session ID for every punch after clock in
+    chk(f'W1 [{nm}] a punch cannot move the state to another session ID',not P('update',SPATH,OWN,WST(state='LUNCH',sid=NEWSID,n=4,lu=True,lastEid=EID(4,NEWSID),rev=6),B0,{SPATH:B0},{SPATH:WST(state='LUNCH',sid=NEWSID,n=4,lu=True,lastEid=EID(4,NEWSID),rev=6),EP(EID(4,NEWSID)):WEV(sid=NEWSID)}) or not P('create',EP(EID(4,NEWSID)),OWN,WEV(sid=NEWSID),None,{SPATH:B0},{SPATH:WST(state='LUNCH',sid=NEWSID,n=4,lu=True,lastEid=EID(4,NEWSID),rev=6),EP(EID(4,NEWSID)):WEV(sid=NEWSID)}))
+    chk(f'W1 [{nm}] pause switch does not affect owner WorkTrack records (owner-only data, not public intake)',P('create',EP(EID(4)),OWN,E0,None,{SPATH:B0,'content/guard':{'pause':True}},AF0))
 # ---------------- 9. cross-check: strict file equals transition file apart from the owner check
 a=re.sub(r'\s+','',TXT); b=re.sub(r'\s+','',re.sub(r'^//.*\n','',STRICT,flags=re.M))
 chk('strict rules differ from the transition rules only in the owner e-mail fallback',a.replace("&&(request.auth.uid==ownerUid()||request.auth.token.email=='fredespinosa86.app@gmail.com');","&&request.auth.uid==ownerUid();")==b,'')
