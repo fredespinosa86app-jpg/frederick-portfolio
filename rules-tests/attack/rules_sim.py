@@ -9,6 +9,8 @@ class TS:
     def __init__(s,ms): s.ms=ms
     def __eq__(s,o): return isinstance(o,TS) and o.ms==s.ms
     def __hash__(s): return hash(s.ms)
+class Dur:
+    def __init__(s,ms): s.ms=ms
 class Path:
     def __init__(s,p): s.p=p
 KW={'in','is','true','false','null','let','return','function','match','allow','if','service'}
@@ -182,11 +184,13 @@ class Sim:
             op=n[1]; a=s.ev(n[2],env); b=s.ev(n[3],env)
             if op=='==': return s.eq(a,b)
             if op=='!=': return not s.eq(a,b)
+            if isinstance(a,TS) and isinstance(b,TS): return {'<':a.ms<b.ms,'<=':a.ms<=b.ms,'>':a.ms>b.ms,'>=':a.ms>=b.ms}[op]
             if type(a) is bool or type(b) is bool or not ((isinstance(a,(int,float)) and isinstance(b,(int,float))) or (isinstance(a,str) and isinstance(b,str))): raise EvalErr('cmp types')
             return {'<':a<b,'<=':a<=b,'>':a>b,'>=':a>=b}[op]
         if t=='arith':
             a=s.ev(n[2],env); b=s.ev(n[3],env)
             if n[1]=='+' and isinstance(a,str) and isinstance(b,str): return a+b
+            if isinstance(a,TS) and isinstance(b,Dur): return TS(a.ms+b.ms if n[1]=='+' else a.ms-b.ms)
             if isinstance(a,(int,float)) and isinstance(b,(int,float)) and type(a) is not bool and type(b) is not bool: return a+b if n[1]=='+' else a-b
             raise EvalErr('arith')
         if t=='in':
@@ -233,6 +237,10 @@ class Sim:
         if isinstance(a,(int,float)) and isinstance(b,(int,float)): return a==b
         return a==b if type(a)==type(b) else False
     def method(s,o,name,a):
+        if isinstance(o,str) and o=='<duration>' and name=='value':
+            unit={'h':3600000,'m':60000,'s':1000,'ms':1,'d':86400000,'w':604800000}
+            if a[1] not in unit: raise EvalErr('unit')
+            return Dur(a[0]*unit[a[1]])
         if name=='size':
             if isinstance(o,(str,list,dict)): return len(o)
             raise EvalErr('size')
@@ -262,7 +270,7 @@ class Sim:
         a=None
         if auth: a={'uid':auth['uid'],'token':{'email':auth.get('email',''),'email_verified':auth.get('verified',True),'firebase':{'sign_in_provider':auth.get('provider','google.com')}}}
         req={'auth':a,'time':TS(now),'method':op,'resource':{'data':new} if new is not None else None}
-        env={'request':req,'resource':{'data':old} if old is not None else None,'database':'(default)'}
+        env={'request':req,'resource':{'data':old} if old is not None else None,'database':'(default)','duration':'<duration>'}
         parts=path.split('/')
         if op=='list': parts=parts+['__any__']   # a list query is judged against the collection's wildcard document
         def walk(items,rest,env):

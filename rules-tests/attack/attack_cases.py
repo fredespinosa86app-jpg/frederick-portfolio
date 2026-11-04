@@ -415,6 +415,110 @@ for nm,sim in (('transition',S),('strict',SS)):
     chk(f'W2 [{nm}] audit create refused: orphan (no assignment in the same batch)',not P('create',WAUP(AID2),OWN,BASE,None,D1,{WAUP(AID2):BASE}))
     chk(f'W2 [{nm}] audit create refused: the assignment points at a different audit id',not P('create',WAUP(AID2),OWN,BASE,None,D1,WAFTER(dict(REM,lastAudit=AID3),BASE,AID2)))
     chk(f'W2 [{nm}] pause switch does not affect owner assignments (owner-only data, not public intake)',P('create',WAP(),OWN,WA(),None,dict(D0,**{'content/guard':{'pause':True}}),AFa))
+# ---------------- 8h. W3 (4.5.0): sealed log (seals + chain head), corrections (24-hour window), work settings
+H64=lambda c: c*64; ZERO='0'*64; HR=3600000
+CHP='workChain/main'; SLP=lambda h:'workSeals/'+h; CRP=lambda c:'workCorrections/'+c; STP='workSettings/main'
+SEAL=lambda **k: dict({'n':2,'prev':H64('a'),'hash':H64('b'),'kind':'records','ids':['workEvents/'+EID(1)],'upto':0,'legacyN':0,'at':TSNOW,'by':UID},**k)
+GSEAL=lambda **k: dict({'n':1,'prev':ZERO,'hash':H64('c'),'kind':'genesis','ids':[],'upto':100,'legacyN':3,'at':TSNOW,'by':UID},**k)
+CHN=lambda **k: dict({'cn':2,'head':H64('b'),'updatedAt':TSNOW},**k)
+CHOLD=lambda **k: dict({'cn':1,'head':H64('a'),'updatedAt':TSNOW},**k)
+CORR='corr0000000000000001'
+CLOSEEID=EID(4); CLOSEAT=NOW-2*HR
+CEV=lambda **k: dict({'sid':SID,'n':4,'type':'CLOCK_OUT','at':TS(CLOSEAT),'by':UID,'reason':''},**k)
+CR=lambda **k: dict({'sid':SID,'kind':'TIME','n':3,'type':'','clientId':'','at':TS(NOW-3*HR),'at2':None,'reason':'Forgot to punch on time','closeEid':CLOSEEID,'closeN':4,'by':UID,'createdAt':TSNOW},**k)
+CRADD=lambda **k: CR(**dict({'kind':'ADD','n':0,'type':'LUNCH','at':TS(NOW-6*HR),'at2':TS(NOW-5*HR)},**k))
+CRCA=lambda **k: CR(**dict({'kind':'CLIENT_ADD','n':0,'clientId':'CL-001','at':None},**k))
+CRCR=lambda **k: CR(**dict({'kind':'CLIENT_REMOVE','n':0,'clientId':'CL-001','at':None},**k))
+CDOCS=lambda **k: dict({SPATH:WST(state='NOT_STARTED',sid=SID,n=4),EP(CLOSEEID):CEV(),SSP(SID):WSES(),'clientRegistry/CL-001':REG()},**k)
+SET=lambda **k: dict({'tz':'Asia/Manila','weekStart':'mon','prevTz':'','prevWeekStart':'','rev':1,'updatedAt':TSNOW},**k)
+for nm,sim in (('transition',S),('strict',SS)):
+    P=lambda op,path,au=None,new=None,old=None,docs=None,after=None: A(op,path,au,new,old,docs,sim=sim) if after is None else sim.allowed(op,path,au,new,old,docs,NOW,after)
+    # ---- seals and the chain head
+    GAF={SLP(H64('c')):GSEAL(),CHP:CHN(cn=1,head=H64('c'))}
+    chk(f'W3 [{nm}] control: the starting seal and the chain head are created together',P('create',SLP(H64('c')),OWN,GSEAL(),None,{},GAF) and P('create',CHP,OWN,CHN(cn=1,head=H64('c')),None,{},GAF))
+    SAF={SLP(H64('b')):SEAL(),CHP:CHN()}; SD={CHP:CHOLD()}
+    chk(f'W3 [{nm}] control: the next seal and the moved chain head are written together',P('create',SLP(H64('b')),OWN,SEAL(),None,SD,SAF) and P('update',CHP,OWN,CHN(),CHOLD(),SD,SAF))
+    chk(f'W3 [{nm}] control: owner can read and list seals and the chain head',all(P(o,x,OWN) for o,x in (('get',CHP),('get',SLP(H64('b'))),('list','workSeals'))))
+    for who,au in (('visitor',None),('stranger',STRANGER),('anonymous provider',dict(OWN,provider='anonymous')),('owner uid, unverified',dict(OWN,verified=False))):
+        chk(f'W3 [{nm}] {who}: no access to seals, the chain head, corrections or settings',not any([P(o,SLP(H64('b')),au,SEAL(),SEAL(),SD,SAF) for o in ('get','create','update','delete')]+[P(o,CHP,au,CHN(),CHOLD(),SD,SAF) for o in ('get','create','update','delete')]+[P(o,CRP(CORR),au,CR(),CR(),CDOCS(),{CRP(CORR):CR()}) for o in ('get','create','update','delete')]+[P(o,STP,au,SET(),SET(),{},{STP:SET()}) for o in ('get','create','update','delete')]+[P('list','workSeals',au),P('list','workCorrections',au)]))
+    chk(f'W3 [{nm}] a seal or the chain head cannot be edited or deleted by the owner',not any([P('update',SLP(H64('b')),OWN,SEAL(n=3),SEAL(),SD,SAF),P('delete',SLP(H64('b')),OWN,None,SEAL(),{SLP(H64('b')):SEAL()}),P('delete',CHP,OWN,None,CHN(),{CHP:CHN()})]))
+    def SLR(n,seal,chain=None,docs=None,h=None):
+        h=h or seal.get('hash',H64('b')); ch=chain if chain is not None else CHN(head=seal.get('hash',H64('b')),cn=seal.get('n',2) if isinstance(seal.get('n'),int) else 2)
+        chk(f'W3 [{nm}] seal create refused: {n}',not P('create',SLP(h),OWN,seal,None,docs if docs is not None else SD,{SLP(h):seal,CHP:ch}))
+    SLR('extra field',SEAL(name='x')); SLR('missing field',{k:v for k,v in SEAL().items() if k!='upto'}); SLR('hash is not its own ID',SEAL(),h=H64('d'),chain=CHN())
+    SLR('fingerprint not hex (upper case)',SEAL(hash=H64('B')),h=H64('B')); SLR('fingerprint too short',SEAL(hash='ab'),h='ab'); SLR('previous fingerprint not hex',SEAL(prev='zz'))
+    SLR('number skips ahead (3 after 1)',SEAL(n=3),chain=CHN(cn=3)); SLR('number repeats (2 after 2)',SEAL(n=2),chain=CHN(cn=2),docs={CHP:CHN()}); SLR('number is a string',SEAL(n='2'))
+    SLR('previous fingerprint is not the old head',SEAL(prev=H64('9'))); SLR('number 0',SEAL(n=0),chain=CHN(cn=0)); SLR('kind unknown',SEAL(kind='other'))
+    SLR('ids is a string',SEAL(ids='workEvents/x')); SLR('31 ids',SEAL(ids=['workEvents/x%d'%i for i in range(31)])); SLR('records seal with no ids',SEAL(ids=[]))
+    SLR('records seal with an upto',SEAL(upto=5)); SLR('records seal with legacyN',SEAL(legacyN=1))
+    SLR('time not the server time',SEAL(at=TS(NOW-1))); SLR('recorded for someone else',SEAL(by='someoneelse123'))
+    SLR('chain head not moved in the same batch',SEAL(),chain=CHOLD()); SLR('chain head points at another seal',SEAL(),chain=CHN(head=H64('e')))
+    SLR('chain count differs from the seal number',SEAL(),chain=CHN(cn=5))
+    chk(f'W3 [{nm}] seal create refused: no chain head record in the batch',not P('create',SLP(H64('b')),OWN,SEAL(),None,SD,{SLP(H64('b')):SEAL()}))
+    chk(f'W3 [{nm}] seal create refused: the chain head does not exist yet and the seal is not the first',not P('create',SLP(H64('b')),OWN,SEAL(),None,{},{SLP(H64('b')):SEAL(),CHP:CHN()}))
+    chk(f'W3 [{nm}] seal create refused: replay of an existing seal',not P('update',SLP(H64('b')),OWN,SEAL(),SEAL(),dict(SD,**{SLP(H64('b')):SEAL()}),SAF))
+    def GSR(n,seal,chain=None):
+        h=seal.get('hash',H64('c')); chk(f'W3 [{nm}] starting seal refused: {n}',not P('create',SLP(h),OWN,seal,None,{},{SLP(h):seal,CHP:chain if chain is not None else CHN(cn=seal.get('n',1),head=h)}))
+    GSR('starting seal with a previous fingerprint',GSEAL(prev=H64('a'))); GSR('starting seal with ids',GSEAL(ids=['workEvents/x'])); GSR('starting seal with number 2',GSEAL(n=2))
+    GSR('starting seal with a negative upto',GSEAL(upto=-1)); GSR('starting seal with a huge legacy count',GSEAL(legacyN=100001))
+    chk(f'W3 [{nm}] starting seal refused: the chain head already exists (the chain cannot be restarted)',not P('create',SLP(H64('c')),OWN,GSEAL(),None,{CHP:CHOLD()},GAF))
+    def CHR(n,op,new,old,docs,after):
+        chk(f'W3 [{nm}] chain head {op} refused: {n}',not P(op,CHP,OWN,new,old,docs,after))
+    CHR('count jumps by two','update',CHN(cn=3),CHOLD(),SD,{CHP:CHN(cn=3),SLP(H64('b')):SEAL(n=3)}); CHR('count stays','update',CHN(cn=1),CHOLD(),SD,{CHP:CHN(cn=1),SLP(H64('b')):SEAL(n=1)})
+    CHR('head not hex','update',CHN(head='nope'),CHOLD(),SD,{CHP:CHN(head='nope'),SLP(H64('b')):SEAL()}); CHR('no seal in the batch','update',CHN(),CHOLD(),SD,{CHP:CHN()})
+    CHR('the seal has another number','update',CHN(),CHOLD(),SD,{CHP:CHN(),SLP(H64('b')):SEAL(n=5)}); CHR('the seal does not follow the old head','update',CHN(),CHOLD(),SD,{CHP:CHN(),SLP(H64('b')):SEAL(prev=H64('9'))})
+    CHR('head moves to an existing seal (replay)','update',CHN(),CHOLD(),dict(SD,**{SLP(H64('b')):SEAL()}),SAF); CHR('extra field','update',CHN(name='x'),CHOLD(),SD,SAF)
+    CHR('updatedAt not the server time','update',CHN(updatedAt=TS(NOW-1)),CHOLD(),SD,SAF); CHR('count is a string','update',CHN(cn='2'),CHOLD(),SD,SAF)
+    CHR('created with count 2','create',CHN(),None,{},SAF); CHR('created pointing at a records seal','create',CHN(cn=1,head=H64('b')),None,{},{CHP:CHN(cn=1,head=H64('b')),SLP(H64('b')):SEAL(n=1)})
+    chk(f'W3 [{nm}] chain head refused under another document ID',not P('create','workChain/other',OWN,CHN(cn=1,head=H64('c')),None,{},{'workChain/other':CHN(cn=1,head=H64('c')),SLP(H64('c')):GSEAL()}))
+    # ---- corrections
+    def CAF(c,extra=None): d={CRP(CORR):c}; d.update(extra or {}); return d
+    for lbl,c in (('change the time of a punch',CR()),('add a missed break (out and in)',CRADD()),('add a client',CRCA()),('remove a client',CRCR())):
+        chk(f'W3 [{nm}] control: correction accepted - {lbl}',P('create',CRP(CORR),OWN,c,None,CDOCS(),CAF(c)))
+    chk(f'W3 [{nm}] control: a correction is also accepted when a LATER session exists (state shows another session id)',P('create',CRP(CORR),OWN,CR(),None,CDOCS(**{SPATH:WST(state='WORKING',sid=NEWSID,n=2)}),CAF(CR())))
+    chk(f'W3 [{nm}] control: a correction is accepted 23 hours 59 minutes after the closing punch',P('create',CRP(CORR),OWN,CR(),None,CDOCS(**{EP(CLOSEEID):CEV(at=TS(NOW-24*HR+60000))}),CAF(CR())))
+    chk(f'W3 [{nm}] control: owner can read and list corrections',all(P(o,CRP(CORR),OWN) for o in ('get',)) and P('list','workCorrections',OWN))
+    def CRF(n,c,docs=None,op='create',old=None):
+        chk(f'W3 [{nm}] correction refused: {n}',not P(op,CRP(CORR),OWN,c,old,docs if docs is not None else CDOCS(),CAF(c)))
+    CRF('extra field',CR(name='Ann')); CRF('missing field',{k:v for k,v in CR().items() if k!='at2'}); CRF('unknown kind',CR(kind='DELETE'))
+    CRF('reason of 2 characters',CR(reason='ab')); CRF('reason of 201 characters',CR(reason='r'*201)); CRF('reason is a number',CR(reason=5)); CRF('recorded for someone else',CR(by='someoneelse123')); CRF('created time not the server time',CR(createdAt=TS(NOW-1)))
+    CRF('the session is still open (WORKING)',CR(),CDOCS(**{SPATH:WST(state='WORKING',sid=SID,n=4)})); CRF('the session is on a break (still open)',CR(),CDOCS(**{SPATH:WST(state='LUNCH',sid=SID,n=4)}))
+    CRF('close number does not match the close event ID',CR(closeN=3)); CRF('close event is not a closing punch',CR(),CDOCS(**{EP(CLOSEEID):CEV(type='LUNCH_IN')}))
+    CRF('close event belongs to another session',CR(),CDOCS(**{EP(CLOSEEID):CEV(sid=NEWSID)})); CRF('close event does not exist',CR(),{SPATH:CDOCS()[SPATH],SSP(SID):WSES()})
+    CRF('window over: exactly 24 hours after the closing punch',CR(),CDOCS(**{EP(CLOSEEID):CEV(at=TS(NOW-24*HR))})); CRF('window over: 30 hours after',CR(),CDOCS(**{EP(CLOSEEID):CEV(at=TS(NOW-30*HR))}))
+    CRF('the session record does not exist',CR(),{k:v for k,v in CDOCS().items() if k!=SSP(SID)}); CRF('no state record',CR(),{k:v for k,v in CDOCS().items() if k!=SPATH})
+    CRF('replay of an existing correction',CR(),CDOCS(**{CRP(CORR):CR()}),op='update',old=CR())
+    CRF('time in the future',CR(at=TS(NOW+1000))); CRF('time more than 48 hours before the closing punch',CR(at=TS(CLOSEAT-48*HR))); CRF('time sent as a number',CR(at=NOW-HR)); CRF('time is null for a time change',CR(at=None))
+    CRF('time change with punch number 0',CR(n=0)); CRF('time change with punch number 13',CR(n=13)); CRF('time change with a type filled in',CR(type='LUNCH')); CRF('time change with a client filled in',CR(clientId='CL-001')); CRF('time change with a second time',CR(at2=TS(NOW-HR)))
+    CRF('missed break with a punch number',CRADD(n=2)); CRF('missed break of an unknown kind',CRADD(type='DINNER')); CRF('missed break typed as a punch (LUNCH_OUT)',CRADD(type='LUNCH_OUT')); CRF('missed break ending before it starts',CRADD(at2=TS(NOW-7*HR)))
+    CRF('missed break ending exactly when it starts',CRADD(at2=TS(NOW-6*HR))); CRF('missed break ending in the future',CRADD(at2=TS(NOW+1000))); CRF('missed break without an end',CRADD(at2=None)); CRF('missed break with a client',CRADD(clientId='CL-001'))
+    CRF('client added but the Client ID is archived',CRCA(),CDOCS(**{'clientRegistry/CL-001':REG(status='archived',rev=2)})); CRF('client added but the Client ID is unknown',CRCA(clientId='CL-777'))
+    CRF('client added with a bad Client ID',CRCA(clientId='cl-1')); CRF('client added with a time',CRCA(at=TS(NOW-HR))); CRF('client added with a punch number',CRCA(n=2)); CRF('client added with a type',CRCA(type='LUNCH')); CRF('client ID is a number',CRCA(clientId=5))
+    CRF('client removed with a bad Client ID',CRCR(clientId='x')); CRF('client removed with a time',CRCR(at=TS(NOW-HR))); CRF('client removed with a second time',CRCR(at2=TS(NOW-HR)))
+    chk(f'W3 [{nm}] a correction cannot be edited or deleted by the owner',not any([P('update',CRP(CORR),OWN,CR(reason='changed'),CR(),CDOCS(**{CRP(CORR):CR()}),CAF(CR(reason='changed'))),P('delete',CRP(CORR),OWN,None,CR(),CDOCS(**{CRP(CORR):CR()}))]))
+    chk(f'W3 [{nm}] a client removal needs no active registry entry (an archived client can still be taken off)',P('create',CRP(CORR),OWN,CRCR(),None,CDOCS(**{'clientRegistry/CL-001':REG(status='archived',rev=2)}),CAF(CRCR())))
+    # ---- settings
+    chk(f'W3 [{nm}] control: settings created once in their starting form',P('create',STP,OWN,SET(),None,{},{STP:SET()}))
+    OLDS=SET(); NEWS=SET(tz='Europe/London',weekStart='sun',prevTz='Asia/Manila',prevWeekStart='mon',rev=2)
+    chk(f'W3 [{nm}] control: settings update keeps the replaced values and moves the revision by one',P('update',STP,OWN,NEWS,OLDS,{STP:OLDS},{STP:NEWS}))
+    chk(f'W3 [{nm}] control: owner can read settings',P('get',STP,OWN))
+    def SF(n,op,new,old=None):
+        chk(f'W3 [{nm}] settings {op} refused: {n}',not P(op,STP,OWN,new,old,{STP:old} if old else {},{STP:new}))
+    SF('extra field','create',SET(name='x')); SF('missing field','create',{k:v for k,v in SET().items() if k!='prevTz'}); SF('time zone with spaces','create',SET(tz='Asia Manila')); SF('time zone of 61 characters','create',SET(tz='A'*61))
+    SF('time zone is a number','create',SET(tz=5)); SF('first weekday unknown','create',SET(weekStart='xyz')); SF('first weekday in capitals','create',SET(weekStart='MON')); SF('revision 2 at creation','create',SET(rev=2)); SF('previous values filled at creation','create',SET(prevTz='UTC'))
+    SF('updatedAt not server time','create',SET(updatedAt=TS(NOW-1)))
+    SF('revision not +1','update',NEWS|{'rev':3},OLDS); SF('revision unchanged','update',NEWS|{'rev':1},OLDS); SF('previous time zone not the replaced one','update',NEWS|{'prevTz':'UTC'},OLDS); SF('previous weekday not the replaced one','update',NEWS|{'prevWeekStart':'sat'},OLDS)
+    SF('time zone with a bad character','update',NEWS|{'tz':'Europe London'},OLDS); SF('extra field','update',NEWS|{'x':1},OLDS)
+    chk(f'W3 [{nm}] settings cannot be deleted, and only the ID "main" is allowed',not any([P('delete',STP,OWN,None,OLDS,{STP:OLDS}),P('create','workSettings/other',OWN,SET(),None,{},{'workSettings/other':SET()})]))
+    # fully valid payloads from a non-owner (so removing an owner check is noticed), and a few more single-clause cases
+    for who,au in (('visitor',None),('stranger',STRANGER)):
+        chk(f'W3 [{nm}] {who}: valid chain head create/update, settings create/update and correction create are all refused',not any([P('create',CHP,au,CHN(cn=1,head=H64('c')),None,{},GAF),P('update',CHP,au,CHN(),CHOLD(),SD,SAF),P('create',STP,au,SET(),None,{},{STP:SET()}),P('update',STP,au,NEWS,OLDS,{STP:OLDS},{STP:NEWS}),P('create',CRP(CORR),au,CR(),None,CDOCS(),CAF(CR()))]))
+    chk(f'W3 [{nm}] seal refused: the data says one fingerprint but the document ID (and chain head) say another',not P('create',SLP(H64('d')),OWN,SEAL(),None,SD,{SLP(H64('d')):SEAL(),CHP:CHN(head=H64('d'))}))
+    chk(f'W3 [{nm}] correction refused: the document ID is too short',not P('create',CRP('x'),OWN,CR(),None,CDOCS(),CAF(CR())) and P('create',CRP(CORR),OWN,CR(),None,CDOCS(),CAF(CR())))
+    CRF('missed break starting more than 48 hours before the closing punch',CRADD(at=TS(CLOSEAT-60*HR),at2=TS(CLOSEAT-59*HR)))
+    CRF('client removed with a punch number',CRCR(n=3)); CRF('client removed with a type',CRCR(type='LUNCH'))
+    SF('first weekday unknown','update',NEWS|{'weekStart':'xyz'},OLDS); SF('updatedAt not server time','update',NEWS|{'updatedAt':TS(NOW-1)},OLDS)
+    chk(f'W3 [{nm}] pause switch does not affect the sealed log, corrections or settings (owner-only data)',P('create',CRP(CORR),OWN,CR(),None,CDOCS(**{'content/guard':{'pause':True}}),CAF(CR())))
 # ---------------- 9. cross-check: strict file equals transition file apart from the owner check
 a=re.sub(r'\s+','',TXT); b=re.sub(r'\s+','',re.sub(r'^//.*\n','',STRICT,flags=re.M))
 chk('strict rules differ from the transition rules only in the owner e-mail fallback',a.replace("&&(request.auth.uid==ownerUid()||request.auth.token.email=='fredespinosa86.app@gmail.com');","&&request.auth.uid==ownerUid();")==b,'')

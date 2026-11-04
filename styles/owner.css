@@ -210,3 +210,15 @@ button.libtile.pickable{cursor:pointer;min-height:44px}button.libtile.pickable:h
 .wtchip{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--d-line);border-radius:999px;padding:4px 6px 4px 12px;background:var(--d-card)}
 .wtx{min-height:36px;padding:2px 12px}
 #dp-worktrack .dstate:empty{display:none}
+/* W3: corrections, log, settings */
+.vh{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0)}
+#wtWitFileLbl{display:inline-flex;align-items:center;cursor:pointer;position:relative}
+#wtWitFileLbl:focus-within{outline:2px solid #2f6fdb;outline-offset:2px}
+.wtsess{display:grid;gap:6px;padding:10px;border:1px solid var(--d-line);border-radius:10px;margin:8px 0;background:var(--d-card)}
+.wtcorrd{font-weight:600}
+.wtcorr{display:grid;gap:8px;padding:10px;border:1px dashed var(--d-line);border-radius:10px;margin-top:6px}
+.wtcorr select,.wtcorr input{min-height:44px;max-width:100%}
+.wtver{padding:10px 12px;border-radius:10px;border:1px solid var(--d-line);margin:8px 0}
+.wtver.ok{border-color:#14612e;background:rgba(20,97,46,.08)}
+.wtver.broken{border-color:#a4161a;background:rgba(164,22,26,.08)}
+.wtver ul{margin:6px 0 0 18px}

@@ -143,6 +143,10 @@ service cloud.firestore {
     // True when, after this batch, the session is the one that is open right now (assignments can only change while it is open).
     function wkOpen(sid) { return existsAfter(wkState()) && getAfter(wkState()).data.sid == sid && getAfter(wkState()).data.state != 'NOT_STARTED'; }
     function regActive(cid) { return exists(regDoc(cid)) && get(regDoc(cid)).data.status == 'active'; }
+    // W3 (4.5.0): the sealed log and corrections. Rules can check order and numbering only; the SHA-256 maths is done (and checked again by Verify) on the page.
+    function wkSealRef(h) { return /databases/$(database)/documents/workSeals/$(h); }
+    function wkChainRef() { return /databases/$(database)/documents/workChain/main; }
+    function isHex64(s) { return s is string && s.matches('^[0-9a-f]{64}$'); }
     match /settings/site { allow read: if true; allow write: if isOwner(); }
     match /meetingRequests/{id} {
       allow create: if request.resource.data.keys().hasOnly(['name','email','company','date','time','tz','platform','message','status','createdAt','service','formId','formName','answers'])
@@ -394,6 +398,99 @@ service cloud.firestore {
         && (request.resource.data.action != 'add' || (!exists(waRef(request.resource.data.sid + '__' + request.resource.data.clientId)) && getAfter(waRef(request.resource.data.sid + '__' + request.resource.data.clientId)).data.status == 'active'))
         && (request.resource.data.action != 'remove' || (get(waRef(request.resource.data.sid + '__' + request.resource.data.clientId)).data.status == 'active' && getAfter(waRef(request.resource.data.sid + '__' + request.resource.data.clientId)).data.status == 'removed'))
         && (request.resource.data.action != 'readd' || (get(waRef(request.resource.data.sid + '__' + request.resource.data.clientId)).data.status == 'removed' && getAfter(waRef(request.resource.data.sid + '__' + request.resource.data.clientId)).data.status == 'active'));
+    }
+    // W3 (4.5.0): sealed log. A seal is create-only, its ID is its own fingerprint, and it is always written together with the chain head record
+    // (the head moves exactly one step: number +1, previous fingerprint = the old head). No edit, no delete.
+    match /workSeals/{h} {
+      allow read: if isOwner();
+      allow create: if isOwner() && isHex64(h)
+        && request.resource.data.keys().hasOnly(['n','prev','hash','kind','ids','upto','legacyN','at','by'])
+        && request.resource.data.keys().hasAll(['n','prev','hash','kind','ids','upto','legacyN','at','by'])
+        && request.resource.data.hash == h && isHex64(request.resource.data.prev)
+        && request.resource.data.n is int && request.resource.data.n >= 1 && request.resource.data.n <= 1000000
+        && request.resource.data.kind in ['genesis','records']
+        && request.resource.data.ids is list && request.resource.data.ids.size() <= 30
+        && request.resource.data.upto is number && request.resource.data.upto >= 0
+        && request.resource.data.legacyN is number && request.resource.data.legacyN >= 0 && request.resource.data.legacyN <= 100000
+        && request.resource.data.at == request.time && request.resource.data.by == request.auth.uid
+        && ((request.resource.data.kind == 'genesis' && request.resource.data.n == 1 && request.resource.data.prev == '0000000000000000000000000000000000000000000000000000000000000000' && request.resource.data.ids.size() == 0)
+            || (request.resource.data.kind == 'records' && request.resource.data.n >= 2 && request.resource.data.ids.size() >= 1 && request.resource.data.upto == 0 && request.resource.data.legacyN == 0))
+        && existsAfter(wkChainRef()) && getAfter(wkChainRef()).data.head == h && getAfter(wkChainRef()).data.cn == request.resource.data.n
+        && ((request.resource.data.n == 1 && !exists(wkChainRef()))
+            || (request.resource.data.n > 1 && exists(wkChainRef()) && get(wkChainRef()).data.head == request.resource.data.prev && get(wkChainRef()).data.cn + 1 == request.resource.data.n));
+    }
+    match /workChain/{id} {
+      allow read: if isOwner();
+      allow create: if isOwner() && id == 'main'
+        && request.resource.data.keys().hasOnly(['cn','head','updatedAt'])
+        && request.resource.data.keys().hasAll(['cn','head','updatedAt'])
+        && request.resource.data.cn == 1 && isHex64(request.resource.data.head) && request.resource.data.updatedAt == request.time
+        && !exists(wkSealRef(request.resource.data.head)) && existsAfter(wkSealRef(request.resource.data.head))
+        && getAfter(wkSealRef(request.resource.data.head)).data.n == 1 && getAfter(wkSealRef(request.resource.data.head)).data.kind == 'genesis';
+      allow update: if isOwner() && id == 'main'
+        && request.resource.data.keys().hasOnly(['cn','head','updatedAt'])
+        && request.resource.data.keys().hasAll(['cn','head','updatedAt'])
+        && request.resource.data.cn is int && request.resource.data.cn == resource.data.cn + 1
+        && isHex64(request.resource.data.head) && request.resource.data.updatedAt == request.time
+        && !exists(wkSealRef(request.resource.data.head)) && existsAfter(wkSealRef(request.resource.data.head))
+        && getAfter(wkSealRef(request.resource.data.head)).data.n == request.resource.data.cn
+        && getAfter(wkSealRef(request.resource.data.head)).data.prev == resource.data.head;
+    }
+    // W3 (4.5.0): corrections. A closed session is never edited: a correction is a NEW create-only record with a reason, allowed only for 24 hours after
+    // the session's closing punch (measured with the database's clock). Four kinds: change the time of a punch, add a missed break (out and in),
+    // add a client, remove a client. Whether the corrected day is still in a valid order is checked by the page (rules cannot sort).
+    match /workCorrections/{cid} {
+      allow read: if isOwner();
+      allow create: if isOwner() && cid.matches('^[A-Za-z0-9]{16,40}$')
+        && request.resource.data.keys().hasOnly(['sid','kind','n','type','clientId','at','at2','reason','closeEid','closeN','by','createdAt'])
+        && request.resource.data.keys().hasAll(['sid','kind','n','type','clientId','at','at2','reason','closeEid','closeN','by','createdAt'])
+        && wkSid(request.resource.data.sid)
+        && request.resource.data.kind in ['TIME','ADD','CLIENT_ADD','CLIENT_REMOVE']
+        && request.resource.data.reason is string && request.resource.data.reason.size() >= 3 && request.resource.data.reason.size() <= 200
+        && request.resource.data.by == request.auth.uid && request.resource.data.createdAt == request.time
+        && request.resource.data.closeN is number && request.resource.data.closeN >= 1 && request.resource.data.closeN <= 12
+        && wkEid(request.resource.data.sid, request.resource.data.closeN, request.resource.data.closeEid)
+        && exists(wkEvt(request.resource.data.closeEid)) && get(wkEvt(request.resource.data.closeEid)).data.sid == request.resource.data.sid
+        && get(wkEvt(request.resource.data.closeEid)).data.type in ['CLOCK_OUT','CLOSE_INCOMPLETE']
+        && request.time < get(wkEvt(request.resource.data.closeEid)).data.at + duration.value(24, 'h')
+        && exists(wkSess(request.resource.data.sid))
+        && exists(wkState()) && (get(wkState()).data.sid != request.resource.data.sid || get(wkState()).data.state == 'NOT_STARTED')
+        && ((request.resource.data.kind == 'TIME'
+              && request.resource.data.n is number && request.resource.data.n >= 1 && request.resource.data.n <= 12
+              && request.resource.data.type == '' && request.resource.data.clientId == ''
+              && request.resource.data.at is timestamp && request.resource.data.at2 == null
+              && request.resource.data.at <= request.time && request.resource.data.at > get(wkEvt(request.resource.data.closeEid)).data.at - duration.value(48, 'h'))
+            || (request.resource.data.kind == 'ADD'
+              && request.resource.data.n == 0 && request.resource.data.type in ['FIRST_BREAK','LUNCH','LAST_BREAK'] && request.resource.data.clientId == ''
+              && request.resource.data.at is timestamp && request.resource.data.at2 is timestamp
+              && request.resource.data.at2 > request.resource.data.at && request.resource.data.at2 <= request.time
+              && request.resource.data.at > get(wkEvt(request.resource.data.closeEid)).data.at - duration.value(48, 'h'))
+            || (request.resource.data.kind == 'CLIENT_ADD'
+              && request.resource.data.n == 0 && request.resource.data.type == ''
+              && request.resource.data.clientId is string && validClientId(request.resource.data.clientId)
+              && request.resource.data.at == null && request.resource.data.at2 == null && regActive(request.resource.data.clientId))
+            || (request.resource.data.kind == 'CLIENT_REMOVE'
+              && request.resource.data.n == 0 && request.resource.data.type == ''
+              && request.resource.data.clientId is string && validClientId(request.resource.data.clientId)
+              && request.resource.data.at == null && request.resource.data.at2 == null));
+    }
+    // W3 (4.5.0): work settings (time zone for NEW sessions, first weekday of the week). Owner only; each change keeps the value it replaced.
+    match /workSettings/{id} {
+      allow read: if isOwner();
+      allow create: if isOwner() && id == 'main'
+        && request.resource.data.keys().hasOnly(['tz','weekStart','prevTz','prevWeekStart','rev','updatedAt'])
+        && request.resource.data.keys().hasAll(['tz','weekStart','prevTz','prevWeekStart','rev','updatedAt'])
+        && request.resource.data.tz is string && request.resource.data.tz.size() <= 60 && request.resource.data.tz.matches('^[A-Za-z0-9_+/-]+$')
+        && request.resource.data.weekStart in ['mon','tue','wed','thu','fri','sat','sun']
+        && request.resource.data.prevTz == '' && request.resource.data.prevWeekStart == ''
+        && request.resource.data.rev == 1 && request.resource.data.updatedAt == request.time;
+      allow update: if isOwner() && id == 'main'
+        && request.resource.data.keys().hasOnly(['tz','weekStart','prevTz','prevWeekStart','rev','updatedAt'])
+        && request.resource.data.keys().hasAll(['tz','weekStart','prevTz','prevWeekStart','rev','updatedAt'])
+        && request.resource.data.tz is string && request.resource.data.tz.size() <= 60 && request.resource.data.tz.matches('^[A-Za-z0-9_+/-]+$')
+        && request.resource.data.weekStart in ['mon','tue','wed','thu','fri','sat','sun']
+        && request.resource.data.prevTz == resource.data.tz && request.resource.data.prevWeekStart == resource.data.weekStart
+        && request.resource.data.rev is number && request.resource.data.rev == resource.data.rev + 1 && request.resource.data.updatedAt == request.time;
     }
     match /clients/{id} { allow read, write: if isOwner(); }
     match /ownerPrivate/{doc} { allow read, write: if isOwner(); }
@@ -693,4 +790,14 @@ No Firestore rules change in E4 (`ownerPrivate` is already owner only). Rules te
 - **Rules:** new collections `workAssign` and `workAssignAudit` in both rules files. **Publish `firestore.rules.strict` again** or the page will say permission denied.
 - **Tests:** unit tests (23 in `core-worktrack.test.mjs`), attack cases section 8g (741 checks in the whole attack suite), `mutation_check.py` (171 real mutations, all caught; 13 guards that are redundant with other rules are listed separately), `qa_w2` browser test, real-engine tests `rules-tests/emulator/assign.test.mjs` (run the workflow "Firestore rules (emulator)").
 - **Not in W2:** past-session lists, filter by Client ID and reports (W4); corrections (W3); billing; splitting hours between clients.
+
+## 4.5.0 - Phase W3: Corrections, tamper-evident log, work settings
+- **Corrections (WorkTrack > Corrections):** a closed session is never edited. For **24 hours after the closing punch** (measured with the database clock) you can add a correction with a reason of 3 to 200 characters: change the time of a punch, add a missed break (out and in together), or add / remove a client. The original punches stay exactly as they were; the session shows "Original" and "With corrections" side by side, and hours are still counted once. The page refuses a correction that would break the order of the day (for example a second lunch, or lunch-out after lunch-in). After 24 hours a session is final.
+- **Tamper-evident log (WorkTrack > Tamper-evident log):** press **Start the tamper-evident log** once. Everything that exists then becomes the starting point (one "genesis" seal that covers all earlier records). From then on every punch, client change and correction is sealed right after it is saved: a seal holds the SHA-256 fingerprint of the previous seal plus the full content of the records it covers, including their database times. **Verify the log** re-reads everything and reports "Intact" or exactly where the chain breaks (a changed record, a removed record or seal, a record written without a seal).
+- **Witness copy:** "Copy witness" and "Download witness file" give you one line per seal. Keep it outside Firebase. "Compare with a saved witness file" tells you if any seal was changed or the newest seals were removed (the one thing Verify alone cannot see).
+- **Work settings:** the time zone used for **new** sessions (any valid zone name) and the first weekday of the week. Each change keeps the value it replaced. Sessions already recorded keep their own zone.
+- **Records:** `workCorrections`, `workSeals`, `workChain/main`, `workSettings/main` (all owner-only; corrections and seals are create-only; the chain head moves exactly one step per seal). **Publish `firestore.rules.strict` again.**
+- **Honest limits:** the rules can check numbering and order but cannot compute SHA-256, so the page computes it and Verify re-checks it; this DETECTS changes, it cannot stop someone with Firebase console access; a seal is written a moment after its records (records not yet sealed are listed, and older unsealed records are reported as a problem); the first seal is a snapshot, so only records written from then on are individually sealed; whether a corrected day is in a valid order is checked by the page.
+- **Tests:** unit tests (`core-wtlog.test.mjs`, 12), attack cases section 8h (1015 checks in the whole suite), `mutation_check.py` (261 real mutations, all caught; redundant guards are listed separately), browser test `qa_w3`, real-engine tests `rules-tests/emulator/wtlog.test.mjs`.
+- **Not in W3:** history lists, filter by Client ID, reports (W4), billing.
 

@@ -15,7 +15,7 @@
   const kit = window.dashKit, core = window.coreWork, ids = window.coreIds, tm = window.coreTime; if (!kit || !core || !ids || !tm) return;
   const { el, notify } = kit;
   const $ = id => document.getElementById(id), own = () => window.OWN;
-  const TZ = 'Asia/Manila';                      // fixed in W1; the audited setting arrives with the corrections phase
+  let TZ = 'Asia/Manila';                        // default; the Work settings card (W3) sets the zone used for NEW sessions
   let S = { st: null, events: [], derived: null, sessionTz: TZ, sessionDate: '', assign: [] }, registry = [], pending = readPending(), signed = false, timer = 0, skew = 0, skewKnown = false, busyPunch = false, wasOnline = true;
   const say = (id, msg) => { const n = $(id); if (n) n.textContent = msg || ''; };
   const ms = t => !t ? 0 : typeof t.toMillis === 'function' ? t.toMillis() : t instanceof Date ? t.getTime() : Number(t) || 0;
@@ -89,7 +89,7 @@
     }
     busyPunch = true; draw();
     try {
-      let done = null;
+      let done = null, written = [], auds = {};
       await f.runTransaction(o.db, async tx => {
         const snap = await tx.get(stateRef());
         if (!snap.exists()) throw new Error('refused:The WorkTrack record does not exist yet. Refresh the page.');
@@ -98,7 +98,7 @@
         const plan = core.plan(cur, type, { sid: ids.newKey(), reason });
         if (!plan.ok) throw new Error('refused:' + plan.reason);
         if (plan.newSession) picks.forEach(c => {
-          const aid = ids.newKey(), a = core.assignPlan([], plan.sid, c, 'add', { aid, registryStatus: 'active' });
+          const aid = ids.newKey(), a = core.assignPlan([], plan.sid, c, 'add', { aid, registryStatus: 'active' }); auds[c] = aid;
           if (!a.ok) throw new Error('refused:' + a.reason);
           tx.set(f.doc(o.db, 'workAssign', a.id), Object.assign({}, a.doc, { addedAt: f.serverTimestamp(), updatedAt: f.serverTimestamp() }));
           tx.set(f.doc(o.db, 'workAssignAudit', aid), Object.assign({}, a.audit, { actor: o.uid(), createdAt: f.serverTimestamp() }));
@@ -107,8 +107,10 @@
         tx.set(stateRef(), Object.assign({}, plan.state, { updatedAt: f.serverTimestamp() }));
         if (plan.newSession) tx.set(f.doc(o.db, 'workSessions', plan.sid), { tz: TZ, date: tm.localDateKey(Date.now(), TZ), startedAt: f.serverTimestamp(), by: o.uid() });
         done = plan;
+        written = ['workEvents/' + plan.eid].concat(plan.newSession ? ['workSessions/' + plan.sid] : []).concat(plan.newSession ? picks.map(c => 'workAssignAudit/' + auds[c]) : []);
       });
       if (type === 'CLOCK_IN' && picks.length) { pending = []; savePending(); }
+      document.dispatchEvent(new CustomEvent('wt:written', { detail: { paths: written } }));
       await load();
       const last = S.derived.events[S.derived.events.length - 1];
       notify(core.LABEL[type] + ' recorded.', 'success');
@@ -247,7 +249,7 @@
   /* one change = one transaction (assignment + its audit entry); the session must still be open and the assignment is re-read first */
   async function changeAssignment(action, cid, reason) {
     if (busyPunch) return; if (navigator.onLine === false) { say('wtCliErr', 'You are offline. Nothing was changed.'); return; }
-    const o = own(), f = o.fs, sid = S.st.sid; busyPunch = true; draw();
+    const o = own(), f = o.fs, sid = S.st.sid; let written = []; busyPunch = true; draw();
     try {
       try { await loadRegistry(); } catch (e) { /* keep the cached list */ }
       await f.runTransaction(o.db, async tx => {
@@ -258,7 +260,9 @@
         if (!plan.ok) throw new Error('refused:' + plan.reason);
         const doc = plan.kind === 'create' ? Object.assign({}, plan.doc, { addedAt: f.serverTimestamp(), updatedAt: f.serverTimestamp() }) : Object.assign({}, plan.doc, { updatedAt: f.serverTimestamp() });
         tx.set(ref, doc); tx.set(f.doc(o.db, 'workAssignAudit', aid), Object.assign({}, plan.audit, { actor: o.uid(), createdAt: f.serverTimestamp() }));
+        written = ['workAssignAudit/' + aid];
       });
+      document.dispatchEvent(new CustomEvent('wt:written', { detail: { paths: written } }));
       await load(); notify(cid + (action === 'add' ? ' added.' : ' removed.'), 'success');
     } catch (e) {
       const m = String(e && e.message || '');
@@ -287,6 +291,7 @@
     document.addEventListener('dash:page', e => { if (e.detail === 'worktrack') show(); else stopTimer(); });
     document.addEventListener('own:auth', e => { signed = !!(e.detail && e.detail.ok); S = { st: null, events: [], derived: null, sessionTz: TZ, sessionDate: '', assign: [] }; registry = []; stopTimer(); if (!signed) { $('wtBtns').replaceChildren(); $('wtList').replaceChildren(); $('wtChips').replaceChildren(); $('wtCliHist').replaceChildren(); $('wtCliAudit').replaceChildren(); say('wtState', ''); say('wtErr', ''); } });
   }
+  document.addEventListener('wt:settings', e => { if (e.detail && e.detail.tz) { TZ = e.detail.tz; if (S && S.st && !(S.derived && S.derived.events && S.derived.events.length)) S.sessionTz = TZ; if (S && S.st) draw(); } });
   window.__wt = { get state() { return S; } };     // read-only test hook
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();
