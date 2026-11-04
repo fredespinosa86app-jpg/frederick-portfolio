@@ -280,7 +280,7 @@
       });
       row.append(node('h3', '', c.name), badges); box.appendChild(row);
     });
-    sec.hidden = !shown;
+    sec.hidden = !shown || !!(window.__secOff && window.__secOff.toolkit);   /* KI-1: the owner's Optional sections switch always wins */
     document.dispatchEvent(new Event('content:applied'));
   }
 

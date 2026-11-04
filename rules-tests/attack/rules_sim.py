@@ -152,7 +152,13 @@ class Sim:
             if n[1] in env: return env[n[1]]
             raise EvalErr('var '+n[1])
         if t=='path':
-            return Path(re.sub(r'^/databases/\$\(database\)/documents/','',n[1]))
+            raw=re.sub(r'^/databases/\$\(database\)/documents/','',n[1])
+            def _sub(m):
+                if m.group(1) not in env: raise EvalErr('path var '+m.group(1))
+                v=env[m.group(1)]
+                if not isinstance(v,str): raise EvalErr('path var type')
+                return v
+            return Path(re.sub(r'\$\((\w+)\)',_sub,raw))
         if t=='not':
             v=s.ev(n[1],env)
             if not isinstance(v,bool): raise EvalErr('not')
@@ -206,6 +212,11 @@ class Sim:
         if t=='call':
             name=n[1]
             if name=='exists': return s.docs.get(s.ev(n[2][0],env).p) is not None
+            if name=='existsAfter': return s.post.get(s.ev(n[2][0],env).p) is not None
+            if name=='getAfter':
+                p=s.ev(n[2][0],env).p
+                if s.post.get(p) is None: raise EvalErr('getAfter missing')
+                return Doc(s.post[p])
             if name=='get':
                 p=s.ev(n[2][0],env).p
                 if p not in s.docs: raise EvalErr('get missing')
@@ -244,9 +255,10 @@ class Sim:
             raise EvalErr('get')
         raise SimUnsupported('method '+name)
     # -------- request
-    def allowed(s,op,path,auth=None,new=None,old=None,docs=None,now=1_800_000_000_000):
+    def allowed(s,op,path,auth=None,new=None,old=None,docs=None,now=1_800_000_000_000,after=None):
         """op: get|list|create|update|delete ; path 'coll/id' ; auth None or {'uid','email','verified','provider'}; new/old: dict data"""
         s.docs=docs or {}
+        s.post=dict(s.docs); s.post.update(after or {})   # state after the whole batch (existsAfter/getAfter); None = deleted
         a=None
         if auth: a={'uid':auth['uid'],'token':{'email':auth.get('email',''),'email_verified':auth.get('verified',True),'firebase':{'sign_in_provider':auth.get('provider','google.com')}}}
         req={'auth':a,'time':TS(now),'method':op,'resource':{'data':new} if new is not None else None}

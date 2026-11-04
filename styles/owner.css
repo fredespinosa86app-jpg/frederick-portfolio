@@ -179,3 +179,15 @@ button.libtile.pickable{cursor:pointer;min-height:44px}button.libtile.pickable:h
 /* Enhancement E4: Google hub */
 .hubgrid{display:grid;grid-template-columns:minmax(120px,max-content) 1fr;gap:8px 16px;margin:8px 0 0}.hubgrid dt{font-weight:600;color:#1b2333}.hubgrid dd{margin:0}
 .gsscript{max-height:260px;overflow:auto;padding:12px;background:#f3f5fa;border:1px solid #d5dbe7;border-radius:8px;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere;color:#1b2333}
+
+/* CodeFlow 4.5.0 P0: Client IDs page */
+.cidlist{display:grid;gap:10px;margin-top:10px}
+.cidrow{border:1px solid var(--d-line);border-radius:10px;padding:10px 12px;display:grid;gap:6px;background:var(--d-card)}
+.cidrow.arch{opacity:.78}
+.cidmain{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+.cidid{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:1.05rem;letter-spacing:.02em}
+.cidbadge{font-size:.75rem;font-weight:700;padding:2px 8px;border-radius:999px;background:#e3f4e8;color:#14612e}
+.cidbadge.archived{background:#eceff4;color:#46526a}
+.cidnote{margin:0}
+.cidhist{display:grid;gap:8px;max-height:50vh;overflow:auto;margin:8px 0}
+.cidh{display:grid;gap:2px;padding:6px 8px;border-left:3px solid #2f6fdb;background:rgba(47,111,219,.06)}

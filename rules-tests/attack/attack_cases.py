@@ -132,6 +132,68 @@ for nm,sim in (('transition',S),('strict',SS)):
     chk(f'E4 [{nm}] owner can read and write ownerPrivate/google',A('get','ownerPrivate/google',OWN,sim=sim) and A('create','ownerPrivate/google',OWN,GOOG,sim=sim) and A('update','ownerPrivate/google',OWN,GOOG,GOOG,sim=sim))
     for who,au in (('visitor',None),('stranger',STRANGER)):
         chk(f'E4 [{nm}] {who}: cannot read, list, write or delete ownerPrivate/google',not any([A(o,'ownerPrivate/google',au,GOOG,GOOG,sim=sim) for o in ('get','create','update','delete')]) and not A('list','ownerPrivate',au,sim=sim))
+# ---------------- 8e. P0 (4.5.0): Client ID registry + paired audit records
+AID1='a'*16; AID2='b'*16; AID3='c'*16
+REG=lambda **k: dict({'status':'active','notes':'','createdAt':TSNOW,'updatedAt':TSNOW,'rev':1,'lastAudit':AID1},**k)
+AUD=lambda **k: dict({'clientId':'CL-001','action':'create','prev':'','next':'active','reason':'','rev':1,'actor':UID,'createdAt':TSNOW},**k)
+RP='clientRegistry/CL-001'; AP=lambda a: 'clientRegistryAudit/'+a
+def AFTER(reg,aud,aid,cid='CL-001'): return {'clientRegistry/'+cid:reg,AP(aid):aud}
+for nm,sim in (('transition',S),('strict',SS)):
+    P=lambda op,path,au=None,new=None,old=None,docs=None,after=None: A(op,path,au,new,old,docs,sim=sim) if after is None else sim.allowed(op,path,au,new,old,docs,NOW,after)
+    # ---- positive controls
+    chk(f'P0 [{nm}] control: owner creates a client ID with its audit record in one batch',P('create',RP,OWN,REG(),None,None,AFTER(REG(),AUD(),AID1)) and P('create',AP(AID1),OWN,AUD(),None,None,AFTER(REG(),AUD(),AID1)))
+    OLD=REG(); ARCH=REG(status='archived',rev=2,lastAudit=AID2); AARCH=AUD(action='status',prev='active',next='archived',reason='contract ended',rev=2)
+    chk(f'P0 [{nm}] control: owner archives with a reason, paired with a new audit record',P('update',RP,OWN,ARCH,OLD,{RP:OLD},AFTER(ARCH,AARCH,AID2)) and P('create',AP(AID2),OWN,AARCH,None,{RP:OLD},AFTER(ARCH,AARCH,AID2)))
+    NOTE=REG(notes='prefers mornings',rev=2,lastAudit=AID3); ANOTE=AUD(action='notes',prev='',next='prefers mornings',reason='',rev=2)
+    chk(f'P0 [{nm}] control: owner edits notes, paired with an audit record',P('update',RP,OWN,NOTE,OLD,{RP:OLD},AFTER(NOTE,ANOTE,AID3)) and P('create',AP(AID3),OWN,ANOTE,None,{RP:OLD},AFTER(NOTE,ANOTE,AID3)))
+    chk(f'P0 [{nm}] control: owner can read and list both collections',all(P(o,x,OWN) for o,x in (('get',RP),('list','clientRegistry'),('get',AP(AID1)),('list','clientRegistryAudit'))))
+    # ---- who
+    for who,au in (('visitor',None),('stranger',STRANGER),('anonymous provider',dict(OWN,provider='anonymous')),('owner uid, unverified',dict(OWN,verified=False))):
+        chk(f'P0 [{nm}] {who}: no read, list, create, update or delete on the registry or its audit',not any([P(o,RP,au,REG(),REG(),{RP:REG()},AFTER(REG(),AUD(),AID1)) for o in ('get','create','update','delete')]+[P(o,AP(AID1),au,AUD(),AUD(),{},AFTER(REG(),AUD(),AID1)) for o in ('get','create','update','delete')]+[P('list','clientRegistry',au),P('list','clientRegistryAudit',au),P('update',RP,au,ARCH,OLD,{RP:OLD},AFTER(ARCH,AARCH,AID2)),P('create',AP(AID2),au,AARCH,None,{RP:OLD},AFTER(ARCH,AARCH,AID2))]))
+    chk(f'P0 [{nm}] owner cannot delete a registry entry or an audit record, and cannot update an audit record',not P('delete',RP,OWN,None,REG(),{RP:REG()}) and not P('delete',AP(AID1),OWN,None,AUD(),{AP(AID1):AUD()}) and not P('update',AP(AID1),OWN,AUD(reason='edited'),AUD(),{AP(AID1):AUD()},AFTER(REG(),AUD(reason='edited'),AID1)))
+    # ---- create refusals
+    BADID=['cl-001','CL_001','CL--001','CL-001-','1CL-001','AB','A'*25,'CL 001','CL.001','-CL','CL/001','CLÉ']
+    for bid in BADID:
+        if '/' in bid: continue
+        chk(f'P0 [{nm}] registry create refused: bad Client ID {bid!r}',not P('create','clientRegistry/'+bid,OWN,REG(),None,None,AFTER(REG(),AUD(clientId='CL-001'),AID1,bid)))
+    CR=[('status archived',REG(status='archived')),('rev 2',REG(rev=2)),('rev 0',REG(rev=0)),('rev string',REG(rev='1')),('extra field',REG(name='Ann')),('extra email',REG(email='a@b.co')),('missing notes',{k:v for k,v in REG().items() if k!='notes'}),('missing lastAudit',{k:v for k,v in REG().items() if k!='lastAudit'}),
+        ('notes 501',REG(notes='n'*501)),('notes number',REG(notes=5)),('createdAt not server time',REG(createdAt=TS(NOW-1))),('updatedAt not server time',REG(updatedAt=TS(NOW+1))),('createdAt client number',REG(createdAt=NOW)),
+        ('lastAudit too short',REG(lastAudit='abc')),('lastAudit bad chars',REG(lastAudit='a'*15+'-')),('lastAudit 41 chars',REG(lastAudit='a'*41)),('lastAudit number',REG(lastAudit=5))]
+    for n,d in CR: chk(f'P0 [{nm}] registry create refused: {n}',not P('create',RP,OWN,d,None,None,AFTER(d,AUD(),d.get('lastAudit') if isinstance(d.get('lastAudit'),str) and d.get('lastAudit') else AID1)))
+    chk(f'P0 [{nm}] registry create refused: no audit record in the same batch',not P('create',RP,OWN,REG(),None,None,{RP:REG()}))
+    chk(f'P0 [{nm}] registry create refused: points at an audit record that already exists (replay)',not P('create',RP,OWN,REG(),None,{AP(AID1):AUD()},AFTER(REG(),AUD(),AID1)))
+    chk(f'P0 [{nm}] registry create refused: an existing ID cannot be re-created as a fresh rev 1 (overwrite attempt is an update)',not P('update',RP,OWN,REG(createdAt=TS(NOW-5)),REG(rev=3),{RP:REG(rev=3)},AFTER(REG(),AUD(),AID1)))
+    # ---- update refusals
+    OLD=REG(rev=1)
+    def UPD(n,new,aud=None,aid=AID2,docs=None):
+        aud=aud or AUD(action='status',prev='active',next=new.get('status','active') if isinstance(new,dict) else 'active',reason='some reason',rev=2)
+        chk(f'P0 [{nm}] registry update refused: {n}',not P('update',RP,OWN,new,OLD,docs if docs is not None else {RP:OLD},AFTER(new,aud,aid)))
+    G=lambda **k: REG(**dict({'status':'archived','rev':2,'lastAudit':AID2},**k))
+    UPD('revision does not go up by one (same)',G(rev=1)); UPD('revision jumps by two',G(rev=3)); UPD('revision goes backwards',REG(status='archived',rev=0,lastAudit=AID2))
+    UPD('status not active/archived',G(status='deleted')); UPD('createdAt changed',G(createdAt=TS(NOW-9))); UPD('updatedAt not server time',G(updatedAt=TS(NOW-9)))
+    UPD('extra field added',G(name='Ann')); UPD('field removed',{k:v for k,v in G().items() if k!='notes'}); UPD('notes 501',G(notes='n'*501)); UPD('notes number',G(notes=5))
+    chk(f'P0 [{nm}] registry update refused: no audit record in the same batch',not P('update',RP,OWN,G(),OLD,{RP:OLD},{RP:G()}))
+    chk(f'P0 [{nm}] registry update refused: reuses an old audit record id (replay)',not P('update',RP,OWN,G(),OLD,{RP:OLD,AP(AID2):AUD()},AFTER(G(),AUD(),AID2)))
+    chk(f'P0 [{nm}] registry update refused: lastAudit unchanged',not P('update',RP,OWN,REG(status='archived',rev=2,lastAudit=AID1),OLD,{RP:OLD,AP(AID1):AUD()},AFTER(REG(status='archived',rev=2,lastAudit=AID1),AUD(),AID1)))
+    # ---- audit refusals
+    NEWR=REG(status='archived',rev=2,lastAudit=AID2); BASE=AUD(action='status',prev='active',next='archived',reason='contract ended',rev=2)
+    def AUDT(n,aud,reg=NEWR,aid=AID2,docs=None):
+        chk(f'P0 [{nm}] audit create refused: {n}',not P('create',AP(aid),OWN,aud,None,docs if docs is not None else {RP:OLD},AFTER(reg,aud,aid)))
+    chk(f'P0 [{nm}] audit baseline for the refusal cases is accepted',P('create',AP(AID2),OWN,BASE,None,{RP:OLD},AFTER(NEWR,BASE,AID2)))
+    AUDT('extra field',dict(BASE,name='Ann')); AUDT('missing field',{k:v for k,v in BASE.items() if k!='reason'}); AUDT('unknown action',dict(BASE,action='delete'))
+    AUDT('someone else as actor',dict(BASE,actor='someoneelse123')); AUDT('createdAt not server time',dict(BASE,createdAt=TS(NOW-1))); AUDT('bad clientId',dict(BASE,clientId='cl--1'))
+    AUDT('status change with a too-short reason',dict(BASE,reason='no')); AUDT('status change with an empty reason',dict(BASE,reason='')); AUDT('reason 201 characters',dict(BASE,reason='r'*201))
+    AUDT('prev does not match the old status',dict(BASE,prev='archived')); AUDT('next does not match the new status',dict(BASE,next='active'))
+    AUDT('rev does not match the registry',dict(BASE,rev=3)); AUDT('action create with rev 2',dict(BASE,action='create',prev='',next='active'))
+    AUDT('action status with rev 1',dict(BASE,rev=1),reg=REG(status='archived',rev=1,lastAudit=AID2))
+    chk(f'P0 [{nm}] audit create refused: orphan (no registry entry in the same batch)',not P('create',AP(AID2),OWN,BASE,None,{RP:OLD},{AP(AID2):BASE}))
+    chk(f'P0 [{nm}] audit create refused: registry entry points at a different audit id',not P('create',AP(AID2),OWN,BASE,None,{RP:OLD},AFTER(REG(status='archived',rev=2,lastAudit=AID3),BASE,AID2)))
+    AUDT('audit id too short',BASE,aid='abc',reg=REG(status='archived',rev=2,lastAudit='abc'))
+    ANO=AUD(action='notes',prev='old',next='new text',reason='',rev=2); NREG=REG(notes='new text',rev=2,lastAudit=AID3); NOLD=REG(notes='real old')
+    chk(f'P0 [{nm}] audit create refused: notes prev does not match what was stored',not P('create',AP(AID3),OWN,ANO,None,{RP:NOLD},AFTER(NREG,ANO,AID3)))
+    chk(f'P0 [{nm}] audit create refused: notes next does not match what was stored',not P('create',AP(AID3),OWN,dict(ANO,prev='real old',next='different'),None,{RP:NOLD},AFTER(NREG,dict(ANO,prev='real old',next='different'),AID3)))
+    chk(f'P0 [{nm}] audit create refused: create action whose next is not the stored status',not P('create',AP(AID1),OWN,AUD(next='archived'),None,None,AFTER(REG(),AUD(next='archived'),AID1)))
+    chk(f'P0 [{nm}] pause switch does not affect the owner registry (owner-only data, not public intake)',P('create',RP,OWN,REG(),None,{'content/guard':{'pause':True}},AFTER(REG(),AUD(),AID1)))
 # ---------------- 9. cross-check: strict file equals transition file apart from the owner check
 a=re.sub(r'\s+','',TXT); b=re.sub(r'\s+','',re.sub(r'^//.*\n','',STRICT,flags=re.M))
 chk('strict rules differ from the transition rules only in the owner e-mail fallback',a.replace("&&(request.auth.uid==ownerUid()||request.auth.token.email=='fredespinosa86.app@gmail.com');","&&request.auth.uid==ownerUid();")==b,'')

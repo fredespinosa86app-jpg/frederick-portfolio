@@ -31,6 +31,10 @@ service cloud.firestore {
       let g = /databases/$(database)/documents/content/guard;
       return !exists(g) || get(g).data.get('pause', false) != true;
     }
+    // P0 (4.5.0): Client ID registry helpers. An ID is A-Z, 0-9 and "-", 3 to 24 characters, starts with a letter, no "--", no trailing "-".
+    function validClientId(id) { return id.matches('^[A-Z][A-Z0-9-]{1,22}[A-Z0-9]$') && !id.matches('.*--.*'); }
+    function regDoc(cid) { return /databases/$(database)/documents/clientRegistry/$(cid); }
+    function regAudit(aid) { return /databases/$(database)/documents/clientRegistryAudit/$(aid); }
     match /settings/site { allow read: if true; allow write: if isOwner(); }
     match /meetingRequests/{id} {
       allow create: if request.resource.data.keys().hasOnly(['name','email','company','date','time','tz','platform','message','status','createdAt','service','formId','formName','answers'])
@@ -139,6 +143,53 @@ service cloud.firestore {
         && request.resource.data.data is string && request.resource.data.data.size() <= 360000
         && request.resource.data.data.matches('^data:image/webp;base64,[A-Za-z0-9+/]+={0,2}$')
         && request.resource.data.bytes is number && request.resource.data.bytes <= 262144;
+    }
+    // P0 (4.5.0): shared Client ID registry. IDs only - never a name, e-mail, phone or company. Owner only.
+    // The ID is the document ID, so it can never be edited or reused, and there is no delete (archive instead).
+    // Every create or update must be written in one batch with a BRAND-NEW audit record (lastAudit) and a revision number one higher,
+    // so two tabs cannot overwrite each other and no change exists without its audit entry.
+    match /clientRegistry/{id} {
+      allow read: if isOwner();
+      allow create: if isOwner() && validClientId(id)
+        && request.resource.data.keys().hasOnly(['status','notes','createdAt','updatedAt','rev','lastAudit'])
+        && request.resource.data.keys().hasAll(['status','notes','createdAt','updatedAt','rev','lastAudit'])
+        && request.resource.data.status == 'active'
+        && request.resource.data.notes is string && request.resource.data.notes.size() <= 500
+        && request.resource.data.rev == 1
+        && request.resource.data.createdAt == request.time && request.resource.data.updatedAt == request.time
+        && request.resource.data.lastAudit is string && request.resource.data.lastAudit.matches('^[A-Za-z0-9]{16,40}$')
+        && !exists(regAudit(request.resource.data.lastAudit)) && existsAfter(regAudit(request.resource.data.lastAudit));
+      allow update: if isOwner() && validClientId(id)
+        && request.resource.data.keys().hasOnly(['status','notes','createdAt','updatedAt','rev','lastAudit'])
+        && request.resource.data.keys().hasAll(['status','notes','createdAt','updatedAt','rev','lastAudit'])
+        && request.resource.data.status in ['active','archived']
+        && request.resource.data.notes is string && request.resource.data.notes.size() <= 500
+        && request.resource.data.rev is number && request.resource.data.rev == resource.data.rev + 1
+        && request.resource.data.createdAt == resource.data.createdAt && request.resource.data.updatedAt == request.time
+        && request.resource.data.lastAudit is string && request.resource.data.lastAudit.matches('^[A-Za-z0-9]{16,40}$')
+        && !exists(regAudit(request.resource.data.lastAudit)) && existsAfter(regAudit(request.resource.data.lastAudit));
+    }
+    match /clientRegistryAudit/{aid} {
+      allow read: if isOwner();
+      allow create: if isOwner() && aid.matches('^[A-Za-z0-9]{16,40}$')
+        && request.resource.data.keys().hasOnly(['clientId','action','prev','next','reason','rev','actor','createdAt'])
+        && request.resource.data.keys().hasAll(['clientId','action','prev','next','reason','rev','actor','createdAt'])
+        && request.resource.data.clientId is string && validClientId(request.resource.data.clientId)
+        && request.resource.data.action in ['create','status','notes']
+        && request.resource.data.prev is string && request.resource.data.prev.size() <= 500
+        && request.resource.data.next is string && request.resource.data.next.size() <= 500
+        && request.resource.data.reason is string && request.resource.data.reason.size() <= 200
+        && (request.resource.data.action != 'status' || request.resource.data.reason.size() >= 3)
+        && request.resource.data.rev is number
+        && request.resource.data.actor == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && existsAfter(regDoc(request.resource.data.clientId))
+        && getAfter(regDoc(request.resource.data.clientId)).data.lastAudit == aid
+        && getAfter(regDoc(request.resource.data.clientId)).data.rev == request.resource.data.rev
+        && ((request.resource.data.action == 'create') == (request.resource.data.rev == 1))
+        && (request.resource.data.action != 'create' || request.resource.data.next == getAfter(regDoc(request.resource.data.clientId)).data.status)
+        && (request.resource.data.action != 'status' || (request.resource.data.prev == get(regDoc(request.resource.data.clientId)).data.status && request.resource.data.next == getAfter(regDoc(request.resource.data.clientId)).data.status))
+        && (request.resource.data.action != 'notes' || (request.resource.data.prev == get(regDoc(request.resource.data.clientId)).data.notes && request.resource.data.next == getAfter(regDoc(request.resource.data.clientId)).data.notes));
     }
     match /clients/{id} { allow read, write: if isOwner(); }
     match /ownerPrivate/{doc} { allow read, write: if isOwner(); }

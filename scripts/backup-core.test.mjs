@@ -63,3 +63,13 @@ test('E4: a backup that contains ownerPrivate/google is accepted but that docume
   assert.equal(r.ok, true, r.errors.join());
   assert.ok(!('google' in r.data.ownerPrivate)); assert.ok(r.warnings.some(w => /never restored/.test(w)));
 });
+
+test('4.5.0: client ID registry and its history are saved but never restored', async () => {
+  const s = sample(); s.clientRegistry = [{ id: 'CL-001', data: { status: 'active', notes: '', rev: 1, lastAudit: 'a'.repeat(16), createdAt: ts(1700000000000), updatedAt: ts(1700000000000) } }];
+  s.clientRegistryAudit = [{ id: 'a'.repeat(16), data: { clientId: 'CL-001', action: 'create', prev: '', next: 'active', reason: '', rev: 1, actor: 'u', createdAt: ts(1700000000000) } }];
+  const b = await BC.build(s), r = await BC.validate(JSON.stringify(b));
+  assert.equal(r.ok, true, r.errors.join()); assert.equal(r.summary.clientRegistry, 1); assert.equal(r.summary.clientRegistryAudit, 1);
+  assert.ok(r.warnings.some(w => /Client IDs/.test(w)), 'warns that they are not restored');
+  assert.deepEqual(BC.plan(b.data, ['clientRegistry', 'clientRegistryAudit']), []);
+  assert.ok(BC.EXPORT_ONLY.includes('clientRegistry') && !BC.RESTORABLE.includes('clientRegistry'));
+});

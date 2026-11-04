@@ -8,9 +8,9 @@
   const FORMAT = 'codeflow-portfolio-backup', VERSION = 1;
   /* restorable: owner-writable by the rules for any document. exportOnly: the rules only let visitors create these, so they are saved for your records but never restored. */
   const RESTORABLE = ['settings', 'content', 'ownerPrivate', 'clients'];
-  const EXPORT_ONLY = ['meetingRequests', 'chatUnanswered', 'activity', 'visits'];
+  const EXPORT_ONLY = ['meetingRequests', 'chatUnanswered', 'activity', 'visits', 'clientRegistry', 'clientRegistryAudit'];   // 4.5.0: registry records are paired with audit entries by the rules, so they cannot be restored by a plain write
   const MAX_BYTES = 8 * 1024 * 1024, MAX_DOC = 1000000, MAX_DEPTH = 20, MAX_NODES = 300000, MAX_DOCS = 5000;
-  const LABEL = { settings: 'Site settings', content: 'Site content', ownerPrivate: 'Private settings (rates, capacity)', clients: 'Clients', meetingRequests: 'Meeting requests', chatUnanswered: 'Chatbot questions', activity: 'Activity log', visits: 'Visit records' };
+  const LABEL = { settings: 'Site settings', content: 'Site content', ownerPrivate: 'Private settings (rates, capacity)', clients: 'Clients', meetingRequests: 'Meeting requests', chatUnanswered: 'Chatbot questions', activity: 'Activity log', visits: 'Visit records', clientRegistry: 'Client IDs', clientRegistryAudit: 'Client ID history' };
   const ID_OK = /^[A-Za-z0-9_-]{1,60}$/;
   /* Enhancement E4: connection secrets (Google Sheets address + token) are never written to a backup and never restored from one */
   const NEVER = { ownerPrivate: ['google'] };
@@ -97,7 +97,7 @@
     if (docs > MAX_DOCS) r.errors.push('Too many documents (' + docs + ').');
     if (!docs && !r.errors.length) r.errors.push('The backup contains no documents.');
     if (!r.errors.length) {
-      EXPORT_ONLY.forEach(c => { if (r.summary[c]) r.warnings.push(LABEL[c] + ' (' + r.summary[c] + ') are kept in the file for your records but are not restored: the database only lets visitors create them.'); });
+      EXPORT_ONLY.forEach(c => { if (r.summary[c]) r.warnings.push(LABEL[c] + ' (' + r.summary[c] + ') are kept in the file for your records but are not restored: ' + (/^clientRegistry/.test(c) ? 'the database ties each change to its history entry, so they cannot be rewritten from a file.' : 'the database only lets visitors create them.')); });
       if (!RESTORABLE.some(c => r.summary[c])) r.warnings.push('Nothing in this file can be restored.');
       r.ok = true; r.data = j.data;
     }
