@@ -235,3 +235,9 @@ button.libtile.pickable{cursor:pointer;min-height:44px}button.libtile.pickable:h
 @media (max-width:560px){.wttab{font-size:.85rem}.wttab th,.wttab td{padding:5px 4px}}
 .wtb{display:inline-block;border-radius:999px;padding:2px 10px;font-size:12.5px;font-weight:600}
 .wtb-ok{background:#d9f2e0;color:#0d4a22}.wtb-warn{background:#ffe9b8;color:#5c3b00}.wtb-info{background:#dde8ff;color:#1b3a7a}
+
+/* B1 (4.5.0): status badges for billing profiles and billable hours (contrast checked) */
+.bbadge{display:inline-block;border-radius:999px;padding:2px 10px;font-size:12.5px;font-weight:600}
+.bb-ok{background:#d9f2e0;color:#0d4a22}.bb-warn{background:#ffe9b8;color:#5c3b00}.bb-info{background:#dde8ff;color:#1b3a7a}.bb-neutral{background:#e6e9ef;color:#2f394d}
+.bhold{background:#f4f6fa}
+#dp-billing input:not([type=checkbox]),#dp-billing select,#dp-billhours input:not([type=checkbox]),#dp-billhours select{min-height:42px;box-sizing:border-box}

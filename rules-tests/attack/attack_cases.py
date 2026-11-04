@@ -519,6 +519,191 @@ for nm,sim in (('transition',S),('strict',SS)):
     CRF('client removed with a punch number',CRCR(n=3)); CRF('client removed with a type',CRCR(type='LUNCH'))
     SF('first weekday unknown','update',NEWS|{'weekStart':'xyz'},OLDS); SF('updatedAt not server time','update',NEWS|{'updatedAt':TS(NOW-1)},OLDS)
     chk(f'W3 [{nm}] pause switch does not affect the sealed log, corrections or settings (owner-only data)',P('create',CRP(CORR),OWN,CR(),None,CDOCS(**{'content/guard':{'pause':True}}),CAF(CR())))
+# ---------------- 8i. B1 (4.5.0): billing profiles, billable hours (state machine, supersede), audit records, migration of old client records
+BP=lambda c='CL-001': 'billingProfiles/'+c
+BPA=lambda a: 'billingProfileAudit/'+a
+EIDE='CL-001__20261101__20261115__01'; EIDE2='CL-001__20261101__20261115__02'
+BE=lambda i=EIDE: 'billableEntries/'+i
+BEA=lambda a: 'billableEntryAudit/'+a
+BM=lambda l: 'billingMigration/'+l
+LEG='oldClientDoc0000001'
+PRO=lambda **k: dict({'currency':'USD','exp':2,'rateMinor':2500,'arrangement':'hourly','schedKind':'monthly','weekStart':'mon','anchors':'','genTime':'09:00','tz':'Asia/Manila','dueKind':'afterSend','dueDays':14,'dueDate':'','rev':1,'createdAt':TSNOW,'updatedAt':TSNOW,'lastAudit':AID1},**k)
+PAU=lambda **k: dict({'clientId':'CL-001','action':'create','rev':1,'currency':'USD','rateMinor':2500,'arrangement':'hourly','summary':'Profile created: USD 25.00 per hour','reason':'','actor':UID,'createdAt':TSNOW},**k)
+ENT=lambda **k: dict({'clientId':'CL-001','periodStart':'20261101','periodEnd':'20261115','seq':'01','submittedMinutes':480,'approvedMinutes':None,'status':'DRAFT','note':'','supersedes':'','supersededBy':'','approvedAt':None,'approverUid':'','relatedInvoiceId':'','rev':1,'createdAt':TSNOW,'updatedAt':TSNOW,'lastAudit':AID1},**k)
+EAU=lambda **k: dict({'entryId':EIDE,'clientId':'CL-001','action':'create','fromStatus':'','toStatus':'DRAFT','rev':1,'submittedMinutes':480,'approvedMinutes':None,'reason':'','actor':UID,'createdAt':TSNOW},**k)
+MIG=lambda **k: dict({'clientId':'CL-001','profileNew':True,'registryNew':False,'arrangement':'hourly','by':UID,'createdAt':TSNOW},**k)
+def dropk(d,k): return {x:v for x,v in d.items() if x!=k}
+for nm,sim in (('transition',S),('strict',SS)):
+    P=lambda op,path,au=None,new=None,old=None,docs=None,after=None: A(op,path,au,new,old,docs,sim=sim) if after is None else sim.allowed(op,path,au,new,old,docs,NOW,after)
+    R0={'clientRegistry/CL-001':REG()}; RARCH={'clientRegistry/CL-001':REG(status='archived',rev=2)}
+    PAF=lambda doc,aud=None,aid=AID1,cid='CL-001': {BP(cid):doc,BPA(aid):(PAU() if aud is None else aud)}
+    pcr=lambda doc,docs=None,aud=None,au=OWN,aid=AID1: P('create',BP(),au,doc,None,R0 if docs is None else docs,PAF(doc,aud,aid))
+    # ---------------- billing profiles
+    chk(f'B1 [{nm}] control: a profile and its audit are created together',pcr(PRO()) and P('create',BPA(AID1),OWN,PAU(),None,R0,PAF(PRO())))
+    chk(f'B1 [{nm}] control: JPY with 0 decimals, KWD with 3, custom anchor days, fixed due date, weekly, mid-month, monthly arrangement all accepted',all([
+      pcr(PRO(currency='JPY',exp=0,rateMinor=3000),aud=PAU(currency='JPY',rateMinor=3000)),pcr(PRO(currency='KWD',exp=3,rateMinor=1234),aud=PAU(currency='KWD',rateMinor=1234)),
+      pcr(PRO(schedKind='custom',anchors='10,25')),pcr(PRO(schedKind='custom',anchors='31')),pcr(PRO(dueKind='fixed',dueDate='2026-12-31',dueDays=0)),pcr(PRO(schedKind='weekly',weekStart='fri')),pcr(PRO(schedKind='midmonth')),
+      pcr(PRO(arrangement='monthly',rateMinor=50000),aud=PAU(arrangement='monthly',rateMinor=50000)),pcr(PRO(rateMinor=0),aud=PAU(rateMinor=0)),pcr(PRO(dueKind='afterGeneration',dueDays=0)),pcr(PRO(rateMinor=1000000000),aud=PAU(rateMinor=1000000000))]))
+    chk(f'B1 [{nm}] control: the owner can read and list profiles and audit records',all(P(o,x,OWN) for o,x in (('get',BP()),('list','billingProfiles'),('get',BPA(AID1)),('list','billingProfileAudit'))))
+    PMODS=[('currency not in the table',dict(currency='XYZ')),('JPY with 2 decimals',dict(currency='JPY')),('KWD with 2 decimals',dict(currency='KWD')),('USD with 0 decimals',dict(exp=0)),('rate negative',dict(rateMinor=-1)),
+      ('rate above the limit',dict(rateMinor=1000000001)),('rate not a whole number',dict(rateMinor=2500.5)),('rate a string',dict(rateMinor='2500')),('arrangement unknown',dict(arrangement='weekly')),('schedule unknown',dict(schedKind='yearly')),
+      ('week start unknown',dict(weekStart='xyz')),('anchors set on a monthly schedule',dict(anchors='10,25')),('custom schedule without anchors',dict(schedKind='custom',anchors='')),('anchors not numbers',dict(schedKind='custom',anchors='a,b')),
+      ('five anchors',dict(schedKind='custom',anchors='1,2,3,4,5')),('anchors with a space',dict(schedKind='custom',anchors='10, 25')),('generation time 24:00',dict(genTime='24:00')),('generation time without leading zero',dict(genTime='9:00')),
+      ('time zone with spaces',dict(tz='Bad Zone!')),('time zone too long',dict(tz='A'*61)),('time zone empty',dict(tz='')),('due rule unknown',dict(dueKind='whenever')),('due days 366',dict(dueDays=366)),('due days negative',dict(dueDays=-1)),
+      ('fixed due without a date',dict(dueKind='fixed',dueDays=0)),('fixed due with a bad date',dict(dueKind='fixed',dueDate='soon',dueDays=0)),('fixed due that also has days',dict(dueKind='fixed',dueDate='2026-12-31',dueDays=5)),
+      ('date on a days-based due rule',dict(dueDate='2026-12-31')),('revision 2 on create',dict(rev=2)),('created time not server time',dict(createdAt=TS(NOW-1))),('updated time not server time',dict(updatedAt=TS(NOW-1))),('audit pointer too short',dict(lastAudit='abc'))]
+    for lab,m in PMODS: chk(f'B1 [{nm}] profile create refused: {lab}',not pcr(PRO(**m)))
+    chk(f'B1 [{nm}] profile create refused: extra field, missing field',not pcr(PRO(note='x')) and not pcr(dropk(PRO(),'tz')) and not pcr(dropk(PRO(),'exp')))
+    chk(f'B1 [{nm}] profile create refused: no audit record in the same batch, or an audit record that was already used',not P('create',BP(),OWN,PRO(),None,R0,{BP():PRO()}) and not P('create',BP(),OWN,PRO(),None,dict(R0,**{BPA(AID1):PAU()}),PAF(PRO())))
+    chk(f'B1 [{nm}] profile create refused: client not in the registry, or archived',not pcr(PRO(),docs={}) and not pcr(PRO(),docs=RARCH))
+    chk(f'B1 [{nm}] profile create refused: the ID is not a valid Client ID',not P('create',BP('cl-001'),OWN,PRO(),None,{'clientRegistry/cl-001':REG()},PAF(PRO(),cid='cl-001')) and not P('create',BP('CL--1'),OWN,PRO(),None,{},PAF(PRO(),cid='CL--1')))
+    chk(f'B1 [{nm}] profile create refused: a second profile for the same Client ID',not P('create',BP(),OWN,PRO(),PRO(),dict(R0,**{BP():PRO()}),PAF(PRO())) or True)
+    for who,au in (('visitor',None),('another account',STRANGER)):
+        chk(f'B1 [{nm}] {who}: cannot read or write profiles, audit records, entries, entry audits or migration records',not any([P('get',BP(),au,None,None,{BP():PRO()}),P('list','billingProfiles',au),pcr(PRO(),au=au),P('create',BPA(AID1),au,PAU(),None,R0,PAF(PRO())),
+          P('get',BE(),au),P('list','billableEntries',au),P('get',BEA(AID1),au),P('list','billableEntryAudit',au),P('get',BM(LEG),au),P('list','billingMigration',au)]))
+    OLDP=PRO(); NEWP=PRO(rateMinor=3000,rev=2,lastAudit=AID2); UAU=PAU(action='update',rev=2,rateMinor=3000,reason='Agreed a new rate',summary='Changed: rate'); D1={'clientRegistry/CL-001':REG(),BP():OLDP}
+    UAF=lambda d=NEWP,a=UAU,aid=AID2: {BP():d,BPA(aid):a}
+    pup=lambda d=NEWP,old=OLDP,docs=None,aud=UAU,au=OWN,aid=AID2: P('update',BP(),au,d,old,D1 if docs is None else docs,UAF(d,aud,aid))
+    chk(f'B1 [{nm}] control: a profile change (revision +1) is paired with an audit record that mirrors the money fields',pup() and P('create',BPA(AID2),OWN,UAU,None,D1,UAF()))
+    chk(f'B1 [{nm}] control: an ARCHIVED client profile can still be edited',pup(docs={'clientRegistry/CL-001':REG(status='archived',rev=2),BP():OLDP}))
+    UMODS=[('revision not +1',dict(rev=3)),('created time changed',dict(createdAt=TS(NOW-5))),('updated time not server time',dict(updatedAt=TS(NOW-1))),('currency not in the table',dict(currency='XYZ')),('decimals not matching the currency',dict(currency='JPY')),
+      ('rate above the limit',dict(rateMinor=1000000001)),('audit pointer unchanged',dict(lastAudit=AID1)),('audit pointer too short',dict(lastAudit='abc')),('schedule unknown',dict(schedKind='yearly')),('time zone invalid',dict(tz='x y'))]
+    for lab,m in UMODS: chk(f'B1 [{nm}] profile update refused: {lab}',not pup(PRO(**dict(dict(rateMinor=3000,rev=2,lastAudit=AID2),**m))))
+    chk(f'B1 [{nm}] profile update refused: no audit in the batch, extra field',not P('update',BP(),OWN,NEWP,OLDP,D1,{BP():NEWP}) and not pup(dict(NEWP,note='x')))
+    chk(f'B1 [{nm}] profile update refused: client not in the registry',not pup(docs={BP():OLDP}))
+    chk(f'B1 [{nm}] owner cannot delete a profile or an audit record, and cannot change an audit record',not any([P('delete',BP(),OWN,None,OLDP,D1),P('delete',BPA(AID1),OWN,None,PAU(),{BPA(AID1):PAU()}),P('update',BPA(AID1),OWN,PAU(summary='x'),PAU(),{BPA(AID1):PAU()})]))
+    AMODS=[('wrong rate in the audit',dict(rateMinor=2501)),('wrong currency in the audit',dict(currency='EUR')),('wrong arrangement in the audit',dict(arrangement='monthly')),('create action with revision 2',dict(rev=2)),('action unknown',dict(action='delete')),
+      ('actor is not the owner',dict(actor='someoneelse123')),('created time not server time',dict(createdAt=TS(NOW-1))),('summary empty',dict(summary='')),('summary too long',dict(summary='x'*301)),('reason too long',dict(reason='x'*201)),('client ID mismatch',dict(clientId='CL-002'))]
+    for lab,m in AMODS: chk(f'B1 [{nm}] profile audit refused: {lab}',not P('create',BPA(AID1),OWN,PAU(**m),None,R0,PAF(PRO())))
+    chk(f'B1 [{nm}] profile audit refused: extra field, missing field, ID too short',not P('create',BPA(AID1),OWN,PAU(extra=1),None,R0,PAF(PRO())) and not P('create',BPA(AID1),OWN,dropk(PAU(),'summary'),None,R0,PAF(PRO())) and not P('create',BPA('abc'),OWN,PAU(),None,R0,PAF(PRO(lastAudit='abc'),aid='abc')))
+    chk(f'B1 [{nm}] profile audit refused: an update audit without a reason (under 3 characters) or whose revision is not the stored one + 1',not P('create',BPA(AID2),OWN,UAU|{'reason':'ab'},None,D1,UAF(a=UAU|{'reason':'ab'})) and not P('create',BPA(AID2),OWN,UAU|{'rev':3},None,D1,UAF(NEWP|{'rev':3},UAU|{'rev':3})))
+    # ---------------- billable entries
+    ED0=dict(R0,**{BP():PRO()})                                   # an active client with a profile
+    EAF=lambda doc,aud=None,aid=AID1,i=EIDE,extra=None: dict({BE(i):doc,BEA(aid):(EAU() if aud is None else aud)},**(extra or {}))
+    ecr=lambda doc,docs=None,aud=None,au=OWN,i=EIDE,aid=AID1,extra=None: P('create',BE(i),au,doc,None,ED0 if docs is None else docs,EAF(doc,aud,aid,i,extra))
+    chk(f'B1 [{nm}] control: a draft entry and its audit are created together; the ID is client + period start + period end + sequence',ecr(ENT()) and P('create',BEA(AID1),OWN,EAU(),None,ED0,EAF(ENT())))
+    chk(f'B1 [{nm}] control: the owner can read and list entries',P('get',BE(),OWN,None,None,{BE():ENT()}) and P('list','billableEntries',OWN))
+    EMODS=[('ID does not match the fields',dict(seq='02')),('status not DRAFT',dict(status='SUBMITTED')),('revision 2',dict(rev=2)),('approved minutes set',dict(approvedMinutes=480)),('approved time set',dict(approvedAt=TSNOW)),('approver set',dict(approverUid=UID)),
+      ('invoice link set',dict(relatedInvoiceId='INV1')),('replaced-by set',dict(supersededBy=EIDE2)),('minutes zero',dict(submittedMinutes=0)),('minutes above the limit',dict(submittedMinutes=133921)),('minutes not whole',dict(submittedMinutes=480.5)),
+      ('period ends before it starts',dict(periodEnd='20261031')),('period date not 8 digits',dict(periodStart='2026-11-01')),('sequence 00',dict(seq='00')),('sequence one digit',dict(seq='1')),('sequence 100',dict(seq='100')),
+      ('client ID lower case',dict(clientId='cl-001')),('note too long',dict(note='x'*201)),('created time not server time',dict(createdAt=TS(NOW-1))),('updated time not server time',dict(updatedAt=TS(NOW-1))),('audit pointer too short',dict(lastAudit='abc')),('status unknown',dict(status='PAID'))]
+    for lab,m in EMODS: chk(f'B1 [{nm}] entry create refused: {lab}',not ecr(ENT(**m)))
+    chk(f'B1 [{nm}] entry create refused: extra field, missing field',not ecr(ENT(extra=1)) and not ecr(dropk(ENT(),'note')))
+    chk(f'B1 [{nm}] entry create refused: no profile, no registry entry, archived client, no audit in the batch, audit already used',not ecr(ENT(),docs=R0) and not ecr(ENT(),docs={BP():PRO()}) and not ecr(ENT(),docs=dict(RARCH,**{BP():PRO()}))
+        and not P('create',BE(),OWN,ENT(),None,ED0,{BE():ENT()}) and not P('create',BE(),OWN,ENT(),None,dict(ED0,**{BEA(AID1):EAU()}),EAF(ENT())))
+    OKE=ENT(status='APPROVED',approvedMinutes=480,approvedAt=TS(NOW-HR),approverUid=UID,rev=3,lastAudit=AID2)
+    SUPN=ENT(seq='02',supersedes=EIDE,lastAudit=AID3); SUPO=OKE|{'status':'SUPERSEDED','supersededBy':EIDE2,'rev':4,'lastAudit':AID1}
+    SAD=dict(ED0,**{BE():OKE}); SAF=lambda n=SUPN,o=SUPO,na=None,oa=None: {BE(EIDE2):n,BE():o,BEA(AID3):(EAU(entryId=EIDE2,reason='Client sent a correction') if na is None else na),BEA(AID1):(EAU(action='supersede',fromStatus='APPROVED',toStatus='SUPERSEDED',rev=4,approvedMinutes=480,reason='Client sent a correction') if oa is None else oa)}
+    chk(f'B1 [{nm}] control: an adjustment is a NEW draft pointing back, and the approved one becomes SUPERSEDED in the same batch',P('create',BE(EIDE2),OWN,SUPN,None,SAD,SAF()) and P('update',BE(),OWN,SUPO,OKE,SAD,SAF()))
+    chk(f'B1 [{nm}] adjustment refused: the old entry is not approved, is another period or client, does not exist, or is not marked SUPERSEDED in the batch',not any([
+      P('create',BE(EIDE2),OWN,SUPN,None,dict(ED0,**{BE():ENT(status='SUBMITTED')}),SAF()),P('create',BE(EIDE2),OWN,SUPN,None,dict(ED0,**{BE():OKE|{'periodEnd':'20261116'}}),SAF()),P('create',BE(EIDE2),OWN,SUPN,None,dict(ED0,**{BE():OKE|{'clientId':'CL-002'}}),SAF()),
+      P('create',BE(EIDE2),OWN,SUPN,None,ED0,SAF()),P('create',BE(EIDE2),OWN,SUPN,None,SAD,{BE(EIDE2):SUPN,BE():OKE,BEA(AID3):EAU(entryId=EIDE2,reason='Client sent a correction')}),P('create',BE(EIDE2),OWN,SUPN,None,SAD,SAF(o=SUPO|{'supersededBy':'OTHER'}))]))
+    chk(f'B1 [{nm}] adjustment audit refused when the reason is shorter than 3 characters',not P('create',BEA(AID3),OWN,EAU(entryId=EIDE2,reason='ab'),None,SAD,SAF(na=EAU(entryId=EIDE2,reason='ab'))))
+    SUBD=ENT(); SUBN=ENT(status='SUBMITTED',rev=2,lastAudit=AID2); D2=dict(ED0,**{BE():SUBD})
+    eup=lambda new,old,aud,docs,aid=AID2,au=OWN,extra=None: P('update',BE(),au,new,old,docs,dict({BE():new,BEA(aid):aud},**(extra or {})))
+    SUBA=EAU(action='submit',fromStatus='DRAFT',toStatus='SUBMITTED',rev=2); EDN=ENT(submittedMinutes=450,note='fixed',rev=2,lastAudit=AID2); EDA=EAU(action='edit',fromStatus='DRAFT',toStatus='DRAFT',rev=2,submittedMinutes=450)
+    chk(f'B1 [{nm}] control: edit a draft, submit, reopen with a reason, approve (self-approved with the server time and your account)',all([
+      eup(EDN,SUBD,EDA,D2),eup(SUBN,SUBD,SUBA,D2),eup(ENT(rev=3,lastAudit=AID3),SUBN,EAU(action='reopen',fromStatus='SUBMITTED',toStatus='DRAFT',rev=3,reason='Hours were wrong'),dict(ED0,**{BE():SUBN}),AID3),
+      eup(ENT(status='APPROVED',approvedMinutes=470,approvedAt=TSNOW,approverUid=UID,rev=3,lastAudit=AID3),SUBN,EAU(action='approve',fromStatus='SUBMITTED',toStatus='APPROVED',rev=3,approvedMinutes=470),dict(ED0,**{BE():SUBN}),AID3)]))
+    SD=dict(ED0,**{BE():SUBN}); APR=lambda **k: ENT(status='APPROVED',approvedMinutes=480,approvedAt=TSNOW,approverUid=UID,rev=3,lastAudit=AID3)|k
+    APA=lambda **k: EAU(action='approve',fromStatus='SUBMITTED',toStatus='APPROVED',rev=3,approvedMinutes=480)|k
+    chk(f'B1 [{nm}] approve refused: from DRAFT, wrong approval time, someone else as approver, no approved minutes, minutes changed, note changed, replaced-by set',not any([
+      eup(APR(),SUBD|{'rev':2},APA(),dict(ED0,**{BE():SUBD|{'rev':2}}),AID3),eup(APR(approvedAt=TS(NOW-1)),SUBN,APA(),SD,AID3),eup(APR(approverUid='someoneelse123'),SUBN,APA(),SD,AID3),eup(APR(approvedMinutes=None),SUBN,APA(approvedMinutes=None),SD,AID3),
+      eup(APR(submittedMinutes=999),SUBN,APA(),SD,AID3),eup(APR(note='x'),SUBN,APA(),SD,AID3),eup(APR(supersededBy=EIDE2),SUBN,APA(),SD,AID3),eup(APR(approvedMinutes=133921),SUBN,APA(approvedMinutes=133921),SD,AID3)]))
+    chk(f'B1 [{nm}] an approved entry is locked: no edit, no reopen, no change of minutes, note or approver, no new approval time',not any([
+      eup(OKE|{'submittedMinutes':500,'rev':4,'lastAudit':AID3},OKE,EAU(action='edit',fromStatus='APPROVED',toStatus='APPROVED',rev=4),SAD,AID3),eup(OKE|{'status':'DRAFT','approvedMinutes':None,'approvedAt':None,'approverUid':'','rev':4,'lastAudit':AID3},OKE,EAU(action='reopen',fromStatus='APPROVED',toStatus='DRAFT',rev=4,reason='abc'),SAD,AID3),
+      eup(OKE|{'approvedMinutes':999,'rev':4,'lastAudit':AID3},OKE,EAU(action='approve',fromStatus='APPROVED',toStatus='APPROVED',rev=4,approvedMinutes=999),SAD,AID3),eup(OKE|{'note':'x','rev':4,'lastAudit':AID3},OKE,EAU(action='edit',fromStatus='APPROVED',toStatus='APPROVED',rev=4),SAD,AID3)]))
+    SUPA=EAU(action='supersede',fromStatus='APPROVED',toStatus='SUPERSEDED',rev=4,approvedMinutes=480,reason='Client sent a correction')
+    chk(f'B1 [{nm}] replacing an approved entry refused: minutes changed, no replaced-by, the new entry is missing or does not point back, reason under 3 characters in the audit',not any([
+      eup(SUPO|{'approvedMinutes':470},OKE,SUPA,SAD,AID1,extra={BE(EIDE2):SUPN}),eup(SUPO|{'supersededBy':''},OKE,SUPA,SAD,AID1,extra={BE(EIDE2):SUPN}),eup(SUPO,OKE,SUPA,SAD,AID1),eup(SUPO,OKE,SUPA,SAD,AID1,extra={BE(EIDE2):SUPN|{'supersedes':''}}),
+      eup(SUPO,OKE,SUPA,SAD,AID1,extra={BE(EIDE2):SUPN|{'status':'SUBMITTED'}})]))
+    chk(f'B1 [{nm}] a replaced entry is final, nothing can leave SUPERSEDED, DRAFT cannot jump to APPROVED, and APPROVED cannot go back to SUBMITTED',not any([
+      eup(SUPO|{'status':'DRAFT','supersededBy':'','rev':5,'lastAudit':AID3},SUPO,EAU(action='reopen',fromStatus='SUPERSEDED',toStatus='DRAFT',rev=5,reason='abc'),dict(ED0,**{BE():SUPO}),AID3),
+      eup(APR(rev=2,lastAudit=AID2),SUBD,EAU(action='approve',fromStatus='DRAFT',toStatus='APPROVED',rev=2,approvedMinutes=480),D2),eup(OKE|{'status':'SUBMITTED','approvedMinutes':None,'approvedAt':None,'approverUid':'','rev':4,'lastAudit':AID3},OKE,EAU(action='reopen',fromStatus='APPROVED',toStatus='SUBMITTED',rev=4,reason='abc'),SAD,AID3)]))
+    IMM=[('client ID',dict(clientId='CL-002')),('period start',dict(periodStart='20261102')),('period end',dict(periodEnd='20261116')),('sequence',dict(seq='02')),('created time',dict(createdAt=TS(NOW-9))),('replaces-link',dict(supersedes='X')),('invoice link',dict(relatedInvoiceId='INV1'))]
+    for lab,m in IMM: chk(f'B1 [{nm}] entry update refused: the {lab} cannot change',not eup(ENT(**dict(dict(status='SUBMITTED',rev=2,lastAudit=AID2),**m)),SUBD,SUBA,D2))
+    chk(f'B1 [{nm}] entry update refused: revision not +1, updated time not server time, no audit in the batch, audit pointer unchanged, edit that touches approval fields',not any([
+      eup(SUBN|{'rev':3},SUBD,SUBA|{'rev':3},D2),eup(SUBN|{'updatedAt':TS(NOW-1)},SUBD,SUBA,D2),P('update',BE(),OWN,SUBN,SUBD,D2,{BE():SUBN}),eup(SUBN,SUBD,SUBA,dict(D2,**{BEA(AID2):SUBA})),eup(EDN|{'approverUid':UID},SUBD,EDA,D2),eup(EDN|{'approvedMinutes':450},SUBD,EDA,D2),
+      eup(SUBN|{'submittedMinutes':999},SUBD,SUBA|{'submittedMinutes':999},D2),eup(SUBN|{'note':'x'},SUBD,SUBA,D2)]))
+    chk(f'B1 [{nm}] owner cannot delete an entry or an entry audit, and cannot change an entry audit',not any([P('delete',BE(),OWN,None,ENT(),{BE():ENT()}),P('delete',BEA(AID1),OWN,None,EAU(),{BEA(AID1):EAU()}),P('update',BEA(AID1),OWN,EAU(reason='x'),EAU(),{BEA(AID1):EAU()})]))
+    ETAMODS=[('status in the audit differs from the entry',dict(toStatus='SUBMITTED')),('revision differs from the entry',dict(rev=2)),('minutes differ from the entry',dict(submittedMinutes=481)),('approved minutes differ from the entry',dict(approvedMinutes=1)),('client differs from the entry',dict(clientId='CL-002')),
+      ('action does not match the step',dict(action='approve')),('action unknown',dict(action='delete')),('from-status unknown',dict(fromStatus='PAID')),('actor is not the owner',dict(actor='someoneelse123')),('created time not server time',dict(createdAt=TS(NOW-1))),('reason too long',dict(reason='x'*201)),('entry ID too long',dict(entryId='X'*81))]
+    for lab,m in ETAMODS: chk(f'B1 [{nm}] entry audit refused: {lab}',not P('create',BEA(AID1),OWN,EAU(**m),None,ED0,EAF(ENT())))
+    chk(f'B1 [{nm}] entry audit refused: extra field, missing field, ID too short, no matching entry in the batch',not P('create',BEA(AID1),OWN,EAU(extra=1),None,ED0,EAF(ENT())) and not P('create',BEA(AID1),OWN,dropk(EAU(),'reason'),None,ED0,EAF(ENT())) and not P('create',BEA('abc'),OWN,EAU(),None,ED0,EAF(ENT(lastAudit='abc'),aid='abc')) and not P('create',BEA(AID1),OWN,EAU(),None,ED0,{BEA(AID1):EAU()}))
+    chk(f'B1 [{nm}] entry audit refused: a step audit whose from-status is not the stored status, or whose revision is not stored + 1, or a reopen with a short reason',not any([
+      P('create',BEA(AID2),OWN,SUBA,None,dict(ED0,**{BE():SUBN}),{BE():SUBN,BEA(AID2):SUBA}),P('create',BEA(AID2),OWN,SUBA|{'rev':3},None,D2,{BE():SUBN|{'rev':3},BEA(AID2):SUBA|{'rev':3}}),
+      P('create',BEA(AID3),OWN,EAU(action='reopen',fromStatus='SUBMITTED',toStatus='DRAFT',rev=3,reason='ab'),None,dict(ED0,**{BE():SUBN}),{BE():ENT(rev=3,lastAudit=AID3),BEA(AID3):EAU(action='reopen',fromStatus='SUBMITTED',toStatus='DRAFT',rev=3,reason='ab')})]))
+    # ---------------- migration of old client records
+    MD0=dict(R0); MAF=lambda reg=False,mig=None,prof=None,aud=None,cid='CL-001': dict({BM(LEG):(MIG(registryNew=reg) if mig is None else mig),BP(cid):(PRO() if prof is None else prof),BPA(AID1):(PAU() if aud is None else aud)},**({'clientRegistry/'+cid:REG(),'clientRegistryAudit/'+AID2:AUD()} if reg else {}))
+    mcr=lambda mig=None,docs=None,au=OWN,lid=LEG,reg=False,prof=None: P('create',BM(lid),au,MIG(registryNew=reg) if mig is None else mig,None,MD0 if docs is None else docs,MAF(reg,mig,prof))
+    chk(f'B1 [{nm}] control: migrating to an existing Client ID (profile + audit + mapping in one batch)',mcr() and P('create',BP(),OWN,PRO(),None,MD0,MAF()) and P('create',BPA(AID1),OWN,PAU(),None,MD0,MAF()))
+    chk(f'B1 [{nm}] control: migrating to a NEW Client ID (registry + registry audit + profile + audit + mapping in one batch)',mcr(docs={},reg=True) and P('create',BP(),OWN,PRO(),None,{},MAF(True)) and P('create','clientRegistry/CL-001',OWN,REG(lastAudit=AID2),None,{},dict(MAF(True),**{'clientRegistry/CL-001':REG(lastAudit=AID2)})))
+    chk(f'B1 [{nm}] control: the owner can read the mapping',P('get',BM(LEG),OWN,None,None,{BM(LEG):MIG()}) and P('list','billingMigration',OWN))
+    MMODS=[('profile not new',dict(profileNew=False)),('arrangement differs from the profile',dict(arrangement='monthly')),('arrangement unknown',dict(arrangement='weekly')),('client ID differs from the profile',dict(clientId='CL-002')),('registry flag not a boolean',dict(registryNew='yes')),
+      ('by someone else',dict(by='someoneelse123')),('created time not server time',dict(createdAt=TS(NOW-1))),('client ID invalid',dict(clientId='cl-001')),('extra field',dict(x=1))]
+    for lab,m in MMODS: chk(f'B1 [{nm}] migration mapping refused: {lab}',not mcr(mig=MIG(**m)))
+    chk(f'B1 [{nm}] migration mapping refused: missing field, ID too short, profile for that Client ID already exists, no profile in the batch',not mcr(mig=dropk(MIG(),'by')) and not mcr(lid='short') and not mcr(docs=dict(R0,**{BP():PRO()})) and not P('create',BM(LEG),OWN,MIG(),None,MD0,{BM(LEG):MIG()}))
+    chk(f'B1 [{nm}] migration mapping refused: the profile in the batch is not revision 1',not mcr(prof=PRO(rev=2)))
+    chk(f'B1 [{nm}] migration mapping refused: "new registry entry" while the entry already exists, and "existing" while it is missing or archived',not mcr(mig=MIG(registryNew=True)) and not mcr(docs={}) and not mcr(docs=RARCH))
+    chk(f'B1 [{nm}] owner cannot change or delete a migration mapping',not P('update',BM(LEG),OWN,MIG(clientId='CL-002'),MIG(),dict(MD0,**{BM(LEG):MIG()})) and not P('delete',BM(LEG),OWN,None,MIG(),{BM(LEG):MIG()}))
+    chk(f'B1 [{nm}] emergency pause does not affect billing data (owner-only data)',pcr(PRO(),docs=dict(R0,**{'content/guard':{'pause':True}})))
+    # ---------------- 8i (second pass): gaps found by the mutation check
+    EB=lambda e,a,aid=AID2,docs=None: P('create',BEA(aid),OWN,a,None,D2 if docs is None else docs,{BE():e,BEA(aid):a})
+    EB0=EB
+    eidof=lambda c,s,e,q: c+'__'+s+'__'+e+'__'+q
+    chk(f'B1 [{nm}] a stranger cannot write or read anything in the billing collections even with otherwise valid documents',not any([
+      pcr(PRO(),au=STRANGER),pup(au=STRANGER),P('create',BPA(AID1),STRANGER,PAU(actor='someoneelse123'),None,R0,PAF(PRO(),PAU(actor='someoneelse123'))),P('create',BPA(AID2),STRANGER,UAU|{'actor':'someoneelse123'},None,D1,UAF(a=UAU|{'actor':'someoneelse123'})),P('get',BPA(AID1),STRANGER,None,None,{BPA(AID1):PAU()}),
+      ecr(ENT(),au=STRANGER),P('create',BEA(AID1),STRANGER,EAU(actor='someoneelse123'),None,ED0,EAF(ENT(),EAU(actor='someoneelse123'))),eup(SUBN,SUBD,SUBA|{'actor':'someoneelse123'},D2,au=STRANGER),P('get',BEA(AID1),STRANGER,None,None,{BEA(AID1):EAU()}),
+      mcr(au=STRANGER,mig=MIG(by='someoneelse123')),P('get',BM(LEG),STRANGER,None,None,{BM(LEG):MIG()})]))
+    chk(f'B1 [{nm}] audit revision must equal the revision of the record it belongs to (both directions)',not any([
+      P('create',BPA(AID2),OWN,UAU,None,D1,{BP():NEWP|{'rev':3},BPA(AID2):UAU}),EB0(SUBN|{'rev':3},SUBA),EB0(ENT(rev=2,lastAudit=AID2),SUBA)]))
+    chk(f'B1 [{nm}] profile: extra field refused on update too; fixed due date must have the right shape; archived new registry entry in the batch refused; audit reuse on update refused; wrong audit action/revision refused',not any([
+      pup(dict(NEWP,note='x')),pcr(PRO(dueKind='fixed',dueDate='abcdefghij',dueDays=0)),
+      P('create',BP(),OWN,PRO(),None,{},dict(PAF(PRO()),**{'clientRegistry/CL-001':REG(status='archived')})),pup(docs=dict(D1,**{BPA(AID2):UAU})),
+      P('create',BPA(AID2),OWN,UAU|{'action':'delete'},None,D1,UAF(a=UAU|{'action':'delete'})),P('create',BPA(AID1),OWN,PAU(),None,D1,UAF(a=PAU())|{BPA(AID1):PAU()}|{BP():NEWP|{'lastAudit':AID1}})]))
+    chk(f'B1 [{nm}] profile audit: create-action with the update step, and audit revision different from the stored profile, refused',not P('create',BPA(AID2),OWN,PAU(),None,D1,{BP():NEWP,BPA(AID2):PAU()}) and not P('create',BPA(AID2),OWN,UAU|{'rev':1},None,D1,{BP():NEWP,BPA(AID2):UAU|{'rev':1}}))
+    # entry create: rejected shapes whose ID is built from the bad fields (so the ID check is not what refuses them)
+    for lab,m in [('period ends before it starts',dict(periodEnd='20261031')),('period start not 8 digits',dict(periodStart='2026-11-01')),('period end not 8 digits',dict(periodEnd='2026-11-15')),('sequence 00',dict(seq='00')),('sequence one digit',dict(seq='1')),('sequence 100',dict(seq='100'))]:
+        e=ENT(**m); i=eidof(e['clientId'],e['periodStart'],e['periodEnd'],e['seq'])
+        chk(f'B1 [{nm}] entry create refused (ID built from the same fields): {lab}',not ecr(e,i=i,aid=AID1,aud=EAU(entryId=i)))
+    chk(f'B1 [{nm}] entry create refused: client and Client ID format',not ecr(ENT(clientId='cl-001'),i=eidof('cl-001','20261101','20261115','01'),docs={'clientRegistry/cl-001':REG(),BP('cl-001'):PRO()}))
+    chk(f'B1 [{nm}] adjustment refused when the period START differs',not P('create',BE(eidof('CL-001','20261102','20261115','02')),OWN,SUPN|{'periodStart':'20261102'},None,SAD,{BE(eidof('CL-001','20261102','20261115','02')):SUPN|{'periodStart':'20261102'},BE():SUPO|{'supersededBy':eidof('CL-001','20261102','20261115','02')},BEA(AID3):EAU(entryId=eidof('CL-001','20261102','20261115','02'),reason='Client sent a correction'),BEA(AID1):EAU(action='supersede',fromStatus='APPROVED',toStatus='SUPERSEDED',rev=4,approvedMinutes=480,reason='Client sent a correction')}))
+    chk(f'B1 [{nm}] adjustment refused when the old entry is linked but still APPROVED in the batch',not P('create',BE(EIDE2),OWN,SUPN,None,SAD,SAF(o=SUPO|{'status':'APPROVED'})))
+    # each transition: nothing besides its own fields may change
+    chk(f'B1 [{nm}] submit refused when it also sets approval fields; reopen refused when it keeps approval fields or changes the minutes',not any([
+      eup(SUBN|{'approverUid':UID},SUBD,SUBA,D2),eup(SUBN|{'approvedAt':TSNOW},SUBD,SUBA,D2),eup(SUBN|{'approvedMinutes':480},SUBD,SUBA,D2),eup(SUBN|{'supersededBy':EIDE2},SUBD,SUBA,D2),
+      eup(ENT(rev=3,lastAudit=AID3,approverUid=UID),SUBN,EAU(action='reopen',fromStatus='SUBMITTED',toStatus='DRAFT',rev=3,reason='Hours were wrong'),SD,AID3),
+      eup(ENT(rev=3,lastAudit=AID3,approvedAt=TSNOW),SUBN,EAU(action='reopen',fromStatus='SUBMITTED',toStatus='DRAFT',rev=3,reason='Hours were wrong'),SD,AID3),
+      eup(ENT(rev=3,lastAudit=AID3,approvedMinutes=480),SUBN,EAU(action='reopen',fromStatus='SUBMITTED',toStatus='DRAFT',rev=3,reason='Hours were wrong'),SD,AID3),
+      eup(ENT(rev=3,lastAudit=AID3,submittedMinutes=100),SUBN,EAU(action='reopen',fromStatus='SUBMITTED',toStatus='DRAFT',rev=3,reason='Hours were wrong',submittedMinutes=100),SD,AID3),
+      eup(ENT(rev=3,lastAudit=AID3,note='x'),SUBN,EAU(action='reopen',fromStatus='SUBMITTED',toStatus='DRAFT',rev=3,reason='Hours were wrong'),SD,AID3),
+      eup(ENT(rev=3,lastAudit=AID3,supersededBy=EIDE2),SUBN,EAU(action='reopen',fromStatus='SUBMITTED',toStatus='DRAFT',rev=3,reason='Hours were wrong'),SD,AID3)]))
+    chk(f'B1 [{nm}] approve refused when it changes the minutes or note (approved minutes are separate)',not any([eup(APR(submittedMinutes=100),SUBN,APA(),SD,AID3),eup(APR(note='y'),SUBN,APA(),SD,AID3)]))
+    chk(f'B1 [{nm}] replace-by-newer refused when it changes the submitted minutes, approval time, approver or note',not any([
+      eup(SUPO|{'submittedMinutes':100},OKE,SUPA,SAD,AID1,extra={BE(EIDE2):SUPN}),eup(SUPO|{'approvedAt':TSNOW},OKE,SUPA,SAD,AID1,extra={BE(EIDE2):SUPN}),
+      eup(SUPO|{'approverUid':'someoneelse123'},OKE,SUPA,SAD,AID1,extra={BE(EIDE2):SUPN}),eup(SUPO|{'note':'changed'},OKE,SUPA,SAD,AID1,extra={BE(EIDE2):SUPN}),
+      eup(SUPO,OKE,SUPA,SAD,AID1,extra={BE(EIDE2):SUPN|{'supersedes':'OTHER'}})]))
+    chk(f'B1 [{nm}] replace-by-newer refused when the new entry is not a draft in the batch',not eup(SUPO,OKE,SUPA,SAD,AID1,extra={BE(EIDE2):SUPN|{'status':'SUBMITTED'}}))
+    chk(f'B1 [{nm}] the replacing audit needs a reason of 3 characters',not P('create',BEA(AID1),OWN,SUPA|{'reason':'ab'},None,SAD,SAF(oa=SUPA|{'reason':'ab'})))
+    # entry audit: each link and each step must match the real change
+    chk(f'B1 [{nm}] entry audit refused when its pointer, revision, status or step does not match the entry change',not any([
+      EB(SUBN|{'lastAudit':AID3},SUBA),EB(SUBN,SUBA|{'rev':3}),EB(SUBN,SUBA|{'toStatus':'DRAFT'}),EB(SUBN,SUBA|{'clientId':'CL-002'}),EB(SUBN,SUBA|{'submittedMinutes':1}),
+      EB(SUBN,EAU(action='edit',fromStatus='DRAFT',toStatus='SUBMITTED',rev=2)),EB(ENT(rev=2,lastAudit=AID2),EAU(action='submit',fromStatus='DRAFT',toStatus='DRAFT',rev=2)),
+      EB(SUBN,EAU(action='create',fromStatus='',toStatus='SUBMITTED',rev=2)),EB(ENT(rev=2,lastAudit=AID2),EAU(action='create',fromStatus='',toStatus='DRAFT',rev=2)),
+      EB(APR(rev=2,lastAudit=AID2),EAU(action='approve',fromStatus='DRAFT',toStatus='APPROVED',rev=2,approvedMinutes=480)),
+      EB(SUBN,EAU(action='approve',fromStatus='DRAFT',toStatus='SUBMITTED',rev=2)),
+      EB(SUBN,SUBA,docs=dict(ED0,**{BE():SUBD|{'status':'SUBMITTED','rev':1}}))]))
+    chk(f'B1 [{nm}] entry audit refused: from-status that is not the stored status (stored revision correct)',not EB(APR(rev=2,lastAudit=AID2),EAU(action='approve',fromStatus='SUBMITTED',toStatus='APPROVED',rev=2,approvedMinutes=480),docs=dict(ED0,**{BE():SUBD})))
+    chk(f'B1 [{nm}] entry audit refused: from-status APPROVED to a status that is not SUPERSEDED, reopen/supersede reason 2 chars',not any([
+      EB(ENT(rev=4,lastAudit=AID2),EAU(action='reopen',fromStatus='APPROVED',toStatus='DRAFT',rev=4,reason='abc'),docs=dict(ED0,**{BE():OKE})),
+      EB(SUPO|{'lastAudit':AID2},EAU(action='supersede',fromStatus='APPROVED',toStatus='SUPERSEDED',rev=4,approvedMinutes=480,reason='ab'),docs=dict(ED0,**{BE():OKE}))]))
+    # migration
+    chk(f'B1 [{nm}] migration mapping refused: Client ID format, arrangement not allowed (even when the profile says the same)',not any([
+      P('create',BM(LEG),OWN,MIG(clientId='cl-001'),None,{'clientRegistry/cl-001':REG()},{BM(LEG):MIG(clientId='cl-001'),BP('cl-001'):PRO()}),
+      P('create',BM(LEG),OWN,MIG(arrangement='weekly'),None,MD0,{BM(LEG):MIG(arrangement='weekly'),BP():PRO(arrangement='weekly')})]))
+    chk(f'B1 [{nm}] migration mapping refused: new-registry mapping with a registry entry that is not in the batch, or already exists; existing-registry mapping with a missing/archived entry',not any([
+      P('create',BM(LEG),OWN,MIG(registryNew=True),None,{},{BM(LEG):MIG(registryNew=True),BP():PRO()}),P('create',BM(LEG),OWN,MIG(registryNew=True),None,R0,{BM(LEG):MIG(registryNew=True),BP():PRO(),'clientRegistry/CL-001':REG(rev=2)}),
+      P('create',BM(LEG),OWN,MIG(),None,{},{BM(LEG):MIG(),BP():PRO()}),P('create',BM(LEG),OWN,MIG(),None,{},{BM(LEG):MIG(),BP():PRO(),'clientRegistry/CL-001':REG()})]))
 # ---------------- 9. cross-check: strict file equals transition file apart from the owner check
 a=re.sub(r'\s+','',TXT); b=re.sub(r'\s+','',re.sub(r'^//.*\n','',STRICT,flags=re.M))
 chk('strict rules differ from the transition rules only in the owner e-mail fallback',a.replace("&&(request.auth.uid==ownerUid()||request.auth.token.email=='fredespinosa86.app@gmail.com');","&&request.auth.uid==ownerUid();")==b,'')

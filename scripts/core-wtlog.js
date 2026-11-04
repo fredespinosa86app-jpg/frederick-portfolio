@@ -18,8 +18,8 @@
   const ADD_TYPES = ['FIRST_BREAK', 'LUNCH', 'LAST_BREAK'];          // a missed break is added as a pair: out and in
   const ADD_NAME = { FIRST_BREAK: 'First break', LUNCH: 'Lunch', LAST_BREAK: 'Last break' };
   const KIND_LABEL = { TIME: 'Changed the time of a punch', ADD: 'Added a missed punch', CLIENT_ADD: 'Added a client', CLIENT_REMOVE: 'Removed a client' };
-  /* the four record collections the log covers, and the field that holds each one's server time */
-  const COLLECTIONS = { workEvents: 'at', workSessions: 'startedAt', workAssignAudit: 'createdAt', workCorrections: 'createdAt' };
+  /* the record collections the log covers, and the field that holds each one's server time */
+  const COLLECTIONS = { workEvents: 'at', workSessions: 'startedAt', workAssignAudit: 'createdAt', workCorrections: 'createdAt', billingProfileAudit: 'createdAt', billableEntryAudit: 'createdAt', billingMigration: 'createdAt' };
 
   /* ---------------- canonical text (identical on every device) ---------------- */
   function plain(v) {                                          // Timestamp / Date -> milliseconds; everything else unchanged

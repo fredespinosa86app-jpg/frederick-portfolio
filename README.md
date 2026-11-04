@@ -147,6 +147,49 @@ service cloud.firestore {
     function wkSealRef(h) { return /databases/$(database)/documents/workSeals/$(h); }
     function wkChainRef() { return /databases/$(database)/documents/workChain/main; }
     function isHex64(s) { return s is string && s.matches('^[0-9a-f]{64}$'); }
+    // B1 (4.5.0): billing profiles, billable hours and the migration of old client records. Owner only; see the match blocks before "clients".
+    function bpDoc(cid) { return /databases/$(database)/documents/billingProfiles/$(cid); }
+    function bpAudit(aid) { return /databases/$(database)/documents/billingProfileAudit/$(aid); }
+    function beDoc(id) { return /databases/$(database)/documents/billableEntries/$(id); }
+    function beAudit(aid) { return /databases/$(database)/documents/billableEntryAudit/$(aid); }
+    function plainKey(k) { return k is string && k.matches('^[A-Za-z0-9]{16,40}$'); }
+    // Currency and its decimal places must agree (the same table as core-money.js).
+    function curExp(c, e) { return (c == 'USD' && e == 2) || (c == 'GBP' && e == 2) || (c == 'EUR' && e == 2) || (c == 'AUD' && e == 2) || (c == 'CAD' && e == 2) || (c == 'PHP' && e == 2) || (c == 'JPY' && e == 0) || (c == 'KWD' && e == 3); }
+    // The shape of a billing profile. Custom anchor days are checked for count and format here; their order and 1-31 range are checked by the page (rules cannot loop).
+    function bpOk(d) {
+      return d.keys().hasOnly(['currency','exp','rateMinor','arrangement','schedKind','weekStart','anchors','genTime','tz','dueKind','dueDays','dueDate','rev','createdAt','updatedAt','lastAudit'])
+        && d.keys().hasAll(['currency','exp','rateMinor','arrangement','schedKind','weekStart','anchors','genTime','tz','dueKind','dueDays','dueDate','rev','createdAt','updatedAt','lastAudit'])
+        && d.currency is string && d.exp is int && curExp(d.currency, d.exp)
+        && d.rateMinor is int && d.rateMinor >= 0 && d.rateMinor <= 1000000000
+        && d.arrangement in ['hourly','monthly']
+        && d.schedKind in ['weekly','monthly','midmonth','custom']
+        && d.weekStart in ['mon','tue','wed','thu','fri','sat','sun']
+        && d.anchors is string && d.anchors.matches('^$|^[0-9]{1,2}(,[0-9]{1,2}){0,3}$') && ((d.schedKind == 'custom') == (d.anchors.size() > 0))
+        && d.genTime is string && d.genTime.matches('^([01][0-9]|2[0-3]):[0-5][0-9]$')
+        && d.tz is string && d.tz.size() <= 60 && d.tz.matches('^[A-Za-z0-9_+/-]+$')
+        && d.dueKind in ['fixed','afterSend','afterGeneration']
+        && d.dueDays is int && d.dueDays >= 0 && d.dueDays <= 365
+        && d.dueDate is string && d.dueDate.matches('^$|^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && ((d.dueKind == 'fixed') == (d.dueDate.size() == 10))
+        && (d.dueKind != 'fixed' || d.dueDays == 0)
+        && d.rev is int && d.rev >= 1 && plainKey(d.lastAudit);
+    }
+    // The shape of one billable entry (hours for a client and a period). The document ID is checked against these fields in the match block.
+    function beOk(d) {
+      return d.keys().hasOnly(['clientId','periodStart','periodEnd','seq','submittedMinutes','approvedMinutes','status','note','supersedes','supersededBy','approvedAt','approverUid','relatedInvoiceId','rev','createdAt','updatedAt','lastAudit'])
+        && d.keys().hasAll(['clientId','periodStart','periodEnd','seq','submittedMinutes','approvedMinutes','status','note','supersedes','supersededBy','approvedAt','approverUid','relatedInvoiceId','rev','createdAt','updatedAt','lastAudit'])
+        && d.clientId is string && validClientId(d.clientId)
+        && d.periodStart is string && d.periodStart.matches('^[0-9]{8}$') && d.periodEnd is string && d.periodEnd.matches('^[0-9]{8}$') && d.periodEnd >= d.periodStart
+        && d.seq is string && d.seq.matches('^(0[1-9]|[1-9][0-9])$')
+        && d.submittedMinutes is int && d.submittedMinutes >= 1 && d.submittedMinutes <= 133920
+        && (d.approvedMinutes == null || (d.approvedMinutes is int && d.approvedMinutes >= 0 && d.approvedMinutes <= 133920))
+        && d.status in ['DRAFT','SUBMITTED','APPROVED','SUPERSEDED']
+        && d.note is string && d.note.size() <= 200
+        && d.supersedes is string && d.supersedes.size() <= 80 && d.supersededBy is string && d.supersededBy.size() <= 80
+        && d.approverUid is string && d.approverUid.size() <= 128
+        && d.relatedInvoiceId is string && d.relatedInvoiceId.size() <= 80
+        && d.rev is int && d.rev >= 1 && plainKey(d.lastAudit);
+    }
     match /settings/site { allow read: if true; allow write: if isOwner(); }
     match /meetingRequests/{id} {
       allow create: if request.resource.data.keys().hasOnly(['name','email','company','date','time','tz','platform','message','status','createdAt','service','formId','formName','answers'])
@@ -492,6 +535,139 @@ service cloud.firestore {
         && request.resource.data.prevTz == resource.data.tz && request.resource.data.prevWeekStart == resource.data.weekStart
         && request.resource.data.rev is number && request.resource.data.rev == resource.data.rev + 1 && request.resource.data.updatedAt == request.time;
     }
+    // B1 (4.5.0): billing profile, one per Client ID (the document ID IS the Client ID, which must exist in the registry). Never a name or contact detail.
+    // Every create and change is ONE batch with a brand-new audit record (revision +1). No delete. A currency change affects new invoices only (there are none yet).
+    match /billingProfiles/{id} {
+      allow read: if isOwner();
+      allow create: if isOwner() && validClientId(id) && (regActive(id) || (!exists(regDoc(id)) && existsAfter(regDoc(id)) && getAfter(regDoc(id)).data.status == 'active')) && bpOk(request.resource.data)
+        && request.resource.data.rev == 1
+        && request.resource.data.createdAt == request.time && request.resource.data.updatedAt == request.time
+        && !exists(bpAudit(request.resource.data.lastAudit)) && existsAfter(bpAudit(request.resource.data.lastAudit));
+      allow update: if isOwner() && validClientId(id) && exists(regDoc(id)) && bpOk(request.resource.data)
+        && request.resource.data.rev == resource.data.rev + 1
+        && request.resource.data.createdAt == resource.data.createdAt && request.resource.data.updatedAt == request.time
+        && !exists(bpAudit(request.resource.data.lastAudit)) && existsAfter(bpAudit(request.resource.data.lastAudit));
+    }
+    match /billingProfileAudit/{aid} {
+      allow read: if isOwner();
+      allow create: if isOwner() && plainKey(aid)
+        && request.resource.data.keys().hasOnly(['clientId','action','rev','currency','rateMinor','arrangement','summary','reason','actor','createdAt'])
+        && request.resource.data.keys().hasAll(['clientId','action','rev','currency','rateMinor','arrangement','summary','reason','actor','createdAt'])
+        && request.resource.data.clientId is string && validClientId(request.resource.data.clientId)
+        && request.resource.data.action in ['create','update']
+        && request.resource.data.rev is int
+        && request.resource.data.summary is string && request.resource.data.summary.size() >= 1 && request.resource.data.summary.size() <= 300
+        && request.resource.data.reason is string && request.resource.data.reason.size() <= 200
+        && (request.resource.data.action != 'update' || request.resource.data.reason.size() >= 3)
+        && request.resource.data.actor == request.auth.uid && request.resource.data.createdAt == request.time
+        && existsAfter(bpDoc(request.resource.data.clientId))
+        && getAfter(bpDoc(request.resource.data.clientId)).data.lastAudit == aid
+        && getAfter(bpDoc(request.resource.data.clientId)).data.rev == request.resource.data.rev
+        && getAfter(bpDoc(request.resource.data.clientId)).data.currency == request.resource.data.currency
+        && getAfter(bpDoc(request.resource.data.clientId)).data.rateMinor == request.resource.data.rateMinor
+        && getAfter(bpDoc(request.resource.data.clientId)).data.arrangement == request.resource.data.arrangement
+        && ((request.resource.data.action == 'create') == (request.resource.data.rev == 1))
+        && (request.resource.data.action == 'create' || (exists(bpDoc(request.resource.data.clientId)) && get(bpDoc(request.resource.data.clientId)).data.rev + 1 == request.resource.data.rev));
+    }
+    // B1 (4.5.0): billable hours. The ID is CLIENTID__YYYYMMDD__YYYYMMDD__NN (client, period start, period end, sequence), so one entry exists per client, period and sequence number.
+    // DRAFT -> SUBMITTED -> APPROVED (self-approved: the approver and the server time are stored). An approved entry never changes its minutes: a later change is a NEW entry
+    // that points back to it, and the old one becomes SUPERSEDED in the same batch. Every step has its own brand-new audit record. No delete.
+    match /billableEntries/{id} {
+      allow read: if isOwner();
+      allow create: if isOwner() && beOk(request.resource.data)
+        && id == request.resource.data.clientId + '__' + request.resource.data.periodStart + '__' + request.resource.data.periodEnd + '__' + request.resource.data.seq
+        && regActive(request.resource.data.clientId) && exists(bpDoc(request.resource.data.clientId))
+        && request.resource.data.status == 'DRAFT' && request.resource.data.rev == 1
+        && request.resource.data.approvedMinutes == null && request.resource.data.approvedAt == null && request.resource.data.approverUid == ''
+        && request.resource.data.relatedInvoiceId == '' && request.resource.data.supersededBy == ''
+        && request.resource.data.createdAt == request.time && request.resource.data.updatedAt == request.time
+        && !exists(beAudit(request.resource.data.lastAudit)) && existsAfter(beAudit(request.resource.data.lastAudit))
+        && (request.resource.data.supersedes == ''
+            || (exists(beDoc(request.resource.data.supersedes)) && get(beDoc(request.resource.data.supersedes)).data.status == 'APPROVED'
+                && get(beDoc(request.resource.data.supersedes)).data.clientId == request.resource.data.clientId
+                && get(beDoc(request.resource.data.supersedes)).data.periodStart == request.resource.data.periodStart
+                && get(beDoc(request.resource.data.supersedes)).data.periodEnd == request.resource.data.periodEnd
+                && existsAfter(beDoc(request.resource.data.supersedes)) && getAfter(beDoc(request.resource.data.supersedes)).data.status == 'SUPERSEDED'
+                && getAfter(beDoc(request.resource.data.supersedes)).data.supersededBy == id));
+      allow update: if isOwner() && beOk(request.resource.data)
+        && request.resource.data.clientId == resource.data.clientId && request.resource.data.periodStart == resource.data.periodStart
+        && request.resource.data.periodEnd == resource.data.periodEnd && request.resource.data.seq == resource.data.seq
+        && request.resource.data.createdAt == resource.data.createdAt && request.resource.data.supersedes == resource.data.supersedes
+        && request.resource.data.relatedInvoiceId == resource.data.relatedInvoiceId
+        && request.resource.data.rev == resource.data.rev + 1 && request.resource.data.updatedAt == request.time
+        && !exists(beAudit(request.resource.data.lastAudit)) && existsAfter(beAudit(request.resource.data.lastAudit))
+        && (
+          // edit a draft
+          (resource.data.status == 'DRAFT' && request.resource.data.status == 'DRAFT'
+            && request.resource.data.approvedMinutes == null && request.resource.data.approvedAt == null && request.resource.data.approverUid == '' && request.resource.data.supersededBy == '')
+          // submit
+          || (resource.data.status == 'DRAFT' && request.resource.data.status == 'SUBMITTED'
+            && request.resource.data.submittedMinutes == resource.data.submittedMinutes && request.resource.data.note == resource.data.note
+            && request.resource.data.approvedMinutes == null && request.resource.data.approvedAt == null && request.resource.data.approverUid == '' && request.resource.data.supersededBy == '')
+          // reopen
+          || (resource.data.status == 'SUBMITTED' && request.resource.data.status == 'DRAFT'
+            && request.resource.data.submittedMinutes == resource.data.submittedMinutes && request.resource.data.note == resource.data.note
+            && request.resource.data.approvedMinutes == null && request.resource.data.approvedAt == null && request.resource.data.approverUid == '' && request.resource.data.supersededBy == '')
+          // approve (self-approved)
+          || (resource.data.status == 'SUBMITTED' && request.resource.data.status == 'APPROVED'
+            && request.resource.data.submittedMinutes == resource.data.submittedMinutes && request.resource.data.note == resource.data.note
+            && request.resource.data.approvedMinutes != null && request.resource.data.approvedAt == request.time
+            && request.resource.data.approverUid == request.auth.uid && request.resource.data.supersededBy == '')
+          // replaced by a newer entry (created in the same batch)
+          || (resource.data.status == 'APPROVED' && request.resource.data.status == 'SUPERSEDED'
+            && request.resource.data.submittedMinutes == resource.data.submittedMinutes && request.resource.data.approvedMinutes == resource.data.approvedMinutes
+            && request.resource.data.approvedAt == resource.data.approvedAt && request.resource.data.approverUid == resource.data.approverUid && request.resource.data.note == resource.data.note
+            && request.resource.data.supersededBy.size() > 0
+            && existsAfter(beDoc(request.resource.data.supersededBy)) && getAfter(beDoc(request.resource.data.supersededBy)).data.supersedes == id
+            && getAfter(beDoc(request.resource.data.supersededBy)).data.status == 'DRAFT')
+        );
+    }
+    match /billableEntryAudit/{aid} {
+      allow read: if isOwner();
+      allow create: if isOwner() && plainKey(aid)
+        && request.resource.data.keys().hasOnly(['entryId','clientId','action','fromStatus','toStatus','rev','submittedMinutes','approvedMinutes','reason','actor','createdAt'])
+        && request.resource.data.keys().hasAll(['entryId','clientId','action','fromStatus','toStatus','rev','submittedMinutes','approvedMinutes','reason','actor','createdAt'])
+        && request.resource.data.entryId is string && request.resource.data.entryId.size() <= 80
+        && request.resource.data.clientId is string && validClientId(request.resource.data.clientId)
+        && request.resource.data.fromStatus in ['','DRAFT','SUBMITTED','APPROVED'] && request.resource.data.toStatus in ['DRAFT','SUBMITTED','APPROVED','SUPERSEDED']
+        && request.resource.data.reason is string && request.resource.data.reason.size() <= 200
+        && request.resource.data.rev is int
+        && request.resource.data.actor == request.auth.uid && request.resource.data.createdAt == request.time
+        && existsAfter(beDoc(request.resource.data.entryId))
+        && getAfter(beDoc(request.resource.data.entryId)).data.lastAudit == aid
+        && getAfter(beDoc(request.resource.data.entryId)).data.rev == request.resource.data.rev
+        && getAfter(beDoc(request.resource.data.entryId)).data.status == request.resource.data.toStatus
+        && getAfter(beDoc(request.resource.data.entryId)).data.clientId == request.resource.data.clientId
+        && getAfter(beDoc(request.resource.data.entryId)).data.submittedMinutes == request.resource.data.submittedMinutes
+        && getAfter(beDoc(request.resource.data.entryId)).data.approvedMinutes == request.resource.data.approvedMinutes
+        && ((request.resource.data.action == 'create' && request.resource.data.rev == 1 && request.resource.data.fromStatus == '' && request.resource.data.toStatus == 'DRAFT'
+              && (getAfter(beDoc(request.resource.data.entryId)).data.supersedes == '' || request.resource.data.reason.size() >= 3))
+            || (request.resource.data.action == 'edit' && request.resource.data.fromStatus == 'DRAFT' && request.resource.data.toStatus == 'DRAFT')
+            || (request.resource.data.action == 'submit' && request.resource.data.fromStatus == 'DRAFT' && request.resource.data.toStatus == 'SUBMITTED')
+            || (request.resource.data.action == 'reopen' && request.resource.data.fromStatus == 'SUBMITTED' && request.resource.data.toStatus == 'DRAFT' && request.resource.data.reason.size() >= 3)
+            || (request.resource.data.action == 'approve' && request.resource.data.fromStatus == 'SUBMITTED' && request.resource.data.toStatus == 'APPROVED')
+            || (request.resource.data.action == 'supersede' && request.resource.data.fromStatus == 'APPROVED' && request.resource.data.toStatus == 'SUPERSEDED' && request.resource.data.reason.size() >= 3))
+        && (request.resource.data.action == 'create'
+            || (exists(beDoc(request.resource.data.entryId)) && get(beDoc(request.resource.data.entryId)).data.status == request.resource.data.fromStatus
+                && get(beDoc(request.resource.data.entryId)).data.rev + 1 == request.resource.data.rev));
+    }
+    // B1 (4.5.0): which old client record became which Client ID. Create-only; the ID is the old record's ID. Written in the same batch as the new billing profile
+    // (which must NOT exist yet, so two old records can never share one profile). Never holds a name or contact detail.
+    match /billingMigration/{lid} {
+      allow read: if isOwner();
+      allow create: if isOwner() && lid.matches('^[A-Za-z0-9]{10,40}$')
+        && request.resource.data.keys().hasOnly(['clientId','profileNew','registryNew','arrangement','by','createdAt'])
+        && request.resource.data.keys().hasAll(['clientId','profileNew','registryNew','arrangement','by','createdAt'])
+        && request.resource.data.clientId is string && validClientId(request.resource.data.clientId)
+        && request.resource.data.profileNew == true && request.resource.data.registryNew is bool
+        && request.resource.data.arrangement in ['hourly','monthly']
+        && request.resource.data.by == request.auth.uid && request.resource.data.createdAt == request.time
+        && !exists(bpDoc(request.resource.data.clientId)) && existsAfter(bpDoc(request.resource.data.clientId))
+        && getAfter(bpDoc(request.resource.data.clientId)).data.rev == 1
+        && getAfter(bpDoc(request.resource.data.clientId)).data.arrangement == request.resource.data.arrangement
+        && ((request.resource.data.registryNew == true && !exists(regDoc(request.resource.data.clientId)) && existsAfter(regDoc(request.resource.data.clientId)))
+            || (request.resource.data.registryNew == false && regActive(request.resource.data.clientId)));
+    }
     match /clients/{id} { allow read, write: if isOwner(); }
     match /ownerPrivate/{doc} { allow read, write: if isOwner(); }
     match /content/{doc} {
@@ -813,3 +989,16 @@ No Firestore rules change in E4 (`ownerPrivate` is already owner only). Rules te
 - **Honest limits:** weeks use the current week-start setting (no history); the verification line is on the page, not in the CSV; the By client table is not additive.
 - **Tests:** unit tests (`core-wtreport.test.mjs`, 22; 26 deliberate-bug checks all caught), browser test `qa_w4` (62 checks: totals, midnight, daylight saving, zones, corrections, filters, CSV content, read counts, cache, read-only, accessibility, sign-out).
 - **Not in W4:** PDF or print views, billing.
+
+## 4.5.0 - Phase B1: Billing profiles and billable hours (settings and hours only, no invoices)
+- **Where:** Owner panel > Business > **Billing profiles** and **Billable hours** (two new pages). Nothing else on the site changes. The old **Clients & invoices** page is not touched.
+- **Billing profile (one per Client ID):** currency (USD, GBP, EUR, AUD, CAD, PHP, JPY, KWD), rate (stored as whole minor units, so no rounding error), hourly or monthly, invoice schedule (monthly, twice a month, weekly, or 1 to 4 custom days of the month), generation time and time zone, and the due rule (days after sending, days after generating, or a fixed date). Every create or change is one batch with a brand-new audit record that says what changed and why (a change needs a reason of 3 to 200 characters). Nothing is ever deleted. B1 only stores these settings: no invoice is made and no schedule runs (that is B3).
+- **Billable hours:** hours you bill a client for a period you type yourself (at most 93 days). The ID is `CLIENTID__YYYYMMDD__YYYYMMDD__NN`. Steps: draft, submit (you can reopen it with a reason), approve. You approve your own entry: your account and the server time are stored. **Approved minutes never change.** To fix them you press **Replace**: a new draft is created that points back, and the old entry becomes *Replaced* in the same batch. Replaced entries no longer count. A period total is the sum of its approved entries.
+- **WorkTrack is not billing:** WorkTrack records attendance; billable hours are your own entry. If you loaded the same dates in WorkTrack > History and reports, the Billable hours page shows that attendance as a reference only, never split between clients.
+- **Move your old client records:** the tool on the Billing profiles page lists the records in the old Clients & invoices page and gives each one a Client ID (a new one in your ID format, or an existing one without a profile) plus a billing profile. **Only the rate and hourly/monthly are copied. Names, e-mails, phones, companies and notes are never copied and the old page is not changed.** Monthly clients, clients without a rate and clients with an unusual rate are marked *Needs review* and need a tick first (B2 bills hours x hourly rate, so a monthly fee needs your decision). The currency used is the one in Availability, rates & capacity. A record-keeping entry (`billingMigration`) remembers which old record became which Client ID, so a second device or a second click cannot migrate it again, and two old records can never share one profile.
+- **Tamper-evident log:** the audit records of profiles and entries and the migration records are create-only and are added to the WorkTrack log (W3), so **Verify the log** also detects an edited billing record.
+- **Backup:** the five new collections are in the export list (export only, like the Client IDs). Restore is not offered because the rules pair each record with an audit record.
+- **Database rules changed - republish `firestore.rules.strict`** (and keep `firestore.rules` in step). New collections: `billingProfiles`, `billingProfileAudit`, `billableEntries`, `billableEntryAudit`, `billingMigration`. All are owner only.
+- **Honest limits:** the database rules cannot loop, so the order and 1-31 range of custom anchor days are checked by the page; an audit record's text summary is not compared with the record by the rules (its currency, rate, arrangement and revision are); the amount of a period is not yet checked against WorkTrack; self-approval means there is no second person; console access can still change data (the log detects it).
+- **Tests:** unit tests (`core-billing.test.mjs`, 22; 39 of 40 deliberate bugs caught, the other is a harmless duplicate guard), rules attack cases section 8i (1349 checks in the whole attack suite, all passing), `mutations_b1.py` (all real mutations caught across the suite: 422 of 422, 48 duplicate guards listed separately), browser test `qa_b1` (74 checks), emulator tests `billing-b1.test.mjs` (36 new, written but awaiting your workflow run).
+- **Not in B1:** invoices and payments (B2), schedules that generate periods (B3), moving the old Clients & invoices data away (M3), PDF output.

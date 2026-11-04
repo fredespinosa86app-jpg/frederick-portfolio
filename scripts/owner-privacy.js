@@ -40,7 +40,7 @@
     download((prefix || 'portfolio-backup') + '-' + stamp() + '.json', JSON.stringify(b, null, 1));
     return b;
   }
-  const chosenCols = () => ['settings', 'content', 'ownerPrivate', 'clients', 'meetingRequests', 'chatUnanswered', 'activity', 'visits', 'clientRegistry', 'clientRegistryAudit', 'workState', 'workSessions', 'workEvents', 'workAssign', 'workAssignAudit', 'workCorrections', 'workSeals', 'workChain', 'workSettings'].filter(c => { const e = $('bk_' + c); return e && e.checked; });
+  const chosenCols = () => ['settings', 'content', 'ownerPrivate', 'clients', 'meetingRequests', 'chatUnanswered', 'activity', 'visits', 'clientRegistry', 'clientRegistryAudit', 'workState', 'workSessions', 'workEvents', 'workAssign', 'workAssignAudit', 'workCorrections', 'workSeals', 'workChain', 'workSettings', 'billingProfiles', 'billingProfileAudit', 'billableEntries', 'billableEntryAudit', 'billingMigration'].filter(c => { const e = $('bk_' + c); return e && e.checked; });
   function backupAge() {
     const t = priv.lastBackupAt, n = $('bkLast');
     if (!n) return;
