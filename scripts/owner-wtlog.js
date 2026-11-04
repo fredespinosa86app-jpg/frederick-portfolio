@@ -96,6 +96,7 @@
     try {
       await loadChain(); await loadSeals(); const records = await loadRecords();
       const v = await L.verify({ chain, seals, records, nowMs: Date.now() }, sha); lastVerify = v;
+      document.dispatchEvent(new CustomEvent('wt:verified', { detail: { status: v.status, atMs: Date.now(), unsealed: v.unsealed.length, problems: v.problems.length } }));      // lets the W4 report say whether the log was checked
       const unsealed = v.unsealed.slice();
       const box = el('div', { class: 'wtver ' + v.status, role: 'status' });
       if (v.status === 'none') box.append(el('strong', {}, 'The log has not been started.'), el('p', { class: 'libmeta' }, 'Press "Start the tamper-evident log" to protect your records from now on.'));

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-fGX5IcsLgeneh8q3k50FD0Z3izvKrJM1aduFLTysApk=' https://www.gstatic.com https://apis.google.com https://accounts.google.com https://www.google.com/recaptcha/; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; font-src 'self'; img-src 'self' data: blob: https:; media-src 'self' blob: https:; connect-src 'self' https:; frame-src https://www.youtube-nocookie.com https://www.youtube.com https://www.loom.com https://www.google.com https://recaptcha.google.com https://accounts.google.com https://apis.google.com https://*.firebaseapp.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
-<script src="scripts/frame-guard.js?v=w3"></script>
+<script src="scripts/frame-guard.js?v=w4"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Frederick Espinosa | Amazon Product Researcher &amp; VA</title>
 <meta name="description" content="Amazon product researcher and virtual assistant in the Philippines. I find profitable online arbitrage leads with SellerAmp SAS and Keepa, backed by data.">
@@ -33,16 +33,16 @@
 <meta name="twitter:image" content="https://fredespinosa86app-jpg.github.io/frederick-portfolio/assets/images/social/og-image.jpg">
 <meta name="twitter:image:alt" content="Frederick Espinosa, Amazon Product Researcher and Virtual Assistant">
 <script type="application/ld+json" id="ldjson">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","@id":"https://fredespinosa86app-jpg.github.io/frederick-portfolio/#website","url":"https://fredespinosa86app-jpg.github.io/frederick-portfolio/","name":"Frederick Espinosa","description":"Amazon product researcher and virtual assistant in the Philippines. I find profitable online arbitrage leads with SellerAmp SAS and Keepa, backed by data.","inLanguage":"en","publisher":{"@id":"https://fredespinosa86app-jpg.github.io/frederick-portfolio/#person"}},{"@type":"Person","@id":"https://fredespinosa86app-jpg.github.io/frederick-portfolio/#person","name":"Frederick Espinosa","url":"https://fredespinosa86app-jpg.github.io/frederick-portfolio/","image":"https://fredespinosa86app-jpg.github.io/frederick-portfolio/assets/images/hero/hero-portrait.webp","jobTitle":"Amazon Product Researcher & Virtual Assistant","description":"Amazon product researcher and virtual assistant in the Philippines. I find profitable online arbitrage leads with SellerAmp SAS and Keepa, backed by data.","address":{"@type":"PostalAddress","addressLocality":"Plaridel","addressRegion":"Bulacan","addressCountry":"PH"},"knowsAbout":["Amazon product research","Online arbitrage","Product sourcing","Keepa","SellerAmp SAS","Amazon Seller Central","Virtual assistance"],"sameAs":["https://www.linkedin.com/in/frederick-espinosa-4a03b03b9/","https://v2.onlinejobs.ph/jobseekers/info/4884720","https://www.upwork.com/freelancers/~017a9a8bf9e0f5c289"]}]}</script>
-<link rel="stylesheet" href="styles/boot.css?v=w3">
-<script src="scripts/boot-cover.js?v=w3"></script>
+<link rel="stylesheet" href="styles/boot.css?v=w4">
+<script src="scripts/boot-cover.js?v=w4"></script>
 <noscript><style>#boot{display:none}</style></noscript>
-<link rel="stylesheet" href="styles/fonts.css?v=w3">
+<link rel="stylesheet" href="styles/fonts.css?v=w4">
 <script>try{if(localStorage.getItem('portfolio-dark')==='1')document.documentElement.setAttribute('data-theme','dark')}catch(e){}</script>
-<link rel="stylesheet" href="styles/main.css?v=w3">
-<link rel="stylesheet" href="styles/components.css?v=w3">
-<link rel="stylesheet" href="styles/owner.css?v=w3">
-<link rel="stylesheet" href="styles/themes.css?v=w3">
-<link rel="stylesheet" href="styles/responsive.css?v=w3">
+<link rel="stylesheet" href="styles/main.css?v=w4">
+<link rel="stylesheet" href="styles/components.css?v=w4">
+<link rel="stylesheet" href="styles/owner.css?v=w4">
+<link rel="stylesheet" href="styles/themes.css?v=w4">
+<link rel="stylesheet" href="styles/responsive.css?v=w4">
 </head>
 <body>
 <div id="boot" role="status" aria-live="polite" aria-busy="true"><span class="bdots" aria-hidden="true"><i></i><i></i><i></i></span><span class="bsr">Loading the portfolio…</span></div>
@@ -483,6 +483,10 @@
 <div class="ab"><button type="button" class="dbtn" id="wtCliHistBtn" hidden>Show changes to the clients</button></div><div class="wtlist" id="wtCliAudit"></div>
 <p class="dhelp">Only Client IDs are stored, never names. Manage the IDs on the Client IDs page.</p></div>
 <div class="dcard"><h3 id="wtListHead">No punches recorded yet.</h3><div class="wtlist" id="wtList"></div></div>
+<div class="dcard" id="wtHCard"><h3>History and reports</h3><p class="dhelp">Past sessions, read only. Pick a date range and press Load; filters and the CSV then use what is already loaded and cost no extra reads. Times are shown in the zone each session was recorded in. The CSV has the original and the corrected values side by side.</p>
+<div class="ab"><label class="fld">From<input type="date" id="wtHFrom"></label><label class="fld">To<input type="date" id="wtHTo"></label><button type="button" class="dbtn primary" id="wtHLoad">Load</button><button type="button" class="dbtn" id="wtHRefresh" hidden>Refresh</button></div>
+<div class="ab"><label class="fld">Client ID<select id="wtHClient"><option value="">All clients</option></select></label><label class="fld">Status<select id="wtHStatus"><option value="all">All sessions</option><option value="complete">Complete</option><option value="corrected">Corrected</option><option value="incomplete">Closed as incomplete</option><option value="open">In progress</option><option value="invalid">Invalid record</option></select></label><button type="button" class="dbtn" id="wtHCsv" hidden>Download CSV</button></div>
+<p class="ferr" id="wtHErr" role="alert"></p><p class="dstate" id="wtHState" role="status"></p><div id="wtHConfirm" hidden></div><div id="wtHSummary"></div><div class="wtlist" id="wtHRows"></div></div>
 <div class="dcard"><h3>Corrections</h3><p class="dhelp">A closed session is never edited. For 24 hours after you clock out you can add a correction with a reason: change the time of a punch, add a missed break, or add or remove a client. The original punches stay as they were and the session is shown as "original + corrections". After 24 hours it is final.</p>
 <p class="dstate" id="wtCorrState" role="status"></p><div class="wtlist" id="wtCorrList"></div><div class="ab"><button type="button" class="dbtn" id="wtCorrRefresh">Refresh recent sessions</button></div></div>
 <div class="dcard"><h3>Tamper-evident log</h3><p class="dhelp">Every punch, client change and correction is sealed with a fingerprint that also covers the seal before it. If anyone changes or removes a sealed record, "Verify" shows exactly where the chain breaks. This detects changes; it cannot stop someone with access to your Firebase console. Keep a witness copy outside Firebase to also catch the newest seal being removed.</p>
@@ -873,52 +877,54 @@ function doPost(e) {
 <form id="chatForm" autocomplete="off"><input id="chatInput" type="text" placeholder="Type your question…" aria-label="Type your question" maxlength="200"><button type="submit">Send</button></form>
 </div>
 <dialog id="lb" aria-label="Enlarged image"><button type="button" id="close" aria-label="Close enlarged view">×</button><img alt="Enlarged view"></dialog>
-<script src="scripts/settings.js?v=w3"></script>
-<script src="scripts/contacts.js?v=w3"></script>
-<script src="scripts/content.js?v=w3"></script>
-<script src="scripts/testimonials.js?v=w3"></script>
-<script src="scripts/faq.js?v=w3"></script>
-<script src="scripts/videos.js?v=w3"></script>
-<script src="scripts/training.js?v=w3"></script>
-<script src="scripts/experience.js?v=w3"></script>
-<script src="scripts/section-bg.js?v=w3"></script>
-<script src="scripts/hero-photo.js?v=w3"></script>
-<script src="scripts/main.js?v=w3"></script>
-<script src="scripts/chat-engine.js?v=w3"></script>
-<script src="scripts/chatbot.js?v=w3"></script>
-<script src="scripts/video-section.js?v=w3"></script>
-<script src="scripts/theme-switcher.js?v=w3"></script>
-<script src="scripts/seo.js?v=w3"></script>
-<script src="scripts/site-settings.js?v=w3"></script>
-<script src="scripts/availability.js?v=w3"></script>
-<script src="scripts/capacity.js?v=w3"></script>
-<script src="scripts/service-forms.js?v=w3"></script>
-<script src="scripts/meeting-form.js?v=w3"></script>
-<script src="scripts/owner-ui.js?v=w3"></script>
-<script src="scripts/owner-dashboard.js?v=w3"></script>
-<script src="scripts/owner-content.js?v=w3"></script>
-<script src="scripts/owner-phase1.js?v=w3"></script>
-<script src="scripts/owner-phase2.js?v=w3"></script>
-<script src="scripts/analytics.js?v=w3"></script>
-<script src="scripts/owner-phase3.js?v=w3"></script>
-<script src="scripts/owner-phase5.js?v=w3"></script>
-<script src="scripts/owner-phase6.js?v=w3"></script>
-<script src="scripts/owner-phase7.js?v=w3"></script>
-<script src="scripts/owner-security.js?v=w3"></script>
-<script src="scripts/backup-core.js?v=w3"></script>
-<script src="scripts/owner-privacy.js?v=w3"></script>
-<script src="scripts/owner-library.js?v=w3"></script>
-<script src="scripts/core-ids.js?v=w3"></script>
-<script src="scripts/owner-clientids.js?v=w3"></script>
-<script src="scripts/core-time.js?v=w3"></script>
-<script src="scripts/core-worktrack.js?v=w3"></script>
-<script src="scripts/core-wtlog.js?v=w3"></script>
-<script src="scripts/owner-worktrack.js?v=w3"></script>
-<script src="scripts/owner-wtlog.js?v=w3"></script>
-<script src="scripts/owner-google.js?v=w3"></script>
-<script src="scripts/privacy-notice.js?v=w3"></script>
-<script src="scripts/owner-entry.js?v=w3"></script>
-<script src="scripts/owner-seo.js?v=w3"></script>
-<script type="module" src="scripts/owner-panel.js?v=w3"></script>
+<script src="scripts/settings.js?v=w4"></script>
+<script src="scripts/contacts.js?v=w4"></script>
+<script src="scripts/content.js?v=w4"></script>
+<script src="scripts/testimonials.js?v=w4"></script>
+<script src="scripts/faq.js?v=w4"></script>
+<script src="scripts/videos.js?v=w4"></script>
+<script src="scripts/training.js?v=w4"></script>
+<script src="scripts/experience.js?v=w4"></script>
+<script src="scripts/section-bg.js?v=w4"></script>
+<script src="scripts/hero-photo.js?v=w4"></script>
+<script src="scripts/main.js?v=w4"></script>
+<script src="scripts/chat-engine.js?v=w4"></script>
+<script src="scripts/chatbot.js?v=w4"></script>
+<script src="scripts/video-section.js?v=w4"></script>
+<script src="scripts/theme-switcher.js?v=w4"></script>
+<script src="scripts/seo.js?v=w4"></script>
+<script src="scripts/site-settings.js?v=w4"></script>
+<script src="scripts/availability.js?v=w4"></script>
+<script src="scripts/capacity.js?v=w4"></script>
+<script src="scripts/service-forms.js?v=w4"></script>
+<script src="scripts/meeting-form.js?v=w4"></script>
+<script src="scripts/owner-ui.js?v=w4"></script>
+<script src="scripts/owner-dashboard.js?v=w4"></script>
+<script src="scripts/owner-content.js?v=w4"></script>
+<script src="scripts/owner-phase1.js?v=w4"></script>
+<script src="scripts/owner-phase2.js?v=w4"></script>
+<script src="scripts/analytics.js?v=w4"></script>
+<script src="scripts/owner-phase3.js?v=w4"></script>
+<script src="scripts/owner-phase5.js?v=w4"></script>
+<script src="scripts/owner-phase6.js?v=w4"></script>
+<script src="scripts/owner-phase7.js?v=w4"></script>
+<script src="scripts/owner-security.js?v=w4"></script>
+<script src="scripts/backup-core.js?v=w4"></script>
+<script src="scripts/owner-privacy.js?v=w4"></script>
+<script src="scripts/owner-library.js?v=w4"></script>
+<script src="scripts/core-ids.js?v=w4"></script>
+<script src="scripts/owner-clientids.js?v=w4"></script>
+<script src="scripts/core-time.js?v=w4"></script>
+<script src="scripts/core-worktrack.js?v=w4"></script>
+<script src="scripts/core-wtlog.js?v=w4"></script>
+<script src="scripts/owner-worktrack.js?v=w4"></script>
+<script src="scripts/owner-wtlog.js?v=w4"></script>
+<script src="scripts/core-wtreport.js?v=w4"></script>
+<script src="scripts/owner-wtreport.js?v=w4"></script>
+<script src="scripts/owner-google.js?v=w4"></script>
+<script src="scripts/privacy-notice.js?v=w4"></script>
+<script src="scripts/owner-entry.js?v=w4"></script>
+<script src="scripts/owner-seo.js?v=w4"></script>
+<script type="module" src="scripts/owner-panel.js?v=w4"></script>
 </body>
 </html>

@@ -801,3 +801,15 @@ No Firestore rules change in E4 (`ownerPrivate` is already owner only). Rules te
 - **Tests:** unit tests (`core-wtlog.test.mjs`, 12), attack cases section 8h (1015 checks in the whole suite), `mutation_check.py` (261 real mutations, all caught; redundant guards are listed separately), browser test `qa_w3`, real-engine tests `rules-tests/emulator/wtlog.test.mjs`.
 - **Not in W3:** history lists, filter by Client ID, reports (W4), billing.
 
+## 4.5.0 - Phase W4: History and reports (read-only)
+- **Where:** Owner panel > WorkTrack > **History and reports**. Pick a date range (31 days by default, at most 92) and press **Load**. Filter by Client ID and status, see totals by day, week, month and client, open any session to see the original punches, the corrections and the effective result side by side, and download a CSV.
+- **What is counted:** each complete session once, in the zone it was recorded in, on the day it started (a night shift stays on its start day). Corrections are applied to give the effective values; the original is always shown beside them. If the corrections would give an invalid day, the original is used and a warning is shown. Incomplete, in-progress and invalid sessions are listed but left out of the totals and counted in a note.
+- **Clients:** a session's attendance time is never split or multiplied. The client filter and the By client table show the attendance time of the sessions that client was on; those rows must not be added together.
+- **Time formats:** hh:mm (rounded to the minute) and decimal hours (hundredths, half up); totals are added up exactly and rounded once.
+- **CSV:** one row per session, the original and the effective values side by side, plus corrections and their reasons. UTF-8 with a byte-order mark and CRLF line ends so spreadsheets open it correctly; text that starts like a formula (`=`, `+`, `-`, `@`, tab) is stored as text. It is built in the browser; nothing is uploaded. It follows the filters on screen.
+- **Reads:** the page reads only the sessions in the range and their punches, clients and corrections. Filters, the CSV and the week-start setting use what is already loaded (zero reads). A range already loaded stays in the page until **Refresh** or sign-out. Above 60 sessions it shows an estimate and asks you to confirm; above 150 it refuses and asks for a shorter range.
+- **Log status:** the report says whether the tamper-evident log was verified in this browser session and what the last check found.
+- **No database changes:** no new collection, no rules change. Do not republish rules for W4.
+- **Honest limits:** weeks use the current week-start setting (no history); the verification line is on the page, not in the CSV; the By client table is not additive.
+- **Tests:** unit tests (`core-wtreport.test.mjs`, 22; 26 deliberate-bug checks all caught), browser test `qa_w4` (62 checks: totals, midnight, daylight saving, zones, corrections, filters, CSV content, read counts, cache, read-only, accessibility, sign-out).
+- **Not in W4:** PDF or print views, billing.

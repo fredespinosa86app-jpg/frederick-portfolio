@@ -222,3 +222,16 @@ button.libtile.pickable{cursor:pointer;min-height:44px}button.libtile.pickable:h
 .wtver.ok{border-color:#14612e;background:rgba(20,97,46,.08)}
 .wtver.broken{border-color:#a4161a;background:rgba(164,22,26,.08)}
 .wtver ul{margin:6px 0 0 18px}
+
+/* W4 history and reports */
+.wtsum .wtbig{font-size:1.15rem;letter-spacing:0}
+.wttab{width:100%;border-collapse:collapse;margin:6px 0;font-size:.92rem}
+.wttab caption{text-align:left;font-weight:600;padding:4px 0}
+.wttab th,.wttab td{padding:6px 8px;border-bottom:1px solid var(--d-line);text-align:left;vertical-align:top}
+.wttab thead th{font-size:.8rem;opacity:.85}
+.wtdet{margin:8px 0}.wtdet>summary{cursor:pointer;font-weight:600;min-height:44px;display:flex;align-items:center}
+.wthist>summary{cursor:pointer;min-height:44px;display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center}
+.wtbody{display:grid;gap:8px;overflow-x:auto}
+@media (max-width:560px){.wttab{font-size:.85rem}.wttab th,.wttab td{padding:5px 4px}}
+.wtb{display:inline-block;border-radius:999px;padding:2px 10px;font-size:12.5px;font-weight:600}
+.wtb-ok{background:#d9f2e0;color:#0d4a22}.wtb-warn{background:#ffe9b8;color:#5c3b00}.wtb-info{background:#dde8ff;color:#1b3a7a}
