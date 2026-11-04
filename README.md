@@ -698,7 +698,6 @@ service cloud.firestore {
     function invBaseId(d) { return d.clientId + '__' + d.periodStart + '__' + d.periodEnd; }
     function invOk(d) {
       return d.keys().hasOnly(['clientId','periodStart','periodEnd','suffix','currency','exp','rateMinor','tz','dueKind','dueDays','dueDate','entryIds','minutes','totalMinor','status','sentAt','paidMinor','creditMinor','adjMinor','rev','createdAt','updatedAt','lastKind','lastRef'])
-        && d.keys().hasAll(['clientId','periodStart','periodEnd','suffix','currency','exp','rateMinor','tz','dueKind','dueDays','dueDate','entryIds','minutes','totalMinor','status','sentAt','paidMinor','creditMinor','adjMinor','rev','createdAt','updatedAt','lastKind','lastRef'])
         && d.clientId is string && validClientId(d.clientId)
         && d.periodStart is string && d.periodStart.matches('^[0-9]{8}$') && d.periodEnd is string && d.periodEnd.matches('^[0-9]{8}$') && d.periodEnd >= d.periodStart
         && d.suffix is string && d.suffix.matches('^$|^(0[2-9]|[1-9][0-9])$')
@@ -727,15 +726,17 @@ service cloud.firestore {
     }
     function invMoneySame(n, o) { return n.paidMinor == o.paidMinor && n.creditMinor == o.creditMinor && n.adjMinor == o.adjMinor; }
     // Approved minutes of a listed entry as it will be after this batch, and the list of entries all being approved, linked to this invoice, same client and period.
-    function invEntOk(eid, iid, d) {
-      return existsAfter(beDoc(eid)) && getAfter(beDoc(eid)).data.status == 'APPROVED' && getAfter(beDoc(eid)).data.relatedInvoiceId == iid
-        && getAfter(beDoc(eid)).data.clientId == d.clientId && getAfter(beDoc(eid)).data.periodStart == d.periodStart && getAfter(beDoc(eid)).data.periodEnd == d.periodEnd;
+    function invEntData(e, iid, d) {
+      return e.status == 'APPROVED' && e.relatedInvoiceId == iid && e.clientId == d.clientId && e.periodStart == d.periodStart && e.periodEnd == d.periodEnd;
     }
-    function invEntMin(eid) { return getAfter(beDoc(eid)).data.approvedMinutes; }
+    function invEnt2(iid, d, a) {
+      let b = getAfter(beDoc(d.entryIds[1])).data;
+      return d.entryIds[0] != d.entryIds[1] && invEntData(b, iid, d) && d.minutes == a.approvedMinutes + b.approvedMinutes;
+    }
+    // A missing entry makes getAfter fail, which refuses the write.
     function invEntsOk(iid, d) {
-      return (d.entryIds.size() == 1 && invEntOk(d.entryIds[0], iid, d) && d.minutes == invEntMin(d.entryIds[0]))
-        || (d.entryIds.size() == 2 && d.entryIds[0] != d.entryIds[1] && invEntOk(d.entryIds[0], iid, d) && invEntOk(d.entryIds[1], iid, d)
-            && d.minutes == invEntMin(d.entryIds[0]) + invEntMin(d.entryIds[1]));
+      let a = getAfter(beDoc(d.entryIds[0])).data;
+      return invEntData(a, iid, d) && ((d.entryIds.size() == 1 && d.minutes == a.approvedMinutes) || (d.entryIds.size() == 2 && invEnt2(iid, d, a)));
     }
     // total = round-half-up(rate x minutes / 60), written without division: 120 x total <= 2 x rate x minutes + 60 < 120 x (total + 1)
     function invTotalOk(d) {
@@ -748,80 +749,84 @@ service cloud.firestore {
       return (d.entryIds.size() == 1 && existsAfter(beDoc(d.entryIds[0])) && getAfter(beDoc(d.entryIds[0])).data.relatedInvoiceId == '')
         || (d.entryIds.size() == 2 && existsAfter(beDoc(d.entryIds[0])) && getAfter(beDoc(d.entryIds[0])).data.relatedInvoiceId == '' && existsAfter(beDoc(d.entryIds[1])) && getAfter(beDoc(d.entryIds[1])).data.relatedInvoiceId == '');
     }
-    match /invoices/{id} {
-      allow read: if isOwner();
-      allow create: if isOwner() && invOk(request.resource.data)
-        && ((request.resource.data.suffix == '' && id == invBaseId(request.resource.data)) || (request.resource.data.suffix != '' && id == invBaseId(request.resource.data) + '__' + request.resource.data.suffix))
-        && regActive(request.resource.data.clientId) && exists(bpDoc(request.resource.data.clientId))
-        && get(bpDoc(request.resource.data.clientId)).data.arrangement == 'hourly' && get(bpDoc(request.resource.data.clientId)).data.rateMinor >= 1
-        && request.resource.data.currency == get(bpDoc(request.resource.data.clientId)).data.currency && request.resource.data.exp == get(bpDoc(request.resource.data.clientId)).data.exp
-        && request.resource.data.rateMinor == get(bpDoc(request.resource.data.clientId)).data.rateMinor && request.resource.data.tz == get(bpDoc(request.resource.data.clientId)).data.tz
-        && request.resource.data.dueKind == get(bpDoc(request.resource.data.clientId)).data.dueKind && request.resource.data.dueDays == get(bpDoc(request.resource.data.clientId)).data.dueDays
-        && invDueOk(request.resource.data, get(bpDoc(request.resource.data.clientId)).data)
-        && request.resource.data.status == 'DRAFT' && request.resource.data.sentAt == null
-        && request.resource.data.paidMinor == 0 && request.resource.data.creditMinor == 0 && request.resource.data.adjMinor == 0
-        && request.resource.data.rev == 1 && request.resource.data.lastKind == 'create'
-        && request.resource.data.createdAt == request.time && request.resource.data.updatedAt == request.time
-        && invTotalOk(request.resource.data) && invEntsOk(id, request.resource.data)
-        && !exists(invAudit(request.resource.data.lastRef)) && existsAfter(invAudit(request.resource.data.lastRef));
-      allow update: if isOwner() && invOk(request.resource.data) && invFixed(request.resource.data, resource.data)
-        && request.resource.data.rev == resource.data.rev + 1 && request.resource.data.updatedAt == request.time
+    // Everything an invoice must satisfy when it is made. The billing profile is read once (rules allow only so many steps per write).
+    function invCreateOk(id, d) {
+      let bp = get(bpDoc(d.clientId)).data;
+      return invOk(d)
+        && ((d.suffix == '' && id == invBaseId(d)) || (d.suffix != '' && id == invBaseId(d) + '__' + d.suffix))
+        && regActive(d.clientId) && bp.arrangement == 'hourly' && bp.rateMinor >= 1
+        && d.currency == bp.currency && d.exp == bp.exp && d.rateMinor == bp.rateMinor && d.tz == bp.tz
+        && d.dueKind == bp.dueKind && d.dueDays == bp.dueDays && invDueOk(d, bp)
+        && d.status == 'DRAFT' && d.sentAt == null && d.paidMinor == 0 && d.creditMinor == 0 && d.adjMinor == 0
+        && d.rev == 1 && d.lastKind == 'create' && d.createdAt == request.time && d.updatedAt == request.time
+        && invTotalOk(d) && invEntsOk(id, d)
+        && !exists(invAudit(d.lastRef)) && existsAfter(invAudit(d.lastRef));
+    }
+    // Every change to an existing invoice (n = the invoice after the write, o = before it). One shared function so each value is read once.
+    function invUpdateOk(id, n, o) {
+      return invOk(n) && invFixed(n, o)
+        && n.rev == o.rev + 1 && n.updatedAt == request.time
         && (
           // draft -> ready
-          (request.resource.data.lastKind == 'ready' && resource.data.status == 'DRAFT' && request.resource.data.status == 'READY'
-            && request.resource.data.sentAt == null && request.resource.data.dueDate == resource.data.dueDate && invMoneySame(request.resource.data, resource.data)
-            && !exists(invAudit(request.resource.data.lastRef)) && existsAfter(invAudit(request.resource.data.lastRef)))
+          (n.lastKind == 'ready' && o.status == 'DRAFT' && n.status == 'READY'
+            && n.sentAt == null && n.dueDate == o.dueDate && invMoneySame(n, o)
+            && !exists(invAudit(n.lastRef)) && existsAfter(invAudit(n.lastRef)))
           // ready -> sent (the sent time is the server time; "after sending" due dates are fixed now)
-          || (request.resource.data.lastKind == 'send' && resource.data.status == 'READY' && request.resource.data.status == 'SENT'
-            && request.resource.data.sentAt == request.time && invMoneySame(request.resource.data, resource.data)
-            && ((resource.data.dueKind == 'afterSend' && dateFmt(request.resource.data.dueDate)) || (resource.data.dueKind != 'afterSend' && request.resource.data.dueDate == resource.data.dueDate))
-            && !exists(invAudit(request.resource.data.lastRef)) && existsAfter(invAudit(request.resource.data.lastRef)))
+          || (n.lastKind == 'send' && o.status == 'READY' && n.status == 'SENT'
+            && n.sentAt == request.time && invMoneySame(n, o)
+            && ((o.dueKind == 'afterSend' && dateFmt(n.dueDate)) || (o.dueKind != 'afterSend' && n.dueDate == o.dueDate))
+            && !exists(invAudit(n.lastRef)) && existsAfter(invAudit(n.lastRef)))
           // draft or ready -> cancelled (its entries are released in the same batch)
-          || (request.resource.data.lastKind == 'cancel' && (resource.data.status == 'DRAFT' || resource.data.status == 'READY') && request.resource.data.status == 'CANCELLED'
-            && request.resource.data.sentAt == null && request.resource.data.dueDate == resource.data.dueDate && invMoneySame(request.resource.data, resource.data)
-            && invUnlinked(resource.data)
-            && !exists(invAudit(request.resource.data.lastRef)) && existsAfter(invAudit(request.resource.data.lastRef)))
+          || (n.lastKind == 'cancel' && (o.status == 'DRAFT' || o.status == 'READY') && n.status == 'CANCELLED'
+            && n.sentAt == null && n.dueDate == o.dueDate && invMoneySame(n, o)
+            && invUnlinked(o)
+            && !exists(invAudit(n.lastRef)) && existsAfter(invAudit(n.lastRef)))
           // a payment is recorded (only on a sent invoice; never more than the invoice total)
-          || (request.resource.data.lastKind == 'payment' && resource.data.status == 'SENT' && request.resource.data.status == 'SENT'
-            && request.resource.data.sentAt == resource.data.sentAt && request.resource.data.dueDate == resource.data.dueDate
-            && request.resource.data.creditMinor == resource.data.creditMinor && request.resource.data.adjMinor == resource.data.adjMinor
-            && request.resource.data.paidMinor > resource.data.paidMinor && request.resource.data.paidMinor <= resource.data.totalMinor + resource.data.adjMinor
-            && !exists(payDoc(request.resource.data.lastRef)) && existsAfter(payDoc(request.resource.data.lastRef))
-            && getAfter(payDoc(request.resource.data.lastRef)).data.invoiceId == id && getAfter(payDoc(request.resource.data.lastRef)).data.kind == 'payment'
-            && getAfter(payDoc(request.resource.data.lastRef)).data.amountMinor == request.resource.data.paidMinor - resource.data.paidMinor)
+          || (n.lastKind == 'payment' && o.status == 'SENT' && n.status == 'SENT'
+            && n.sentAt == o.sentAt && n.dueDate == o.dueDate
+            && n.creditMinor == o.creditMinor && n.adjMinor == o.adjMinor
+            && n.paidMinor > o.paidMinor && n.paidMinor <= o.totalMinor + o.adjMinor
+            && !exists(payDoc(n.lastRef)) && existsAfter(payDoc(n.lastRef))
+            && getAfter(payDoc(n.lastRef)).data.invoiceId == id && getAfter(payDoc(n.lastRef)).data.kind == 'payment'
+            && getAfter(payDoc(n.lastRef)).data.amountMinor == n.paidMinor - o.paidMinor)
           // money received beyond a fully paid invoice, recorded as a credit
-          || (request.resource.data.lastKind == 'credit' && resource.data.status == 'SENT' && request.resource.data.status == 'SENT'
-            && request.resource.data.sentAt == resource.data.sentAt && request.resource.data.dueDate == resource.data.dueDate
-            && request.resource.data.paidMinor == resource.data.paidMinor && request.resource.data.adjMinor == resource.data.adjMinor
-            && resource.data.paidMinor == resource.data.totalMinor + resource.data.adjMinor && request.resource.data.creditMinor > resource.data.creditMinor
-            && !exists(payDoc(request.resource.data.lastRef)) && existsAfter(payDoc(request.resource.data.lastRef))
-            && getAfter(payDoc(request.resource.data.lastRef)).data.invoiceId == id && getAfter(payDoc(request.resource.data.lastRef)).data.kind == 'credit'
-            && getAfter(payDoc(request.resource.data.lastRef)).data.amountMinor == request.resource.data.creditMinor - resource.data.creditMinor)
+          || (n.lastKind == 'credit' && o.status == 'SENT' && n.status == 'SENT'
+            && n.sentAt == o.sentAt && n.dueDate == o.dueDate
+            && n.paidMinor == o.paidMinor && n.adjMinor == o.adjMinor
+            && o.paidMinor == o.totalMinor + o.adjMinor && n.creditMinor > o.creditMinor
+            && !exists(payDoc(n.lastRef)) && existsAfter(payDoc(n.lastRef))
+            && getAfter(payDoc(n.lastRef)).data.invoiceId == id && getAfter(payDoc(n.lastRef)).data.kind == 'credit'
+            && getAfter(payDoc(n.lastRef)).data.amountMinor == n.creditMinor - o.creditMinor)
           // a whole payment is reversed (the reversal's ID is the payment's ID, so it can happen once)
-          || (request.resource.data.lastKind == 'reversal' && resource.data.status == 'SENT' && request.resource.data.status == 'SENT'
-            && request.resource.data.sentAt == resource.data.sentAt && request.resource.data.dueDate == resource.data.dueDate && request.resource.data.adjMinor == resource.data.adjMinor
-            && exists(payDoc(request.resource.data.lastRef)) && get(payDoc(request.resource.data.lastRef)).data.invoiceId == id
-            && !exists(revDoc(request.resource.data.lastRef)) && existsAfter(revDoc(request.resource.data.lastRef))
-            && ((get(payDoc(request.resource.data.lastRef)).data.kind == 'payment' && resource.data.creditMinor == 0 && request.resource.data.creditMinor == 0
-                  && request.resource.data.paidMinor == resource.data.paidMinor - get(payDoc(request.resource.data.lastRef)).data.amountMinor)
-                || (get(payDoc(request.resource.data.lastRef)).data.kind == 'credit' && request.resource.data.paidMinor == resource.data.paidMinor
-                  && request.resource.data.creditMinor == resource.data.creditMinor - get(payDoc(request.resource.data.lastRef)).data.amountMinor)))
+          || (n.lastKind == 'reversal' && o.status == 'SENT' && n.status == 'SENT'
+            && n.sentAt == o.sentAt && n.dueDate == o.dueDate && n.adjMinor == o.adjMinor
+            && exists(payDoc(n.lastRef)) && get(payDoc(n.lastRef)).data.invoiceId == id
+            && !exists(revDoc(n.lastRef)) && existsAfter(revDoc(n.lastRef))
+            && ((get(payDoc(n.lastRef)).data.kind == 'payment' && o.creditMinor == 0 && n.creditMinor == 0
+                  && n.paidMinor == o.paidMinor - get(payDoc(n.lastRef)).data.amountMinor)
+                || (get(payDoc(n.lastRef)).data.kind == 'credit' && n.paidMinor == o.paidMinor
+                  && n.creditMinor == o.creditMinor - get(payDoc(n.lastRef)).data.amountMinor)))
           // an adjustment after sending (never below what was already paid; not while a credit is held)
-          || (request.resource.data.lastKind == 'adjustment' && resource.data.status == 'SENT' && request.resource.data.status == 'SENT'
-            && request.resource.data.sentAt == resource.data.sentAt && request.resource.data.dueDate == resource.data.dueDate
-            && request.resource.data.paidMinor == resource.data.paidMinor && request.resource.data.creditMinor == resource.data.creditMinor && resource.data.creditMinor == 0
-            && request.resource.data.adjMinor != resource.data.adjMinor && resource.data.totalMinor + request.resource.data.adjMinor >= resource.data.paidMinor
-            && !exists(adjDoc(request.resource.data.lastRef)) && existsAfter(adjDoc(request.resource.data.lastRef))
-            && getAfter(adjDoc(request.resource.data.lastRef)).data.invoiceId == id
-            && getAfter(adjDoc(request.resource.data.lastRef)).data.amountMinor == request.resource.data.adjMinor - resource.data.adjMinor)
+          || (n.lastKind == 'adjustment' && o.status == 'SENT' && n.status == 'SENT'
+            && n.sentAt == o.sentAt && n.dueDate == o.dueDate
+            && n.paidMinor == o.paidMinor && n.creditMinor == o.creditMinor && o.creditMinor == 0
+            && n.adjMinor != o.adjMinor && o.totalMinor + n.adjMinor >= o.paidMinor
+            && !exists(adjDoc(n.lastRef)) && existsAfter(adjDoc(n.lastRef))
+            && getAfter(adjDoc(n.lastRef)).data.invoiceId == id
+            && getAfter(adjDoc(n.lastRef)).data.amountMinor == n.adjMinor - o.adjMinor)
           // the due date is changed after sending (old and new date and a reason are recorded)
-          || (request.resource.data.lastKind == 'due' && resource.data.status == 'SENT' && request.resource.data.status == 'SENT'
-            && request.resource.data.sentAt == resource.data.sentAt && invMoneySame(request.resource.data, resource.data)
-            && request.resource.data.dueDate != resource.data.dueDate && dateFmt(request.resource.data.dueDate)
-            && !exists(dueDoc(request.resource.data.lastRef)) && existsAfter(dueDoc(request.resource.data.lastRef))
-            && getAfter(dueDoc(request.resource.data.lastRef)).data.invoiceId == id
-            && getAfter(dueDoc(request.resource.data.lastRef)).data.previous == resource.data.dueDate && getAfter(dueDoc(request.resource.data.lastRef)).data.next == request.resource.data.dueDate)
+          || (n.lastKind == 'due' && o.status == 'SENT' && n.status == 'SENT'
+            && n.sentAt == o.sentAt && invMoneySame(n, o)
+            && n.dueDate != o.dueDate && dateFmt(n.dueDate)
+            && !exists(dueDoc(n.lastRef)) && existsAfter(dueDoc(n.lastRef))
+            && getAfter(dueDoc(n.lastRef)).data.invoiceId == id
+            && getAfter(dueDoc(n.lastRef)).data.previous == o.dueDate && getAfter(dueDoc(n.lastRef)).data.next == n.dueDate)
         );
+    }
+    match /invoices/{id} {
+      allow read: if isOwner();
+      allow create: if isOwner() && invCreateOk(id, request.resource.data);
+      allow update: if isOwner() && invUpdateOk(id, request.resource.data, resource.data);
     }
     match /invoiceAudit/{aid} {
       allow read: if isOwner();
@@ -1248,7 +1253,7 @@ No Firestore rules change in E4 (`ownerPrivate` is already owner only). Rules te
 - **Balance cache:** each invoice keeps paid/credit/adjustment totals, updated in the same batch as the record. The page recomputes the true balance and shows "Balance record differs" if they disagree.
 - **Rules changed - republish `firestore.rules.strict`** (keep `firestore.rules` in step). New collections: `invoices`, `invoiceAudit`, `payments`, `paymentReversals`, `invoiceAdjustments`, `invoiceDueDates`; billable hours gain link/unlink. Payments and audits are create-only, no deletes.
 - **Backup and log:** the new collections are in the export list (export only) and in the tamper-evident log.
-- **Honest limits:** max 2 entries per invoice (rules cannot loop); half-up rounding is checked as an inequality; "payment date not in the future" and due-date arithmetic are page checks; self-approval, console access can still change data (the log detects it); offline shows no success until the server accepts; restore of these collections is not offered.
+- **Honest limits:** max 2 entries per invoice (rules cannot loop, and each write may use at most 1000 rule steps: the first emulator run showed a two-entry invoice went over, so the invoice rules were slimmed and `budget_check.py` now watches the step count); half-up rounding is checked as an inequality; "payment date not in the future" and due-date arithmetic are page checks; self-approval, console access can still change data (the log detects it); offline shows no success until the server accepts; restore of these collections is not offered.
 - **Tests:** unit `core-invoice.test.mjs` (22), attack sections 8j/8k/8l (2331 checks in the suite), `mutations_b2.py` (607 deliberate bugs; the redundant guards are listed in `b2_equiv.py` with reasons), browser test `qa_b2` (71 checks), emulator `invoices-b2.test.mjs` (written, awaiting your workflow run).
 - **Not in B2:** schedules and generated periods (B3), moving old client data (M3), email/PDF.
 
