@@ -39,7 +39,7 @@ async function mkInvoice(db, o = {}, two = false, id = INVID, aid = A('i1')) {
   b.set(doc(db, 'invoices', id), IV({ lastRef: aid, entryIds: ids, ...(two ? { minutes: 600, totalMinor: 25000 } : {}), ...o }));
   b.set(doc(db, 'invoiceAudit', aid), IAU({ invoiceId: id, totalMinor: o.totalMinor ?? (two ? 25000 : 20000) }));
   for (const [i, eid] of ids.entries()) {
-    const e = await getE(db, eid); const ea = A('l' + (i + 1));
+    const e = await getE(db, eid); const ea = A((id === INVID ? 'l' : 'm') + (i + 1));   // a second invoice must use new audit IDs: audit records are create-only
     b.set(doc(db, 'billableEntries', eid), { ...e, relatedInvoiceId: id, rev: e.rev + 1, updatedAt: T(), lastAudit: ea });
     b.set(doc(db, 'billableEntryAudit', ea), EAU({ entryId: eid, submittedMinutes: e.submittedMinutes, approvedMinutes: e.approvedMinutes, rev: e.rev + 1 }));
   }
