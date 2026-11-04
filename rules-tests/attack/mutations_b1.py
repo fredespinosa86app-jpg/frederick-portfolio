@@ -19,7 +19,7 @@ B1=[
  X('B1 profile update open to everyone',"allow update: if isOwner() && validClientId(id) && exists(regDoc(id)) && bpOk","allow update: if validClientId(id) && exists(regDoc(id)) && bpOk"),
  X('B1 profile audit create open to everyone',"allow create: if isOwner() && plainKey(aid)\n        && request.resource.data.keys().hasOnly(['clientId','action','rev','currency'","allow create: if plainKey(aid)\n        && request.resource.data.keys().hasOnly(['clientId','action','rev','currency'"),
  X('B1 entry create open to everyone',"allow create: if isOwner() && beOk(request.resource.data)\n        && id ==","allow create: if beOk(request.resource.data)\n        && id =="),
- X('B1 entry update open to everyone',"allow update: if isOwner() && beOk(request.resource.data)\n        && request.resource.data.clientId == resource.data.clientId","allow update: if beOk(request.resource.data)\n        && request.resource.data.clientId == resource.data.clientId"),
+ X('B1 entry update open to everyone',"allow update: if isOwner() && beUpdateOk(id, request.resource.data, resource.data);\n    }\n    match /billableEntryAudit","allow update: if beUpdateOk(id, request.resource.data, resource.data);\n    }\n    match /billableEntryAudit"),
  X('B1 entry audit create open to everyone',"allow create: if isOwner() && plainKey(aid)\n        && request.resource.data.keys().hasOnly(['entryId'","allow create: if plainKey(aid)\n        && request.resource.data.keys().hasOnly(['entryId'"),
  X('B1 migration create open to everyone',"allow create: if isOwner() && lid.matches","allow create: if lid.matches"),
  X('B1 profiles may be deleted',BPm,BPm.replace('allow read','allow read, delete')),

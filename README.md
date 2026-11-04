@@ -572,6 +572,52 @@ service cloud.firestore {
     // B1 (4.5.0): billable hours. The ID is CLIENTID__YYYYMMDD__YYYYMMDD__NN (client, period start, period end, sequence), so one entry exists per client, period and sequence number.
     // DRAFT -> SUBMITTED -> APPROVED (self-approved: the approver and the server time are stored). An approved entry never changes its minutes: a later change is a NEW entry
     // that points back to it, and the old one becomes SUPERSEDED in the same batch. Every step has its own brand-new audit record. No delete.
+    // Every change to an existing billable entry (n = after the write, o = before it).
+    function beUpdateOk(id, n, o) {
+      return beOk(n)
+        && n.clientId == o.clientId && n.periodStart == o.periodStart
+        && n.periodEnd == o.periodEnd && n.seq == o.seq
+        && n.createdAt == o.createdAt && n.supersedes == o.supersedes
+        && n.rev == o.rev + 1 && n.updatedAt == request.time
+        && !exists(beAudit(n.lastAudit)) && existsAfter(beAudit(n.lastAudit))
+        && (
+          // edit a draft
+          (o.status == 'DRAFT' && n.status == 'DRAFT' && n.relatedInvoiceId == o.relatedInvoiceId
+            && n.approvedMinutes == null && n.approvedAt == null && n.approverUid == '' && n.supersededBy == '')
+          // submit
+          || (o.status == 'DRAFT' && n.status == 'SUBMITTED' && n.relatedInvoiceId == o.relatedInvoiceId
+            && n.submittedMinutes == o.submittedMinutes && n.note == o.note
+            && n.approvedMinutes == null && n.approvedAt == null && n.approverUid == '' && n.supersededBy == '')
+          // reopen
+          || (o.status == 'SUBMITTED' && n.status == 'DRAFT' && n.relatedInvoiceId == o.relatedInvoiceId
+            && n.submittedMinutes == o.submittedMinutes && n.note == o.note
+            && n.approvedMinutes == null && n.approvedAt == null && n.approverUid == '' && n.supersededBy == '')
+          // approve (self-approved)
+          || (o.status == 'SUBMITTED' && n.status == 'APPROVED' && n.relatedInvoiceId == o.relatedInvoiceId
+            && n.submittedMinutes == o.submittedMinutes && n.note == o.note
+            && n.approvedMinutes != null && n.approvedAt == request.time
+            && n.approverUid == request.auth.uid && n.supersededBy == '')
+          // replaced by a newer entry (created in the same batch)
+          || (o.status == 'APPROVED' && n.status == 'SUPERSEDED' && o.relatedInvoiceId == '' && n.relatedInvoiceId == ''
+            && n.submittedMinutes == o.submittedMinutes && n.approvedMinutes == o.approvedMinutes
+            && n.approvedAt == o.approvedAt && n.approverUid == o.approverUid && n.note == o.note
+            && n.supersededBy.size() > 0
+            && existsAfter(beDoc(n.supersededBy)) && getAfter(beDoc(n.supersededBy)).data.supersedes == id
+            && getAfter(beDoc(n.supersededBy)).data.status == 'DRAFT')
+          // B2: put on a new draft invoice (made in the same batch and listing this entry); the hours stay exactly as approved
+          || (o.status == 'APPROVED' && n.status == 'APPROVED' && o.relatedInvoiceId == '' && n.relatedInvoiceId != ''
+            && n.submittedMinutes == o.submittedMinutes && n.approvedMinutes == o.approvedMinutes
+            && n.approvedAt == o.approvedAt && n.approverUid == o.approverUid && n.note == o.note
+            && n.supersededBy == o.supersededBy
+            && beLinkInvOk(n.relatedInvoiceId, id, o.clientId))
+          // B2: released when its draft or ready invoice is cancelled in the same batch
+          || (o.status == 'APPROVED' && n.status == 'APPROVED' && o.relatedInvoiceId != '' && n.relatedInvoiceId == ''
+            && n.submittedMinutes == o.submittedMinutes && n.approvedMinutes == o.approvedMinutes
+            && n.approvedAt == o.approvedAt && n.approverUid == o.approverUid && n.note == o.note
+            && n.supersededBy == o.supersededBy
+            && beUnlinkInvOk(o.relatedInvoiceId))
+        );
+    }
     match /billableEntries/{id} {
       allow read: if isOwner();
       allow create: if isOwner() && beOk(request.resource.data)
@@ -589,52 +635,7 @@ service cloud.firestore {
                 && get(beDoc(request.resource.data.supersedes)).data.periodEnd == request.resource.data.periodEnd
                 && existsAfter(beDoc(request.resource.data.supersedes)) && getAfter(beDoc(request.resource.data.supersedes)).data.status == 'SUPERSEDED'
                 && getAfter(beDoc(request.resource.data.supersedes)).data.supersededBy == id));
-      allow update: if isOwner() && beOk(request.resource.data)
-        && request.resource.data.clientId == resource.data.clientId && request.resource.data.periodStart == resource.data.periodStart
-        && request.resource.data.periodEnd == resource.data.periodEnd && request.resource.data.seq == resource.data.seq
-        && request.resource.data.createdAt == resource.data.createdAt && request.resource.data.supersedes == resource.data.supersedes
-        && request.resource.data.rev == resource.data.rev + 1 && request.resource.data.updatedAt == request.time
-        && !exists(beAudit(request.resource.data.lastAudit)) && existsAfter(beAudit(request.resource.data.lastAudit))
-        && (
-          // edit a draft
-          (resource.data.status == 'DRAFT' && request.resource.data.status == 'DRAFT' && request.resource.data.relatedInvoiceId == resource.data.relatedInvoiceId
-            && request.resource.data.approvedMinutes == null && request.resource.data.approvedAt == null && request.resource.data.approverUid == '' && request.resource.data.supersededBy == '')
-          // submit
-          || (resource.data.status == 'DRAFT' && request.resource.data.status == 'SUBMITTED' && request.resource.data.relatedInvoiceId == resource.data.relatedInvoiceId
-            && request.resource.data.submittedMinutes == resource.data.submittedMinutes && request.resource.data.note == resource.data.note
-            && request.resource.data.approvedMinutes == null && request.resource.data.approvedAt == null && request.resource.data.approverUid == '' && request.resource.data.supersededBy == '')
-          // reopen
-          || (resource.data.status == 'SUBMITTED' && request.resource.data.status == 'DRAFT' && request.resource.data.relatedInvoiceId == resource.data.relatedInvoiceId
-            && request.resource.data.submittedMinutes == resource.data.submittedMinutes && request.resource.data.note == resource.data.note
-            && request.resource.data.approvedMinutes == null && request.resource.data.approvedAt == null && request.resource.data.approverUid == '' && request.resource.data.supersededBy == '')
-          // approve (self-approved)
-          || (resource.data.status == 'SUBMITTED' && request.resource.data.status == 'APPROVED' && request.resource.data.relatedInvoiceId == resource.data.relatedInvoiceId
-            && request.resource.data.submittedMinutes == resource.data.submittedMinutes && request.resource.data.note == resource.data.note
-            && request.resource.data.approvedMinutes != null && request.resource.data.approvedAt == request.time
-            && request.resource.data.approverUid == request.auth.uid && request.resource.data.supersededBy == '')
-          // replaced by a newer entry (created in the same batch)
-          || (resource.data.status == 'APPROVED' && request.resource.data.status == 'SUPERSEDED' && resource.data.relatedInvoiceId == '' && request.resource.data.relatedInvoiceId == ''
-            && request.resource.data.submittedMinutes == resource.data.submittedMinutes && request.resource.data.approvedMinutes == resource.data.approvedMinutes
-            && request.resource.data.approvedAt == resource.data.approvedAt && request.resource.data.approverUid == resource.data.approverUid && request.resource.data.note == resource.data.note
-            && request.resource.data.supersededBy.size() > 0
-            && existsAfter(beDoc(request.resource.data.supersededBy)) && getAfter(beDoc(request.resource.data.supersededBy)).data.supersedes == id
-            && getAfter(beDoc(request.resource.data.supersededBy)).data.status == 'DRAFT')
-          // B2: put on a new draft invoice (made in the same batch and listing this entry); the hours stay exactly as approved
-          || (resource.data.status == 'APPROVED' && request.resource.data.status == 'APPROVED' && resource.data.relatedInvoiceId == '' && request.resource.data.relatedInvoiceId != ''
-            && request.resource.data.submittedMinutes == resource.data.submittedMinutes && request.resource.data.approvedMinutes == resource.data.approvedMinutes
-            && request.resource.data.approvedAt == resource.data.approvedAt && request.resource.data.approverUid == resource.data.approverUid && request.resource.data.note == resource.data.note
-            && request.resource.data.supersededBy == resource.data.supersededBy
-            && !exists(invDoc(request.resource.data.relatedInvoiceId)) && existsAfter(invDoc(request.resource.data.relatedInvoiceId))
-            && getAfter(invDoc(request.resource.data.relatedInvoiceId)).data.status == 'DRAFT' && getAfter(invDoc(request.resource.data.relatedInvoiceId)).data.clientId == resource.data.clientId
-            && id in getAfter(invDoc(request.resource.data.relatedInvoiceId)).data.entryIds)
-          // B2: released when its draft or ready invoice is cancelled in the same batch
-          || (resource.data.status == 'APPROVED' && request.resource.data.status == 'APPROVED' && resource.data.relatedInvoiceId != '' && request.resource.data.relatedInvoiceId == ''
-            && request.resource.data.submittedMinutes == resource.data.submittedMinutes && request.resource.data.approvedMinutes == resource.data.approvedMinutes
-            && request.resource.data.approvedAt == resource.data.approvedAt && request.resource.data.approverUid == resource.data.approverUid && request.resource.data.note == resource.data.note
-            && request.resource.data.supersededBy == resource.data.supersededBy
-            && exists(invDoc(resource.data.relatedInvoiceId)) && (get(invDoc(resource.data.relatedInvoiceId)).data.status == 'DRAFT' || get(invDoc(resource.data.relatedInvoiceId)).data.status == 'READY')
-            && existsAfter(invDoc(resource.data.relatedInvoiceId)) && getAfter(invDoc(resource.data.relatedInvoiceId)).data.status == 'CANCELLED')
-        );
+      allow update: if isOwner() && beUpdateOk(id, request.resource.data, resource.data);
     }
     match /billableEntryAudit/{aid} {
       allow read: if isOwner();
@@ -688,6 +689,16 @@ service cloud.firestore {
     // update with a brand-new record (the "paired write"), so the cached balance on the invoice can never move without a record that explains it.
     // Rules cannot loop or divide: an invoice holds at most 2 approved entries (their minutes are added up here) and the half-up total is checked as an inequality.
     // Payment dates and due-date maths are checked by the page; the rules check the date FORMAT only.
+    // Entry side of the invoice link, written with let so each invoice is read once (a write may use at most 1000 rule steps; a missing invoice makes the read fail, which refuses the write).
+    function beLinkInvOk(rel, id, cid) {
+      let i = getAfter(invDoc(rel)).data;
+      return !exists(invDoc(rel)) && i.status == 'DRAFT' && i.clientId == cid && id in i.entryIds;
+    }
+    function beUnlinkInvOk(rel) {
+      let b = get(invDoc(rel)).data;
+      let a = getAfter(invDoc(rel)).data;
+      return (b.status == 'DRAFT' || b.status == 'READY') && a.status == 'CANCELLED';
+    }
     function invDoc(id) { return /databases/$(database)/documents/invoices/$(id); }
     function invAudit(aid) { return /databases/$(database)/documents/invoiceAudit/$(aid); }
     function payDoc(pid) { return /databases/$(database)/documents/payments/$(pid); }
@@ -745,9 +756,10 @@ service cloud.firestore {
     function invDueOk(d, p) {
       return (p.dueKind == 'fixed' && d.dueDate == p.dueDate) || (p.dueKind == 'afterGeneration' && dateFmt(d.dueDate)) || (p.dueKind == 'afterSend' && d.dueDate == '');
     }
+    function invUnl2(d) { return getAfter(beDoc(d.entryIds[1])).data.relatedInvoiceId == ''; }
     function invUnlinked(d) {
-      return (d.entryIds.size() == 1 && existsAfter(beDoc(d.entryIds[0])) && getAfter(beDoc(d.entryIds[0])).data.relatedInvoiceId == '')
-        || (d.entryIds.size() == 2 && existsAfter(beDoc(d.entryIds[0])) && getAfter(beDoc(d.entryIds[0])).data.relatedInvoiceId == '' && existsAfter(beDoc(d.entryIds[1])) && getAfter(beDoc(d.entryIds[1])).data.relatedInvoiceId == '');
+      let a = getAfter(beDoc(d.entryIds[0])).data;
+      return a.relatedInvoiceId == '' && (d.entryIds.size() == 1 || (d.entryIds.size() == 2 && invUnl2(d)));
     }
     // Everything an invoice must satisfy when it is made. The billing profile is read once (rules allow only so many steps per write).
     function invCreateOk(id, d) {
@@ -1253,7 +1265,7 @@ No Firestore rules change in E4 (`ownerPrivate` is already owner only). Rules te
 - **Balance cache:** each invoice keeps paid/credit/adjustment totals, updated in the same batch as the record. The page recomputes the true balance and shows "Balance record differs" if they disagree.
 - **Rules changed - republish `firestore.rules.strict`** (keep `firestore.rules` in step). New collections: `invoices`, `invoiceAudit`, `payments`, `paymentReversals`, `invoiceAdjustments`, `invoiceDueDates`; billable hours gain link/unlink. Payments and audits are create-only, no deletes.
 - **Backup and log:** the new collections are in the export list (export only) and in the tamper-evident log.
-- **Honest limits:** max 2 entries per invoice (rules cannot loop, and each write may use at most 1000 rule steps: the first emulator run showed a two-entry invoice went over, so the invoice rules were slimmed and `budget_check.py` now watches the step count); half-up rounding is checked as an inequality; "payment date not in the future" and due-date arithmetic are page checks; self-approval, console access can still change data (the log detects it); offline shows no success until the server accepts; restore of these collections is not offered.
+- **Honest limits:** max 2 entries per invoice (rules cannot loop, and each write may use at most 1000 rule steps: the first emulator run showed a two-entry invoice went over, so the invoice and billable-entry rules were slimmed (a second emulator run then showed the cancel-and-replace test still over the limit on the entry release step, so that was slimmed too) and `budget_check.py` now watches the step count); half-up rounding is checked as an inequality; "payment date not in the future" and due-date arithmetic are page checks; self-approval, console access can still change data (the log detects it); offline shows no success until the server accepts; restore of these collections is not offered.
 - **Tests:** unit `core-invoice.test.mjs` (22), attack sections 8j/8k/8l (2331 checks in the suite), `mutations_b2.py` (607 deliberate bugs; the redundant guards are listed in `b2_equiv.py` with reasons), browser test `qa_b2` (71 checks), emulator `invoices-b2.test.mjs` (written, awaiting your workflow run).
 - **Not in B2:** schedules and generated periods (B3), moving old client data (M3), email/PDF.
 

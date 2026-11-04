@@ -83,12 +83,13 @@ test('a linked entry cannot be replaced or changed while it is on an invoice', a
   await seedBase(); const db = owner(); await mkInvoice(db); const e = await getE(db, EID);
   const b = writeBatch(db); b.set(doc(db, 'billableEntries', EID), { ...e, status: 'SUPERSEDED', supersededBy: EID2, rev: e.rev + 1, updatedAt: T(), lastAudit: A('s1') }); b.set(doc(db, 'billableEntryAudit', A('s1')), EAU({ action: 'supersede', toStatus: 'SUPERSEDED', reason: 'Client sent a correction', rev: e.rev + 1 })); await assertFails(b.commit());
 });
+async function labelled(name, p) { try { return await p; } catch (e) { e.message = name + ' FAILED: ' + e.message; throw e; } }
 test('cancelling releases the entry in the same batch; cancelling without releasing is refused; a replacement invoice gets the next number', async () => {
   await seedBase(); const db = owner(); await mkInvoice(db); const cur = await getI(db), e = await getE(db, EID);
   const bad = writeBatch(db); bad.set(doc(db, 'invoices', INVID), { ...cur, status: 'CANCELLED', rev: 2, updatedAt: T(), lastKind: 'cancel', lastRef: A('c1') }); bad.set(doc(db, 'invoiceAudit', A('c1')), IAU({ action: 'cancel', fromStatus: 'DRAFT', toStatus: 'CANCELLED', rev: 2, reason: 'Wrong hours' })); await assertFails(bad.commit());
   const b = writeBatch(db); b.set(doc(db, 'invoices', INVID), { ...cur, status: 'CANCELLED', rev: 2, updatedAt: T(), lastKind: 'cancel', lastRef: A('c1') }); b.set(doc(db, 'invoiceAudit', A('c1')), IAU({ action: 'cancel', fromStatus: 'DRAFT', toStatus: 'CANCELLED', rev: 2, reason: 'Wrong hours' }));
-  b.set(doc(db, 'billableEntries', EID), { ...e, relatedInvoiceId: '', rev: e.rev + 1, updatedAt: T(), lastAudit: A('u1') }); b.set(doc(db, 'billableEntryAudit', A('u1')), EAU({ action: 'unlink', reason: 'Invoice cancelled', rev: e.rev + 1 })); await assertSucceeds(b.commit());
-  await assertSucceeds(mkInvoice(db, { suffix: '02' }, false, INVID2, A('j1')));
+  b.set(doc(db, 'billableEntries', EID), { ...e, relatedInvoiceId: '', rev: e.rev + 1, updatedAt: T(), lastAudit: A('u1') }); b.set(doc(db, 'billableEntryAudit', A('u1')), EAU({ action: 'unlink', reason: 'Invoice cancelled', rev: e.rev + 1 })); await labelled('STEP cancel batch (invoice + audit + entry unlink + entry audit)', assertSucceeds(b.commit()));
+  await labelled('STEP replacement invoice __02 (invoice + audit + entry link + entry audit)', assertSucceeds(mkInvoice(db, { suffix: '02' }, false, INVID2, A('j1'))));
 });
 test('an entry cannot be released with no cancelled invoice', async () => {
   await seedBase(); const db = owner(); await mkInvoice(db); const e = await getE(db, EID), b = writeBatch(db);

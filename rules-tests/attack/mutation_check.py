@@ -81,7 +81,11 @@ print('baseline green:',_b.strip().splitlines()[-1])
 miss=[]; equiv=[]
 for n,a,b in M:
     if os.environ.get('ONLY') and not n.startswith(os.environ['ONLY']): continue
-    if a not in TXT: print('SKIP (pattern not found):',n); miss.append(n); continue
+    if a not in TXT:
+        # the entry and invoice update rules were moved into functions that call the new record n and the old record o (4.5.0 B2): translate the old wording
+        def _tr(s): return s.replace('allow update: if isOwner() && beOk(request.resource.data)','return beOk(n)').replace('request.resource.data.','n.').replace('request.resource.data','n').replace('resource.data.','o.').replace('resource.data','o')
+        if _tr(a) in TXT: a,b=_tr(a),_tr(b)
+        else: print('SKIP (pattern not found):',n); miss.append(n); continue
     d=mk(TXT.replace(a,b,1))
     out=subprocess.run([sys.executable,SP+'/attack_cases.py',d],capture_output=True,text=True).stdout
     fails=[l for l in out.splitlines() if l.startswith('FAIL') and 'strict rules differ' not in l]

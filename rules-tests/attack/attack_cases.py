@@ -808,6 +808,11 @@ for nm,sim in (('transition',S),('strict',SS)):
     chk(f'B2 [{nm}] cancel refused: a SENT invoice, a cancelled invoice',not P('update',INV(),OWN,CXN(SENT_AFTER),SENT_AFTER,dict(WD,**{INV():SENT_AFTER}),CXAF(SENT_AFTER)) and not P('update',INV(),OWN,CXN(CXN()),CXN(),dict(WD,**{INV():CXN()}),CXAF(CXN())))
     chk(f'B2 [{nm}] cancel audit refused: reason under 3 characters, wrong from-status, wrong action',not any([P('create',INVA(AID5),OWN,CAU(reason='ab'),None,WD,CXAF()),P('create',INVA(AID5),OWN,CAU(fromStatus='SENT'),None,WD,CXAF()),
         P('create',INVA(AID5),OWN,CAU(action='ready'),None,WD,CXAF()),P('create',INVA(AID5),OWN,CAU(toStatus='SENT'),None,WD,CXAF())]))
+    D2=DV|{'entryIds':[EIDE,EIDE2],'minutes':600,'totalMinor':25000}; LE2=LK(OKE2,AID3,INVID); UNL2=OKE2|{'relatedInvoiceId':'','rev':4,'lastAudit':AID4}; WD2=dict(WD,**{INV():D2,BE(EIDE2):LE2})
+    CX2=lambda e2,e1=None: {INV():CXN(D2),INVA(AID5):CAU(D2),BE():UNL if e1 is None else e1,BEA(AID4):UAU_(),BE(EIDE2):e2}
+    chk(f'B2 [{nm}] control: a two-entry invoice is cancelled when BOTH entries are released',P('update',INV(),OWN,CXN(D2),D2,WD2,CX2(UNL2)))
+    chk(f'B2 [{nm}] two-entry cancel refused: the second entry stays linked, or the first stays linked, or the second is linked elsewhere',not any([
+      P('update',INV(),OWN,CXN(D2),D2,WD2,CX2(LE2)),P('update',INV(),OWN,CXN(D2),D2,WD2,CX2(UNL2,LE)),P('update',INV(),OWN,CXN(D2),D2,WD2,CX2(LK(OKE2,AID3,INVID2))),P('update',INV(),OWN,CXN(D2),D2,WD2,CX2(UNL2|{'relatedInvoiceId':'X'}))]))
     chk(f'B2 [{nm}] unlink audit refused: reason under 3 characters, still linked after the batch, wrong action',not any([P('create',BEA(AID4),OWN,UAU_(reason='ab'),None,WD,CXAF()),P('create',BEA(AID4),OWN,UAU_(),None,WD,CXAF(e=LE|{'rev':4,'lastAudit':AID4})),P('create',BEA(AID4),OWN,UAU_(action='link'),None,WD,CXAF())]))
     # ---------------- invoice audit
     AMODS2=[('actor is not the owner',dict(actor='someoneelse123')),('created time not server time',dict(createdAt=TS(NOW-1))),('total does not match the invoice',dict(totalMinor=1)),('revision does not match',dict(rev=2)),('status does not match the invoice',dict(toStatus='READY')),
