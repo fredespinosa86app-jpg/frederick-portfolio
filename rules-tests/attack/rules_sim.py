@@ -69,11 +69,16 @@ class P:
             elif x=='is' and k=='id': s.nxt(); l=('is',l,s.nxt()[1])
             else: return l
     def add(s):
+        l=s.mul()
+        while s.isop('+') or s.isop('-'): op=s.nxt()[1]; l=('arith',op,l,s.mul())
+        return l
+    def mul(s):
         l=s.unary()
-        while s.isop('+') or s.isop('-'): op=s.nxt()[1]; l=('arith',op,l,s.unary())
+        while s.isop('*'): s.nxt(); l=('arith','*',l,s.unary())
         return l
     def unary(s):
         if s.isop('!'): s.nxt(); return ('not',s.unary())
+        if s.isop('-'): s.nxt(); return ('arith','-',('lit',0),s.unary())
         return s.post()
     def post(s):
         e=s.prim()
@@ -191,7 +196,7 @@ class Sim:
             a=s.ev(n[2],env); b=s.ev(n[3],env)
             if n[1]=='+' and isinstance(a,str) and isinstance(b,str): return a+b
             if isinstance(a,TS) and isinstance(b,Dur): return TS(a.ms+b.ms if n[1]=='+' else a.ms-b.ms)
-            if isinstance(a,(int,float)) and isinstance(b,(int,float)) and type(a) is not bool and type(b) is not bool: return a+b if n[1]=='+' else a-b
+            if isinstance(a,(int,float)) and isinstance(b,(int,float)) and type(a) is not bool and type(b) is not bool: return a*b if n[1]=='*' else (a+b if n[1]=='+' else a-b)
             raise EvalErr('arith')
         if t=='in':
             a=s.ev(n[1],env); b=s.ev(n[2],env)
@@ -211,6 +216,7 @@ class Sim:
         if t=='index':
             o=s.ev(n[1],env); k=s.ev(n[2],env)
             if isinstance(o,dict) and k in o: return o[k]
+            if isinstance(o,list) and isinstance(k,int) and not isinstance(k,bool) and 0<=k<len(o): return o[k]
             raise EvalErr('index')
         if t=='mcall': return s.method(s.ev(n[1],env),n[2],[s.ev(a,env) for a in n[3]])
         if t=='call':

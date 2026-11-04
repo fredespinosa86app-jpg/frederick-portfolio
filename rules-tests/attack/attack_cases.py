@@ -704,6 +704,392 @@ for nm,sim in (('transition',S),('strict',SS)):
     chk(f'B1 [{nm}] migration mapping refused: new-registry mapping with a registry entry that is not in the batch, or already exists; existing-registry mapping with a missing/archived entry',not any([
       P('create',BM(LEG),OWN,MIG(registryNew=True),None,{},{BM(LEG):MIG(registryNew=True),BP():PRO()}),P('create',BM(LEG),OWN,MIG(registryNew=True),None,R0,{BM(LEG):MIG(registryNew=True),BP():PRO(),'clientRegistry/CL-001':REG(rev=2)}),
       P('create',BM(LEG),OWN,MIG(),None,{},{BM(LEG):MIG(),BP():PRO()}),P('create',BM(LEG),OWN,MIG(),None,{},{BM(LEG):MIG(),BP():PRO(),'clientRegistry/CL-001':REG()})]))
+    # ---------------- 8j. B2 (4.5.0): invoices, payments, credits, reversals, adjustments, due-date changes, entry link/unlink
+    INVID='CL-001__20261101__20261115'; INVID2=INVID+'__02'
+    INV=lambda i=INVID: 'invoices/'+i
+    INVA=lambda a: 'invoiceAudit/'+a
+    PAYP=lambda p: 'payments/'+p; REVP=lambda p: 'paymentReversals/'+p; ADJP=lambda a: 'invoiceAdjustments/'+a; DUEP=lambda d: 'invoiceDueDates/'+d
+    PID1='p'*16; PID2='q'*16; AID4='d'*16; AID5='e'*16
+    IV=lambda **k: dict({'clientId':'CL-001','periodStart':'20261101','periodEnd':'20261115','suffix':'','currency':'USD','exp':2,'rateMinor':2500,'tz':'Asia/Manila','dueKind':'afterSend','dueDays':14,'dueDate':'',
+      'entryIds':[EIDE],'minutes':480,'totalMinor':20000,'status':'DRAFT','sentAt':None,'paidMinor':0,'creditMinor':0,'adjMinor':0,'rev':1,'createdAt':TSNOW,'updatedAt':TSNOW,'lastKind':'create','lastRef':AID1},**k)
+    IAU=lambda **k: dict({'invoiceId':INVID,'action':'create','fromStatus':'','toStatus':'DRAFT','rev':1,'totalMinor':20000,'reason':'','actor':UID,'createdAt':TSNOW},**k)
+    OKE1=OKE|{'lastAudit':AID2}                                  # 480 approved minutes
+    OKE2=ENT(seq='02',submittedMinutes=120,status='APPROVED',approvedMinutes=120,approvedAt=TS(NOW-HR),approverUid=UID,rev=3,lastAudit=AID2)
+    LK=lambda e,aid=AID3,iid=INVID: e|{'relatedInvoiceId':iid,'rev':4,'lastAudit':aid}
+    LAU=lambda e=EIDE,m=480,aid=None,**k: dict({'entryId':e,'clientId':'CL-001','action':'link','fromStatus':'APPROVED','toStatus':'APPROVED','rev':4,'submittedMinutes':m,'approvedMinutes':m,'reason':'','actor':UID,'createdAt':TSNOW},**k)
+    CDOC=dict(ED0,**{BE():OKE1,BE(EIDE2):OKE2})                  # before a create: two approved entries, a hourly profile, active client
+    def CAF(inv=None,aud=None,two=False,e1=None,a1=None,e2=None,a2=None):
+        d={INV():IV() if inv is None else inv,INVA(AID1):IAU() if aud is None else aud,BE():LK(OKE1) if e1 is None else e1,BEA(AID3):LAU() if a1 is None else a1}
+        if two: d.update({BE(EIDE2):LK(OKE2,AID4) if e2 is None else e2,BEA(AID4):LAU(EIDE2,120) if a2 is None else a2})
+        return d
+    icr=lambda inv=None,docs=None,au=OWN,after=None,i=INVID: P('create',INV(i),au,IV() if inv is None else inv,None,CDOC if docs is None else docs,CAF(inv) if after is None else after)
+    TWO=lambda **k: IV(**dict(dict(entryIds=[EIDE,EIDE2],minutes=600,totalMinor=25000),**k))
+    chk(f'B2 [{nm}] control: a draft invoice, its audit and the entry link are written together (one entry; two entries)',icr() and icr(TWO(),after=CAF(TWO(),two=True)))
+    chk(f'B2 [{nm}] control: audit and entry-audit records of a create are accepted',P('create',INVA(AID1),OWN,IAU(),None,CDOC,CAF()) and P('create',BEA(AID3),OWN,LAU(),None,CDOC,CAF()) and P('update',BE(),OWN,LK(OKE1),OKE1,CDOC,CAF()))
+    chk(f'B2 [{nm}] control: owner can read and list all invoice collections',all(P(o,x,OWN,None,None,{y:{'a':1}}) for o,x,y in (('get',INV(),INV()),('list','invoices',INV()),('get',INVA(AID1),INVA(AID1)),('list','invoiceAudit',INVA(AID1)),('get',PAYP(PID1),PAYP(PID1)),('list','payments',PAYP(PID1)),('get',REVP(PID1),REVP(PID1)),('list','paymentReversals',REVP(PID1)),('get',ADJP(AID1),ADJP(AID1)),('list','invoiceAdjustments',ADJP(AID1)),('get',DUEP(AID1),DUEP(AID1)),('list','invoiceDueDates',DUEP(AID1)))))
+    chk(f'B2 [{nm}] control: fixed and after-generation due dates, the second invoice number, half-up rounding edges',all([
+      icr(IV(dueKind='fixed',dueDate='2026-12-31',dueDays=0),docs=dict(CDOC,**{BP():PRO(dueKind='fixed',dueDate='2026-12-31',dueDays=0)})),
+      icr(IV(dueKind='afterGeneration',dueDate='2026-11-29'),docs=dict(CDOC,**{BP():PRO(dueKind='afterGeneration')})),
+      icr(IV(suffix='02'),i=INVID2,after=CAF(IV(suffix='02'),e1=LK(OKE1,iid=INVID2),a1=LAU())),
+      icr(IV(rateMinor=1,minutes=30,totalMinor=1),docs=dict(CDOC,**{BP():PRO(rateMinor=1),BE():OKE1|{'approvedMinutes':30,'submittedMinutes':30}}),after=CAF(IV(rateMinor=1,minutes=30,totalMinor=1),e1=LK(OKE1|{'approvedMinutes':30,'submittedMinutes':30}))),
+      icr(IV(rateMinor=1,minutes=29,totalMinor=0),docs=dict(CDOC,**{BP():PRO(rateMinor=1),BE():OKE1|{'approvedMinutes':29,'submittedMinutes':29}}),after=CAF(IV(rateMinor=1,minutes=29,totalMinor=0),e1=LK(OKE1|{'approvedMinutes':29,'submittedMinutes':29})))]))
+    chk(f'B2 [{nm}] total refused at the rounding edges and when not the half-up value of rate x minutes / 60',not any([icr(IV(totalMinor=19999)),icr(IV(totalMinor=20001)),icr(IV(totalMinor=0)),
+      icr(IV(rateMinor=1,minutes=30,totalMinor=0),docs=dict(CDOC,**{BP():PRO(rateMinor=1),BE():OKE1|{'approvedMinutes':30,'submittedMinutes':30}}),after=CAF(IV(rateMinor=1,minutes=30,totalMinor=0),e1=LK(OKE1|{'approvedMinutes':30,'submittedMinutes':30}))),
+      icr(IV(rateMinor=1,minutes=29,totalMinor=1),docs=dict(CDOC,**{BP():PRO(rateMinor=1),BE():OKE1|{'approvedMinutes':29,'submittedMinutes':29}}),after=CAF(IV(rateMinor=1,minutes=29,totalMinor=1),e1=LK(OKE1|{'approvedMinutes':29,'submittedMinutes':29}))),
+      icr(TWO(totalMinor=25001),after=CAF(TWO(totalMinor=25001),two=True)),icr(TWO(totalMinor=24999),after=CAF(TWO(totalMinor=24999),two=True))]))
+    IMODS=[('ID does not match the fields (suffix without suffix in the ID)',dict(suffix='02')),('suffix 01',dict(suffix='01')),('suffix 100',dict(suffix='100')),('status READY',dict(status='READY')),('status SENT',dict(status='SENT',sentAt=TSNOW)),
+      ('sent time set on a draft',dict(sentAt=TSNOW)),('paid not zero',dict(paidMinor=1)),('credit not zero',dict(creditMinor=1)),('adjustment not zero',dict(adjMinor=1)),('revision 2',dict(rev=2)),('last step not create',dict(lastKind='payment')),
+      ('minutes do not match the entry',dict(minutes=479)),('minutes zero',dict(minutes=0,totalMinor=0)),('rate not the profile rate',dict(rateMinor=2501,totalMinor=20008)),('rate zero',dict(rateMinor=0,totalMinor=0)),('currency not the profile currency',dict(currency='EUR')),
+      ('decimals not matching the currency',dict(exp=0)),('time zone not the profile zone',dict(tz='UTC')),('due rule not the profile rule',dict(dueKind='afterGeneration',dueDate='2026-11-29')),('due days not the profile days',dict(dueDays=7)),
+      ('a date on an after-sending invoice',dict(dueDate='2026-11-29')),('total negative',dict(totalMinor=-1)),('entry list empty',dict(entryIds=[])),('three entries',dict(entryIds=[EIDE,EIDE2,'CL-001__20261101__20261115__03'])),
+      ('same entry twice',dict(entryIds=[EIDE,EIDE],minutes=960,totalMinor=40000)),('entry list not a list',dict(entryIds=EIDE)),('created time not server time',dict(createdAt=TS(NOW-1))),('updated time not server time',dict(updatedAt=TS(NOW-1))),
+      ('last-step reference too short',dict(lastRef='abc')),('period ends before it starts',dict(periodEnd='20261031')),('client ID lower case',dict(clientId='cl-001')),('status unknown',dict(status='PAID'))]
+    for lab,m in IMODS: chk(f'B2 [{nm}] invoice create refused: {lab}',not icr(IV(**m)))
+    chk(f'B2 [{nm}] invoice create refused: extra field, missing field',not icr(IV(extra=1)) and not icr(dropk(IV(),'tz')) and not icr(dropk(IV(),'entryIds')) and not icr(dropk(IV(),'lastRef')))
+    chk(f'B2 [{nm}] invoice create refused: a fixed or after-generation due rule with a wrong or missing date',not icr(IV(dueKind='fixed',dueDate='2026-12-30',dueDays=0),docs=dict(CDOC,**{BP():PRO(dueKind='fixed',dueDate='2026-12-31',dueDays=0)})) and not icr(IV(dueKind='afterGeneration',dueDate=''),docs=dict(CDOC,**{BP():PRO(dueKind='afterGeneration')})) and not icr(IV(dueKind='afterGeneration',dueDate='29/11/2026'),docs=dict(CDOC,**{BP():PRO(dueKind='afterGeneration')})))
+    chk(f'B2 [{nm}] invoice create refused: client archived, not in the registry, no profile, monthly-fee profile, profile without a rate',not any([icr(docs=dict(RARCH,**{BP():PRO(),BE():OKE1})),icr(docs={BP():PRO(),BE():OKE1}),icr(docs=dict(R0,**{BE():OKE1})),
+      icr(docs=dict(R0,**{BP():PRO(arrangement='monthly'),BE():OKE1})),icr(docs=dict(R0,**{BP():PRO(rateMinor=0),BE():OKE1}))]))
+    chk(f'B2 [{nm}] invoice create refused: no audit in the batch, audit ID already used, audit of another step',not icr(after={k:v for k,v in CAF().items() if k!=INVA(AID1)}) and not icr(docs=dict(CDOC,**{INVA(AID1):IAU()})) and not P('create',INVA(AID1),OWN,IAU(action='ready'),None,CDOC,CAF()))
+    chk(f'B2 [{nm}] invoice create refused: an entry that is not linked in the same batch, linked to another invoice, not approved, from another client or period, or missing',not any([
+      icr(after={k:v for k,v in CAF().items() if k not in (BE(),BEA(AID3))}),icr(after=CAF(e1=LK(OKE1,iid=INVID2))),icr(after=CAF(e1=OKE1)),icr(after=CAF(e1=LK(OKE1)|{'status':'SUBMITTED'})),
+      icr(docs=dict(CDOC,**{BE():OKE1|{'clientId':'CL-002'}}),after=CAF(e1=LK(OKE1|{'clientId':'CL-002'}))),icr(after=CAF(e1=LK(OKE1)|{'periodEnd':'20261116'})),icr(docs=dict(R0,**{BP():PRO()}),after={k:v for k,v in CAF().items() if k not in (BE(),BEA(AID3))}),
+      icr(TWO(),after=CAF(TWO(),two=False)),icr(TWO(),after=CAF(TWO(),two=True,e2=LK(OKE2,AID4,INVID2)))]))
+    # ---------------- entry link / unlink
+    chk(f'B2 [{nm}] entry link refused: the minutes change, the entry is not approved, already linked, the invoice exists already or is not a draft or does not list the entry',not any([
+      P('update',BE(),OWN,LK(OKE1)|{'approvedMinutes':481},OKE1,CDOC,CAF(e1=LK(OKE1)|{'approvedMinutes':481})),P('update',BE(),OWN,LK(OKE1)|{'note':'x'},OKE1,CDOC,CAF(e1=LK(OKE1)|{'note':'x'})),
+      P('update',BE(),OWN,LK(OKE1),ENT(status='SUBMITTED'),dict(ED0,**{BE():ENT(status='SUBMITTED')}),CAF()),P('update',BE(),OWN,LK(OKE1,iid=INVID2),OKE1|{'relatedInvoiceId':INVID},dict(CDOC,**{BE():OKE1|{'relatedInvoiceId':INVID}}),CAF(e1=LK(OKE1,iid=INVID2))),
+      P('update',BE(),OWN,LK(OKE1),OKE1,dict(CDOC,**{INV():IV()}),CAF()),P('update',BE(),OWN,LK(OKE1),OKE1,CDOC,CAF(inv=IV(status='READY',rev=2,lastKind='ready'))),P('update',BE(),OWN,LK(OKE1),OKE1,CDOC,CAF(inv=IV(entryIds=[EIDE2],minutes=120,totalMinor=5000))),
+      P('update',BE(),OWN,LK(OKE1),OKE1,CDOC,CAF(inv=IV(clientId='CL-002'))),P('update',BE(),OWN,LK(OKE1),OKE1,CDOC,{BE():LK(OKE1),BEA(AID3):LAU()})]))
+    chk(f'B2 [{nm}] entry link audit refused: wrong action for the change, wrong statuses, not linked after the batch',not any([
+      P('create',BEA(AID3),OWN,LAU(fromStatus='SUBMITTED'),None,CDOC,CAF()),P('create',BEA(AID3),OWN,LAU(toStatus='DRAFT'),None,CDOC,CAF()),P('create',BEA(AID3),OWN,LAU(),None,CDOC,CAF(e1=OKE1|{'rev':4,'lastAudit':AID3}))]))
+    chk(f'B2 [{nm}] an approved entry that is on an invoice cannot be superseded or have its minutes changed',not any([
+      P('update',BE(),OWN,SUPO|{'relatedInvoiceId':INVID},OKE1|{'relatedInvoiceId':INVID},dict(ED0,**{BE():OKE1|{'relatedInvoiceId':INVID}}),SAF()),
+      P('update',BE(),OWN,OKE1|{'relatedInvoiceId':INVID,'approvedMinutes':999,'rev':4,'lastAudit':AID3},OKE1|{'relatedInvoiceId':INVID},dict(ED0,**{BE():OKE1|{'relatedInvoiceId':INVID}}),{BE():OKE1|{'relatedInvoiceId':INVID,'approvedMinutes':999,'rev':4,'lastAudit':AID3},BEA(AID3):LAU(action='edit')})]))
+    chk(f'B2 [{nm}] a draft, submitted or approved entry cannot get an invoice link through the old steps',not any([
+      P('update',BE(),OWN,ENT(status='SUBMITTED',relatedInvoiceId='X',rev=2,lastAudit=AID2),ENT(),dict(ED0,**{BE():ENT()}),{BE():ENT(status='SUBMITTED',relatedInvoiceId='X',rev=2,lastAudit=AID2),BEA(AID2):EAU(action='submit',fromStatus='DRAFT',toStatus='SUBMITTED',rev=2)}),
+      P('update',BE(),OWN,ENT(relatedInvoiceId='X',rev=2,lastAudit=AID2),ENT(),dict(ED0,**{BE():ENT()}),{BE():ENT(relatedInvoiceId='X',rev=2,lastAudit=AID2),BEA(AID2):EAU(action='edit',fromStatus='DRAFT',toStatus='DRAFT',rev=2)})]))
+    # ---------------- workflow
+    DV=IV(entryIds=[EIDE],createdAt=TS(NOW-3*HR),updatedAt=TS(NOW-2*HR),lastRef=AID1)
+    LE=OKE1|{'relatedInvoiceId':INVID}                       # the entry as it is while linked
+    RV=DV|{'status':'READY','rev':2,'updatedAt':TSNOW,'lastKind':'ready','lastRef':AID2}
+    SENT_AFTER=RV|{'status':'SENT','sentAt':TSNOW,'dueDate':'2026-11-30','rev':3,'lastKind':'send','lastRef':AID3}
+    WD=dict(R0,**{BP():PRO(),INV():DV,BE():LE})
+    wf=lambda new,old,docs=None,after=None: P('update',INV(),OWN,new,old,WD if docs is None else docs,after if after is not None else {INV():new,INVA(new['lastRef']):IAU(action=new['lastKind'],fromStatus=old['status'],toStatus=new['status'],rev=new['rev'],totalMinor=new['totalMinor'],reason='x')})
+    READYAU=lambda **k: IAU(**dict(dict(action='ready',fromStatus='DRAFT',toStatus='READY',rev=2),**k))
+    chk(f'B2 [{nm}] control: draft -> ready -> sent, with the audit of each step',wf(RV,DV,after={INV():RV,INVA(AID2):READYAU()}) and P('create',INVA(AID2),OWN,READYAU(),None,WD,{INV():RV,INVA(AID2):READYAU()})
+        and P('update',INV(),OWN,SENT_AFTER,RV,dict(WD,**{INV():RV}),{INV():SENT_AFTER,INVA(AID3):IAU(action='send',fromStatus='READY',toStatus='SENT',rev=3)}) and P('create',INVA(AID3),OWN,IAU(action='send',fromStatus='READY',toStatus='SENT',rev=3),None,dict(WD,**{INV():RV}),{INV():SENT_AFTER,INVA(AID3):IAU(action='send',fromStatus='READY',toStatus='SENT',rev=3)}))
+    WMODS=[('revision +2',RV|{'rev':3}),('ready but sent time set',RV|{'sentAt':TSNOW}),('ready with a changed due date',RV|{'dueDate':'2026-11-30'}),('ready with money changed',RV|{'paidMinor':1}),('ready with total changed',RV|{'totalMinor':1}),('ready with rate changed',RV|{'rateMinor':1}),
+      ('ready with entries changed',RV|{'entryIds':[EIDE2]}),('ready with a changed client',RV|{'clientId':'CL-002'}),('ready with created time changed',RV|{'createdAt':TSNOW}),('ready but updated time not server time',RV|{'updatedAt':TS(NOW-1)}),('draft straight to sent',SENT_AFTER|{'rev':2}),
+      ('draft to cancelled by the ready step',RV|{'status':'CANCELLED'}),('step kind that does not match (send on a draft)',RV|{'lastKind':'send'}),('extra field',RV|{'extra':1})]
+    for lab,m in WMODS: chk(f'B2 [{nm}] draft -> ready refused: {lab}',not wf(m,DV,after={INV():m,INVA(AID2):READYAU()}))
+    chk(f'B2 [{nm}] draft -> ready refused: no audit in the batch',not wf(RV,DV,after={INV():RV}))
+    SMODS=[('sent time not server time',SENT_AFTER|{'sentAt':TS(NOW-1)}),('sent time missing',SENT_AFTER|{'sentAt':None}),('after-sending due date left empty',SENT_AFTER|{'dueDate':''}),('after-sending due date not a date',SENT_AFTER|{'dueDate':'soon'}),('money changed',SENT_AFTER|{'paidMinor':100}),('total changed',SENT_AFTER|{'totalMinor':19999}),
+      ('adjustment set',SENT_AFTER|{'adjMinor':5}),('credit set',SENT_AFTER|{'creditMinor':5}),('revision not +1',SENT_AFTER|{'rev':4})]
+    for lab,m in SMODS: chk(f'B2 [{nm}] ready -> sent refused: {lab}',not P('update',INV(),OWN,m,RV,dict(WD,**{INV():RV}),{INV():m,INVA(AID3):IAU(action='send',fromStatus='READY',toStatus='SENT',rev=3)}))
+    FX=RV|{'dueKind':'fixed','dueDate':'2026-12-31','dueDays':0}; FXS=FX|{'status':'SENT','sentAt':TSNOW,'rev':3,'lastKind':'send','lastRef':AID3}
+    chk(f'B2 [{nm}] ready -> sent with a fixed due date: accepted when the date is kept, refused when it changes',P('update',INV(),OWN,FXS,FX,dict(WD,**{INV():FX}),{INV():FXS,INVA(AID3):IAU(action='send',fromStatus='READY',toStatus='SENT',rev=3)}) and not P('update',INV(),OWN,FXS|{'dueDate':'2027-01-01'},FX,dict(WD,**{INV():FX}),{INV():FXS|{'dueDate':'2027-01-01'},INVA(AID3):IAU(action='send',fromStatus='READY',toStatus='SENT',rev=3)}))
+    chk(f'B2 [{nm}] a sent, cancelled or already-ready invoice cannot go back or repeat a step',not any([
+      wf(DV|{'status':'DRAFT','rev':3,'updatedAt':TSNOW,'lastKind':'ready','lastRef':AID2},RV,docs=dict(WD,**{INV():RV}),after={INV():DV|{'status':'DRAFT','rev':3,'updatedAt':TSNOW,'lastKind':'ready','lastRef':AID2},INVA(AID2):READYAU(rev=3)}),
+      wf(RV|{'rev':3,'lastRef':AID3},RV,docs=dict(WD,**{INV():RV}),after={INV():RV|{'rev':3,'lastRef':AID3},INVA(AID3):READYAU(rev=3)}),
+      P('update',INV(),OWN,RV|{'status':'READY','rev':4,'lastKind':'ready','lastRef':AID4},SENT_AFTER,dict(WD,**{INV():SENT_AFTER}),{INV():RV|{'status':'READY','rev':4,'lastKind':'ready','lastRef':AID4},INVA(AID4):READYAU(rev=4)})]))
+    CXN=lambda src=DV,k=None: src|dict({'status':'CANCELLED','rev':src['rev']+1,'updatedAt':TSNOW,'lastKind':'cancel','lastRef':AID5},**(k or {}))
+    UNL=OKE1|{'relatedInvoiceId':'','rev':4,'lastAudit':AID4}
+    CAU=lambda src=DV,**k: IAU(**dict(dict(action='cancel',fromStatus=src['status'],toStatus='CANCELLED',rev=src['rev']+1,reason='Wrong hours'),**k))
+    UAU_=lambda **k: dict({'entryId':EIDE,'clientId':'CL-001','action':'unlink','fromStatus':'APPROVED','toStatus':'APPROVED','rev':4,'submittedMinutes':480,'approvedMinutes':480,'reason':'Invoice cancelled','actor':UID,'createdAt':TSNOW},**k)
+    CXAF=lambda src=DV,n=None,e=None,ea=None,au=None: {INV():CXN(src) if n is None else n,INVA(AID5):CAU(src) if au is None else au,BE():UNL if e is None else e,BEA(AID4):UAU_() if ea is None else ea}
+    chk(f'B2 [{nm}] control: a draft or a ready invoice is cancelled and its entry released in the same batch',all([P('update',INV(),OWN,CXN(),DV,WD,CXAF()),P('update',INV(),OWN,CXN(RV),RV,dict(WD,**{INV():RV}),CXAF(RV)),
+        P('create',INVA(AID5),OWN,CAU(),None,WD,CXAF()),P('update',BE(),OWN,UNL,LE,WD,CXAF()),P('create',BEA(AID4),OWN,UAU_(),None,WD,CXAF())]))
+    chk(f'B2 [{nm}] cancel refused: the entry stays linked, is linked to something else, or is released with no cancelled invoice',not any([
+      P('update',INV(),OWN,CXN(),DV,WD,CXAF(e=LE)),P('update',INV(),OWN,CXN(),DV,WD,{INV():CXN(),INVA(AID5):CAU()}),
+      P('update',BE(),OWN,UNL,LE,WD,{BE():UNL,BEA(AID4):UAU_()}),P('update',BE(),OWN,UNL,LE,WD,CXAF(n=DV)),P('update',BE(),OWN,UNL,LE,dict(WD,**{INV():SENT_AFTER}),CXAF(n=CXN(SENT_AFTER))),
+      P('update',BE(),OWN,UNL,OKE1,WD,CXAF())]))
+    CXM=[('sent time set',dict(sentAt=TSNOW)),('money changed',dict(paidMinor=1)),('due date changed',dict(dueDate='2026-11-30')),('total changed',dict(totalMinor=0)),('entries changed',dict(entryIds=[EIDE2]))]
+    for lab,m in CXM: chk(f'B2 [{nm}] cancel refused: {lab}',not P('update',INV(),OWN,CXN(k=m),DV,WD,CXAF(n=CXN(k=m))))
+    chk(f'B2 [{nm}] cancel refused: a SENT invoice, a cancelled invoice',not P('update',INV(),OWN,CXN(SENT_AFTER),SENT_AFTER,dict(WD,**{INV():SENT_AFTER}),CXAF(SENT_AFTER)) and not P('update',INV(),OWN,CXN(CXN()),CXN(),dict(WD,**{INV():CXN()}),CXAF(CXN())))
+    chk(f'B2 [{nm}] cancel audit refused: reason under 3 characters, wrong from-status, wrong action',not any([P('create',INVA(AID5),OWN,CAU(reason='ab'),None,WD,CXAF()),P('create',INVA(AID5),OWN,CAU(fromStatus='SENT'),None,WD,CXAF()),
+        P('create',INVA(AID5),OWN,CAU(action='ready'),None,WD,CXAF()),P('create',INVA(AID5),OWN,CAU(toStatus='SENT'),None,WD,CXAF())]))
+    chk(f'B2 [{nm}] unlink audit refused: reason under 3 characters, still linked after the batch, wrong action',not any([P('create',BEA(AID4),OWN,UAU_(reason='ab'),None,WD,CXAF()),P('create',BEA(AID4),OWN,UAU_(),None,WD,CXAF(e=LE|{'rev':4,'lastAudit':AID4})),P('create',BEA(AID4),OWN,UAU_(action='link'),None,WD,CXAF())]))
+    # ---------------- invoice audit
+    AMODS2=[('actor is not the owner',dict(actor='someoneelse123')),('created time not server time',dict(createdAt=TS(NOW-1))),('total does not match the invoice',dict(totalMinor=1)),('revision does not match',dict(rev=2)),('status does not match the invoice',dict(toStatus='READY')),
+      ('reason too long',dict(reason='x'*201)),('invoice ID too long',dict(invoiceId='x'*81)),('extra field',dict(extra=1)),('action unknown',dict(action='payment'))]
+    for lab,m in AMODS2: chk(f'B2 [{nm}] invoice audit refused: {lab}',not P('create',INVA(AID1),OWN,IAU(**m),None,CDOC,CAF()))
+    chk(f'B2 [{nm}] invoice audit refused: ID too short, missing field, pointer on the invoice points to another audit',not P('create',INVA('abc'),OWN,IAU(),None,CDOC,CAF()) and not P('create',INVA(AID1),OWN,dropk(IAU(),'reason'),None,CDOC,CAF()) and not P('create',INVA(AID2),OWN,IAU(),None,CDOC,dict(CAF(),**{INVA(AID2):IAU()})))
+    # ---------------- payments, credits, reversals, adjustments, due dates
+    SV=IV(status='SENT',sentAt=TS(NOW-2*HR),dueDate='2026-11-30',rev=3,createdAt=TS(NOW-3*HR),updatedAt=TS(NOW-HR),lastKind='send',lastRef=AID3)
+    PY=lambda **k: dict({'invoiceId':INVID,'clientId':'CL-001','kind':'payment','amountMinor':5000,'currency':'USD','date':'2026-11-05','method':'bank','note':'','reason':'','correctionId':'','payloadHash':H64('a'),'actor':UID,'createdAt':TSNOW},**k)
+    NXT=lambda src,k: src|dict({'rev':src['rev']+1,'updatedAt':TSNOW},**k)
+    PD=dict(R0,**{BP():PRO(),INV():SV})
+    def payop(new=None,pay=None,old=None,docs=None,extra=None,pid=PID1,drop=False):
+        new=NXT(SV,dict(paidMinor=5000,lastKind='payment',lastRef=pid)) if new is None else new; pay=PY() if pay is None else pay; old=SV if old is None else old
+        af={INV():new}; 
+        if not drop: af[PAYP(pid)]=pay
+        af.update(extra or {}); return new,pay,old,(PD if docs is None else docs),af
+    def pchk(**k):
+        new,pay,old,docs,af=payop(**k); pid=k.get('pid',PID1)
+        return P('update',INV(),OWN,new,old,docs,af) and P('create',PAYP(pid),OWN,pay,None,docs,af)
+    chk(f'B2 [{nm}] control: a partial payment, a payment of the whole balance',pchk() and pchk(new=NXT(SV,dict(paidMinor=20000,lastKind='payment',lastRef=PID1)),pay=PY(amountMinor=20000)))
+    chk(f'B2 [{nm}] control: a payment on an invoice with an upward adjustment can pay up to total + adjustment',pchk(new=NXT(SV|{'adjMinor':1000},dict(paidMinor=21000,lastKind='payment',lastRef=PID1)),pay=PY(amountMinor=21000),old=SV|{'adjMinor':1000},docs=dict(PD,**{INV():SV|{'adjMinor':1000}})))
+    PAYM=[('more than the invoice total',dict(new=NXT(SV,dict(paidMinor=20001,lastKind='payment',lastRef=PID1)),pay=PY(amountMinor=20001))),('invoice paid amount unchanged',dict(new=NXT(SV,dict(lastKind='payment',lastRef=PID1)))),
+      ('invoice paid amount lowered',dict(new=NXT(SV|{'paidMinor':3000},dict(paidMinor=1000,lastKind='payment',lastRef=PID1)),old=SV|{'paidMinor':3000},docs=dict(PD,**{INV():SV|{'paidMinor':3000}}),pay=PY(amountMinor=2000))),
+      ('payment record amount differs from the change in the invoice',dict(pay=PY(amountMinor=4999))),('payment record amount zero',dict(new=NXT(SV,dict(lastKind='payment',lastRef=PID1)),pay=PY(amountMinor=0))),('payment record amount negative',dict(pay=PY(amountMinor=-5000))),
+      ('amount not a whole number',dict(new=NXT(SV,dict(paidMinor=50.5,lastKind='payment',lastRef=PID1)),pay=PY(amountMinor=50.5))),('currency differs from the invoice',dict(pay=PY(currency='EUR'))),('client differs from the invoice',dict(pay=PY(clientId='CL-002'))),
+      ('invoice ID differs',dict(pay=PY(invoiceId=INVID2))),('kind credit on a payment change',dict(pay=PY(kind='credit',reason='extra'))),('payment hash not 64 hex characters',dict(pay=PY(payloadHash='abc'))),('payment hash upper case',dict(pay=PY(payloadHash='A'*64))),
+      ('date not a date',dict(pay=PY(date='yesterday'))),('date with a wrong month',dict(pay=PY(date='2026-13-05'))),('method too long',dict(pay=PY(method='x'*41))),('note too long',dict(pay=PY(note='x'*201))),('reason too long',dict(pay=PY(reason='x'*201))),('correction ID bad',dict(pay=PY(correctionId='short'))),
+      ('actor not the owner',dict(pay=PY(actor='someoneelse123'))),('created time not server time',dict(pay=PY(createdAt=TS(NOW-1)))),('extra field',dict(pay=PY(extra=1))),('missing field',dict(pay=dropk(PY(),'note'))),
+      ('pointer on the invoice points to another payment',dict(pid=PID2,new=NXT(SV,dict(paidMinor=5000,lastKind='payment',lastRef=PID1)))),('sent time changed',dict(new=NXT(SV,dict(paidMinor=5000,lastKind='payment',lastRef=PID1,sentAt=TSNOW)))),
+      ('due date changed',dict(new=NXT(SV,dict(paidMinor=5000,lastKind='payment',lastRef=PID1,dueDate='2026-12-31')))),('adjustment changed',dict(new=NXT(SV,dict(paidMinor=5000,lastKind='payment',lastRef=PID1,adjMinor=1)))),('credit changed',dict(new=NXT(SV,dict(paidMinor=5000,lastKind='payment',lastRef=PID1,creditMinor=1)))),
+      ('total changed',dict(new=NXT(SV,dict(paidMinor=5000,lastKind='payment',lastRef=PID1,totalMinor=1)))),('revision not +1',dict(new=SV|{'paidMinor':5000,'lastKind':'payment','lastRef':PID1,'rev':5,'updatedAt':TSNOW}))]
+    for lab,k in PAYM: chk(f'B2 [{nm}] payment refused: {lab}',not pchk(**k))
+    chk(f'B2 [{nm}] payment refused: payment without the invoice change, invoice change without the payment, ID already used, ID too short',not P('create',PAYP(PID1),OWN,PY(),None,PD,{PAYP(PID1):PY()}) and not P('update',INV(),OWN,payop(drop=True)[0],SV,PD,payop(drop=True)[4])
+        and not pchk(docs=dict(PD,**{PAYP(PID1):PY()})) and not pchk(pid='abc',new=NXT(SV,dict(paidMinor=5000,lastKind='payment',lastRef='abc'))))
+    chk(f'B2 [{nm}] payment refused: on a draft, ready or cancelled invoice',not any([pchk(old=DV,docs=dict(PD,**{INV():DV}),new=NXT(DV,dict(paidMinor=5000,lastKind='payment',lastRef=PID1))),pchk(old=RV,docs=dict(PD,**{INV():RV}),new=NXT(RV,dict(paidMinor=5000,lastKind='payment',lastRef=PID1))),
+        pchk(old=CXN(),docs=dict(PD,**{INV():CXN()}),new=NXT(CXN(),dict(paidMinor=5000,lastKind='payment',lastRef=PID1)))]))
+    chk(f'B2 [{nm}] a payment record cannot be changed or deleted, and a stranger cannot create one',not any([P('update',PAYP(PID1),OWN,PY(note='x'),PY(),{PAYP(PID1):PY()}),P('delete',PAYP(PID1),OWN,None,PY(),{PAYP(PID1):PY()}),P('create',PAYP(PID1),STRANGER,PY(),None,PD,payop()[4]),P('get',PAYP(PID1),None,None,None,{PAYP(PID1):PY()})]))
+    FULL=SV|{'paidMinor':20000}; FD=dict(PD,**{INV():FULL})
+    CRN=lambda **k: NXT(FULL,dict(creditMinor=3000,lastKind='credit',lastRef=PID2,**k)); CRY=lambda **k: PY(kind='credit',amountMinor=3000,reason='Client overpaid',**k)
+    def cchk(new=None,pay=None,old=None,docs=None):
+        new=CRN() if new is None else new; pay=CRY() if pay is None else pay; old=FULL if old is None else old; af={INV():new,PAYP(PID2):pay}; docs=FD if docs is None else docs
+        return P('update',INV(),OWN,new,old,docs,af) and P('create',PAYP(PID2),OWN,pay,None,docs,af)
+    chk(f'B2 [{nm}] control: money received beyond a fully paid invoice is recorded as a credit with a reason',cchk())
+    CRM=[('invoice not fully paid',dict(old=SV,docs=PD,new=NXT(SV,dict(creditMinor=3000,lastKind='credit',lastRef=PID2)))),('reason empty',dict(pay=CRY()|{'reason':''})),('reason 2 characters',dict(pay=CRY()|{'reason':'ab'})),('paid amount also changes',dict(new=CRN(paidMinor=20001))),
+      ('credit amount differs from the change',dict(pay=CRY()|{'amountMinor':2999})),('credit not increased',dict(new=NXT(FULL,dict(lastKind='credit',lastRef=PID2)))),('record says payment but step says credit',dict(pay=CRY()|{'kind':'payment'})),('adjustment changed',dict(new=CRN(adjMinor=5)))]
+    for lab,k in CRM: chk(f'B2 [{nm}] credit refused: {lab}',not cchk(**k))
+    PAIDREC=PY(); REVN=lambda **k: NXT(FULL,dict(dict(paidMinor=15000,lastKind='reversal',lastRef=PID1),**k))
+    RVD=lambda **k: dict({'invoiceId':INVID,'clientId':'CL-001','kind':'payment','amountMinor':5000,'reason':'Entered on the wrong invoice','correctionId':'','actor':UID,'createdAt':TSNOW},**k)
+    RDOC=dict(PD,**{INV():FULL,PAYP(PID1):PAIDREC})
+    def rchk(new=None,rev=None,old=None,docs=None,drop=False):
+        new=REVN() if new is None else new; rev=RVD() if rev is None else rev; old=FULL if old is None else old; docs=RDOC if docs is None else docs; af={INV():new}
+        if not drop: af[REVP(PID1)]=rev
+        return P('update',INV(),OWN,new,old,docs,af) and P('create',REVP(PID1),OWN,rev,None,docs,af)
+    chk(f'B2 [{nm}] control: one whole payment is reversed (the reversal ID is the payment ID); a credit is reversed',rchk() and rchk(new=NXT(FULL|{'creditMinor':3000},dict(creditMinor=0,lastKind='reversal',lastRef=PID1)),rev=RVD(kind='credit',amountMinor=3000),old=FULL|{'creditMinor':3000},docs=dict(RDOC,**{INV():FULL|{'creditMinor':3000},PAYP(PID1):PY(kind='credit',amountMinor=3000,reason='Client overpaid')})))
+    RVM=[('reversal amount differs from the payment',dict(rev=RVD(amountMinor=4000))),('reason empty',dict(rev=RVD(reason=''))),('reason 2 characters',dict(rev=RVD(reason='ab'))),('reason too long',dict(rev=RVD(reason='x'*201))),('kind differs from the payment',dict(rev=RVD(kind='credit'))),
+      ('invoice ID differs from the payment',dict(rev=RVD(invoiceId=INVID2))),('client differs from the payment',dict(rev=RVD(clientId='CL-002'))),('paid amount lowered by more than the payment',dict(new=REVN(paidMinor=14000))),('paid amount lowered by less than the payment',dict(new=REVN(paidMinor=16000))),
+      ('paid amount not lowered',dict(new=NXT(FULL,dict(lastKind='reversal',lastRef=PID1)))),('correction ID bad',dict(rev=RVD(correctionId='short'))),('actor not the owner',dict(rev=RVD(actor='someoneelse123'))),('created time not server time',dict(rev=RVD(createdAt=TS(NOW-1)))),
+      ('extra field',dict(rev=RVD(extra=1))),('the invoice also changes its credit',dict(new=REVN(creditMinor=5))),('adjustment changed',dict(new=REVN(adjMinor=5)))]
+    for lab,k in RVM: chk(f'B2 [{nm}] reversal refused: {lab}',not rchk(**k))
+    chk(f'B2 [{nm}] reversal refused: a second reversal of the same payment, a payment that does not exist, a payment of another invoice, a payment while a credit is held, no invoice change, on a draft invoice',not any([
+      rchk(docs=dict(RDOC,**{REVP(PID1):RVD()})),rchk(docs={k:v for k,v in RDOC.items() if k!=PAYP(PID1)}),rchk(docs=dict(RDOC,**{PAYP(PID1):PY(invoiceId=INVID2)})),
+      rchk(old=FULL|{'creditMinor':3000},docs=dict(RDOC,**{INV():FULL|{'creditMinor':3000}}),new=NXT(FULL|{'creditMinor':3000},dict(paidMinor=15000,lastKind='reversal',lastRef=PID1))),rchk(drop=True),
+      rchk(old=DV,docs=dict(RDOC,**{INV():DV}),new=NXT(DV,dict(paidMinor=0,lastKind='reversal',lastRef=PID1)))]))
+    chk(f'B2 [{nm}] a reversal cannot be changed or deleted, and a payment cannot be replaced after it was reversed',not any([P('update',REVP(PID1),OWN,RVD(reason='other'),RVD(),{REVP(PID1):RVD()}),P('delete',REVP(PID1),OWN,None,RVD(),{REVP(PID1):RVD()}),P('create',REVP(PID1),STRANGER,RVD(),None,RDOC,{INV():REVN(),REVP(PID1):RVD()}),P('update',PAYP(PID1),OWN,PY(amountMinor=1),PY(),RDOC)]))
+    ADN=lambda amt,src=SV,**k: NXT(src,dict(adjMinor=src['adjMinor']+amt,lastKind='adjustment',lastRef=AID4,**k)); ADR=lambda **k: dict({'invoiceId':INVID,'clientId':'CL-001','amountMinor':-1000,'reason':'Rate corrected','entryRef':'','actor':UID,'createdAt':TSNOW},**k)
+    def achk(new=None,adj=None,old=None,docs=None):
+        new=ADN(-1000) if new is None else new; adj=ADR() if adj is None else adj; old=SV if old is None else old; docs=PD if docs is None else docs; af={INV():new,ADJP(AID4):adj}
+        return P('update',INV(),OWN,new,old,docs,af) and P('create',ADJP(AID4),OWN,adj,None,docs,af)
+    chk(f'B2 [{nm}] control: a negative and a positive adjustment on a sent invoice; an adjustment down to exactly the amount paid',achk() and achk(new=ADN(1000),adj=ADR(amountMinor=1000)) and achk(new=ADN(-5000,SV|{'paidMinor':15000},),adj=ADR(amountMinor=-5000),old=SV|{'paidMinor':15000},docs=dict(PD,**{INV():SV|{'paidMinor':15000}})))
+    ADM=[('total would drop below what was paid',dict(new=ADN(-5001,SV|{'paidMinor':15000}),adj=ADR(amountMinor=-5001),old=SV|{'paidMinor':15000},docs=dict(PD,**{INV():SV|{'paidMinor':15000}}))),('amount zero',dict(new=NXT(SV,dict(lastKind='adjustment',lastRef=AID4)),adj=ADR(amountMinor=0))),
+      ('adjustment amount differs from the change',dict(adj=ADR(amountMinor=-999))),('reason empty',dict(adj=ADR(reason=''))),('reason 2 characters',dict(adj=ADR(reason='ab'))),('reason too long',dict(adj=ADR(reason='x'*201))),('entry reference too long',dict(adj=ADR(entryRef='x'*81))),
+      ('amount not a whole number',dict(new=ADN(-10.5),adj=ADR(amountMinor=-10.5))),('amount above the limit',dict(new=ADN(1000000000001),adj=ADR(amountMinor=1000000000001))),('invoice paid amount changes',dict(new=ADN(-1000,paidMinor=1))),('invoice credit changes',dict(new=ADN(-1000,creditMinor=1))),
+      ('while a credit is held',dict(new=ADN(-1000,FULL|{'creditMinor':100}),old=FULL|{'creditMinor':100},docs=dict(PD,**{INV():FULL|{'creditMinor':100}}))),('on a draft invoice',dict(new=ADN(-1000,DV),old=DV,docs=dict(PD,**{INV():DV}))),('on a ready invoice',dict(new=ADN(-1000,RV),old=RV,docs=dict(PD,**{INV():RV}))),
+      ('on a cancelled invoice',dict(new=ADN(-1000,CXN()),old=CXN(),docs=dict(PD,**{INV():CXN()}))),('client differs',dict(adj=ADR(clientId='CL-002'))),('invoice ID differs',dict(adj=ADR(invoiceId=INVID2))),('actor not the owner',dict(adj=ADR(actor='someoneelse123'))),('extra field',dict(adj=ADR(extra=1))),('sent time changed',dict(new=ADN(-1000,sentAt=TSNOW))),('due date changed',dict(new=ADN(-1000,dueDate='2026-12-31')))]
+    for lab,k in ADM: chk(f'B2 [{nm}] adjustment refused: {lab}',not achk(**k))
+    chk(f'B2 [{nm}] adjustment refused: no adjustment record in the batch; record without the invoice change; an adjustment record cannot be changed or deleted',not P('update',INV(),OWN,ADN(-1000),SV,PD,{INV():ADN(-1000)}) and not P('create',ADJP(AID4),OWN,ADR(),None,PD,{ADJP(AID4):ADR()}) and not P('update',ADJP(AID4),OWN,ADR(reason='zzz'),ADR(),{ADJP(AID4):ADR()}) and not P('delete',ADJP(AID4),OWN,None,ADR(),{ADJP(AID4):ADR()}))
+    DUN=lambda d='2026-12-15',src=SV,**k: NXT(src,dict(dueDate=d,lastKind='due',lastRef=AID5,**k)); DUR=lambda **k: dict({'invoiceId':INVID,'clientId':'CL-001','previous':'2026-11-30','next':'2026-12-15','reason':'Client asked for more time','actor':UID,'createdAt':TSNOW},**k)
+    def dchk(new=None,due=None,old=None,docs=None):
+        new=DUN() if new is None else new; due=DUR() if due is None else due; old=SV if old is None else old; docs=PD if docs is None else docs; af={INV():new,DUEP(AID5):due}
+        return P('update',INV(),OWN,new,old,docs,af) and P('create',DUEP(AID5),OWN,due,None,docs,af)
+    chk(f'B2 [{nm}] control: the due date of a sent invoice is changed with the old date, the new date and a reason',dchk())
+    DUM=[('reason empty',dict(due=DUR(reason=''))),('reason 2 characters',dict(due=DUR(reason='ab'))),('reason too long',dict(due=DUR(reason='x'*201))),('previous date is not the stored date',dict(due=DUR(previous='2026-11-29'))),('next date differs from the invoice',dict(due=DUR(next='2026-12-16'))),
+      ('same date',dict(new=DUN('2026-11-30'),due=DUR(next='2026-11-30'))),('new date not a date',dict(new=DUN('soon'),due=DUR(next='soon'))),('new date empty',dict(new=DUN(''),due=DUR(next=''))),('new date with a wrong month',dict(new=DUN('2026-13-01'),due=DUR(next='2026-13-01'))),('money changed',dict(new=DUN(paidMinor=1))),
+      ('sent time changed',dict(new=DUN(sentAt=TSNOW))),('on a draft invoice',dict(new=DUN(src=DV),old=DV,docs=dict(PD,**{INV():DV}))),('on a cancelled invoice',dict(new=DUN(src=CXN()),old=CXN(),docs=dict(PD,**{INV():CXN()}))),('client differs',dict(due=DUR(clientId='CL-002'))),('invoice ID differs',dict(due=DUR(invoiceId=INVID2))),
+      ('actor not the owner',dict(due=DUR(actor='someoneelse123'))),('created time not server time',dict(due=DUR(createdAt=TS(NOW-1)))),('extra field',dict(due=DUR(extra=1)))]
+    for lab,k in DUM: chk(f'B2 [{nm}] due-date change refused: {lab}',not dchk(**k))
+    chk(f'B2 [{nm}] due-date change refused: no record in the batch, record without the invoice change, record cannot be changed or deleted',not P('update',INV(),OWN,DUN(),SV,PD,{INV():DUN()}) and not P('create',DUEP(AID5),OWN,DUR(),None,PD,{DUEP(AID5):DUR()}) and not P('update',DUEP(AID5),OWN,DUR(reason='zzz'),DUR(),{DUEP(AID5):DUR()}) and not P('delete',DUEP(AID5),OWN,None,DUR(),{DUEP(AID5):DUR()}))
+    # ---------------- fields that never change, deletes, other accounts
+    FIXM=[('client',dict(clientId='CL-002')),('period start',dict(periodStart='20261102')),('period end',dict(periodEnd='20261116')),('suffix',dict(suffix='02')),('currency',dict(currency='EUR')),('decimals',dict(exp=0)),('rate',dict(rateMinor=3000)),('time zone',dict(tz='UTC')),('due rule',dict(dueKind='fixed')),('due days',dict(dueDays=1)),
+      ('entries',dict(entryIds=[EIDE2])),('minutes',dict(minutes=1)),('total',dict(totalMinor=1)),('created time',dict(createdAt=TSNOW))]
+    for lab,m in FIXM:
+        nv=NXT(SV,dict(paidMinor=5000,lastKind='payment',lastRef=PID1,**m)); chk(f'B2 [{nm}] a payment cannot also change the invoice {lab}',not P('update',INV(),OWN,nv,SV,PD,{INV():nv,PAYP(PID1):PY()}))
+    chk(f'B2 [{nm}] no one can delete an invoice or an audit record, change an audit record, or touch invoice data without being the owner',not any([P('delete',INV(),OWN,None,SV,PD),P('delete',INVA(AID1),OWN,None,IAU(),{INVA(AID1):IAU()}),P('update',INVA(AID1),OWN,IAU(reason='zzz'),IAU(),{INVA(AID1):IAU()}),
+        P('create',INV(),None,IV(),None,CDOC,CAF()),P('create',INV(),STRANGER,IV(),None,CDOC,CAF()),P('update',INV(),STRANGER,RV,DV,WD,{INV():RV,INVA(AID2):READYAU()}),P('get',INV(),None,None,None,{INV():SV}),P('list','invoices',STRANGER),P('list','payments',None),P('list','paymentReversals',STRANGER),P('list','invoiceAdjustments',None),P('list','invoiceDueDates',STRANGER),P('list','invoiceAudit',None)]))
+    # ---------------- 8k. B2 second pass: SINGLE-operation tests. Each test judges ONE write of a batch alone (the invoice change, or the new record, or the audit),
+    # so a clause is only proved when removing it changes a verdict even though the paired write is valid. (Found by the mutation check.)
+    def IU(new,old,docs,af): return P('update',INV(),OWN,new,old,docs,af)
+    def RC(path,rec,docs,af): return P('create',path,OWN,rec,None,docs,af)
+    R3='abc'; R200='x'*200; REASON='Client asked'
+    # ---- payment: invoice side
+    pn=NXT(SV,dict(paidMinor=5000,lastKind='payment',lastRef=PID1)); pa0={INV():pn,PAYP(PID1):PY()}
+    chk(f'B2 [{nm}] control (single op): payment invoice update alone, payment record alone',IU(pn,SV,PD,pa0) and RC(PAYP(PID1),PY(),PD,pa0))
+    PIV=[('invoice not SENT before (draft)',lambda: IU(NXT(DV,dict(paidMinor=5000,lastKind='payment',lastRef=PID1)),DV,dict(PD,**{INV():DV}),pa0)),
+      ('invoice not SENT before (ready)',lambda: IU(NXT(RV,dict(paidMinor=5000,lastKind='payment',lastRef=PID1)),RV,dict(PD,**{INV():RV}),pa0)),
+      ('status not SENT after',lambda: IU(pn|{'status':'READY'},SV,PD,pa0)),('sent time changed',lambda: IU(pn|{'sentAt':TSNOW},SV,PD,pa0)),('due date changed',lambda: IU(pn|{'dueDate':'2026-12-31'},SV,PD,pa0)),
+      ('credit changed',lambda: IU(pn|{'creditMinor':1},SV,PD,pa0)),('adjustment changed',lambda: IU(pn|{'adjMinor':1},SV,PD,pa0)),('paid not increased',lambda: IU(NXT(SV,dict(lastKind='payment',lastRef=PID1)),SV,PD,pa0)),
+      ('paid above total + adjustment by 1',lambda: IU(NXT(SV,dict(paidMinor=20001,lastKind='payment',lastRef=PID1)),SV,PD,{INV():NXT(SV,dict(paidMinor=20001,lastKind='payment',lastRef=PID1)),PAYP(PID1):PY(amountMinor=20001)})),
+      ('no payment record in the batch',lambda: IU(pn,SV,PD,{INV():pn})),('payment ID already used',lambda: IU(pn,SV,dict(PD,**{PAYP(PID1):PY()}),pa0)),('payment of another invoice',lambda: IU(pn,SV,PD,{INV():pn,PAYP(PID1):PY(invoiceId=INVID2)})),
+      ('record is a credit',lambda: IU(pn,SV,PD,{INV():pn,PAYP(PID1):PY(kind='credit',reason='extra')})),('amount differs from the paid change',lambda: IU(pn,SV,PD,{INV():pn,PAYP(PID1):PY(amountMinor=4999)})),
+      ('revision not +1',lambda: IU(pn|{'rev':9},SV,PD,pa0)),('updated time not server time',lambda: IU(pn|{'updatedAt':TS(NOW-1)},SV,PD,pa0))]
+    for lab,f in PIV: chk(f'B2 [{nm}] payment, invoice update alone refused: {lab}',not f())
+    PREC=[('invoice ID too long, not an invoice',dict(invoiceId=INVID2)),('client not valid',dict(clientId='cl-001')),('client differs from the invoice',dict(clientId='CL-002')),('kind unknown',dict(kind='refund')),('amount zero',dict(amountMinor=0)),('amount negative',dict(amountMinor=-1)),
+      ('amount above the limit',dict(amountMinor=10**12+1)),('amount a decimal',dict(amountMinor=50.5)),('currency differs',dict(currency='EUR')),('currency a number',dict(currency=5)),('date not a date',dict(date='5 Nov')),('date month 13',dict(date='2026-13-05')),('date day 32',dict(date='2026-11-32')),
+      ('method a number',dict(method=5)),('method 41 characters',dict(method='x'*41)),('note a number',dict(note=5)),('note 201 characters',dict(note='x'*201)),('reason a number',dict(reason=5)),('reason 201 characters',dict(reason='x'*201)),('correction ID a number',dict(correctionId=5)),
+      ('correction ID short',dict(correctionId='abc')),('hash short',dict(payloadHash='ab')),('hash not a string',dict(payloadHash=5)),('actor not the owner',dict(actor='someoneelse123')),('created time not server time',dict(createdAt=TS(NOW-1)))]
+    for lab,m in PREC: chk(f'B2 [{nm}] payment record alone refused: {lab}',not RC(PAYP(PID1),PY(**m),PD,pa0))
+    chk(f'B2 [{nm}] payment record alone refused: invoice missing, not sent, wrong step on the invoice, wrong pointer, no invoice in the batch, extra and missing field, ID short',not any([
+      RC(PAYP(PID1),PY(),{},pa0),RC(PAYP(PID1),PY(),dict(PD,**{INV():DV}),pa0),RC(PAYP(PID1),PY(),dict(PD,**{INV():RV}),pa0),RC(PAYP(PID1),PY(),PD,{INV():pn|{'lastKind':'credit'},PAYP(PID1):PY()}),RC(PAYP(PID1),PY(),PD,{INV():pn|{'lastRef':PID2},PAYP(PID1):PY()}),
+      RC(PAYP(PID1),PY(),PD,{PAYP(PID1):PY()}),RC(PAYP(PID1),PY(extra=1),PD,pa0),RC(PAYP(PID1),dropk(PY(),'method'),PD,pa0),RC(PAYP('abc'),PY(),PD,pa0)]))
+    chk(f'B2 [{nm}] boundary controls accepted: amount 1, method 40, note 200, reason 200, credit reason 3, correction ID 16',all([RC(PAYP(PID1),PY(amountMinor=1),PD,pa0),RC(PAYP(PID1),PY(method='x'*40),PD,pa0),RC(PAYP(PID1),PY(note='x'*200),PD,pa0),RC(PAYP(PID1),PY(reason=R200),PD,pa0),
+      RC(PAYP(PID1),PY(kind='credit',reason=R3),PD,{INV():pn|{'lastKind':'credit'},PAYP(PID1):PY()}),RC(PAYP(PID1),PY(correctionId='c'*16),PD,pa0),RC(PAYP(PID1),PY(amountMinor=10**12),PD,pa0)]))
+    chk(f'B2 [{nm}] a credit record needs a reason of 3 or more characters',not RC(PAYP(PID1),PY(kind='credit',reason='ab'),PD,{INV():pn|{'lastKind':'credit'},PAYP(PID1):PY()}) and not RC(PAYP(PID1),PY(kind='credit',reason=''),PD,{INV():pn|{'lastKind':'credit'},PAYP(PID1):PY()}))
+    # ---- credit: invoice side
+    cn=NXT(FULL,dict(creditMinor=3000,lastKind='credit',lastRef=PID2)); ca={INV():cn,PAYP(PID2):CRY()}
+    chk(f'B2 [{nm}] control (single op): credit invoice update alone',IU(cn,FULL,FD,ca))
+    CIV=[('not fully paid',lambda: IU(NXT(SV,dict(creditMinor=3000,lastKind='credit',lastRef=PID2)),SV,PD,ca)),('invoice not SENT after',lambda: IU(cn|{'status':'READY'},FULL,FD,ca)),('invoice draft before',lambda: IU(NXT(DV|{'paidMinor':20000},dict(creditMinor=3000,lastKind='credit',lastRef=PID2)),DV|{'paidMinor':20000},dict(PD,**{INV():DV|{'paidMinor':20000}}),ca)),
+      ('sent time changed',lambda: IU(cn|{'sentAt':TSNOW},FULL,FD,ca)),('due date changed',lambda: IU(cn|{'dueDate':'2026-12-31'},FULL,FD,ca)),('paid changed',lambda: IU(cn|{'paidMinor':19000},FULL,FD,ca)),('adjustment changed',lambda: IU(cn|{'adjMinor':1},FULL,FD,ca)),('credit not increased',lambda: IU(NXT(FULL,dict(lastKind='credit',lastRef=PID2)),FULL,FD,ca)),
+      ('no record in the batch',lambda: IU(cn,FULL,FD,{INV():cn})),('record ID already used',lambda: IU(cn,FULL,dict(FD,**{PAYP(PID2):CRY()}),ca)),('record of another invoice',lambda: IU(cn,FULL,FD,{INV():cn,PAYP(PID2):CRY(invoiceId=INVID2)})),('record is a payment',lambda: IU(cn,FULL,FD,{INV():cn,PAYP(PID2):PY(amountMinor=3000)})),
+      ('amount differs from the credit change',lambda: IU(cn,FULL,FD,{INV():cn,PAYP(PID2):CRY()|{'amountMinor':2999}}))]
+    for lab,f in CIV: chk(f'B2 [{nm}] credit, invoice update alone refused: {lab}',not f())
+    # ---- reversal: invoice side and record side
+    rn=REVN(); ra={INV():rn,REVP(PID1):RVD()}
+    chk(f'B2 [{nm}] control (single op): reversal invoice update alone, reversal record alone',IU(rn,FULL,RDOC,ra) and RC(REVP(PID1),RVD(),RDOC,ra))
+    RIV=[('invoice not SENT before',lambda: IU(NXT(DV,dict(paidMinor=0,lastKind='reversal',lastRef=PID1)),DV,dict(RDOC,**{INV():DV}),ra)),('status not SENT after',lambda: IU(rn|{'status':'READY'},FULL,RDOC,ra)),('sent time changed',lambda: IU(rn|{'sentAt':TSNOW},FULL,RDOC,ra)),('due date changed',lambda: IU(rn|{'dueDate':'2026-12-31'},FULL,RDOC,ra)),
+      ('adjustment changed',lambda: IU(rn|{'adjMinor':5},FULL,RDOC,ra)),('payment does not exist',lambda: IU(rn,FULL,{k:v for k,v in RDOC.items() if k!=PAYP(PID1)},ra)),('payment of another invoice',lambda: IU(rn,FULL,dict(RDOC,**{PAYP(PID1):PY(invoiceId=INVID2)}),ra)),
+      ('already reversed',lambda: IU(rn,FULL,dict(RDOC,**{REVP(PID1):RVD()}),ra)),('no reversal record in the batch',lambda: IU(rn,FULL,RDOC,{INV():rn})),('paid lowered by the wrong amount',lambda: IU(REVN(paidMinor=14999),FULL,RDOC,ra)),('credit held while reversing a payment',lambda: IU(NXT(FULL|{'creditMinor':100},dict(paidMinor=15000,lastKind='reversal',lastRef=PID1)),FULL|{'creditMinor':100},dict(RDOC,**{INV():FULL|{'creditMinor':100}}),ra)),
+      ('credit changed while reversing a payment',lambda: IU(REVN(creditMinor=5),FULL,RDOC,ra))]
+    for lab,f in RIV: chk(f'B2 [{nm}] reversal, invoice update alone refused: {lab}',not f())
+    CRD=dict(RDOC,**{INV():FULL|{'creditMinor':3000},PAYP(PID1):PY(kind='credit',amountMinor=3000,reason='Client overpaid')}); crn=NXT(FULL|{'creditMinor':3000},dict(creditMinor=0,lastKind='reversal',lastRef=PID1))
+    chk(f'B2 [{nm}] control (single op): credit reversal invoice update alone',IU(crn,FULL|{'creditMinor':3000},CRD,{INV():crn,REVP(PID1):RVD(kind='credit',amountMinor=3000)}))
+    CRV=[('paid changes while reversing a credit',lambda: IU(crn|{'paidMinor':1},FULL|{'creditMinor':3000},CRD,{INV():crn|{'paidMinor':1},REVP(PID1):RVD(kind='credit',amountMinor=3000)})),('credit lowered by the wrong amount',lambda: IU(crn|{'creditMinor':1},FULL|{'creditMinor':3000},CRD,{INV():crn|{'creditMinor':1},REVP(PID1):RVD(kind='credit',amountMinor=3000)}))]
+    for lab,f in CRV: chk(f'B2 [{nm}] reversal of a credit, invoice update alone refused: {lab}',not f())
+    RVM2=[('invoice ID not an invoice',dict(invoiceId=INVID2)),('client differs from the payment',dict(clientId='CL-002')),('kind differs from the payment',dict(kind='credit')),('amount differs from the payment',dict(amountMinor=4999)),('reason empty',dict(reason='')),('reason 2 characters',dict(reason='ab')),('reason 201 characters',dict(reason='x'*201)),('reason a number',dict(reason=5)),
+      ('correction ID a number',dict(correctionId=5)),('correction ID short',dict(correctionId='abc')),('actor not the owner',dict(actor='someoneelse123')),('created time not server time',dict(createdAt=TS(NOW-1)))]
+    for lab,m in RVM2: chk(f'B2 [{nm}] reversal record alone refused: {lab}',not RC(REVP(PID1),RVD(**m),RDOC,ra))
+    chk(f'B2 [{nm}] reversal record alone refused: payment missing, payment of another invoice, invoice not sent, invoice missing, step on the invoice not a reversal, pointer to another payment, no invoice in the batch, extra/missing field, ID short',not any([
+      RC(REVP(PID1),RVD(),{k:v for k,v in RDOC.items() if k!=PAYP(PID1)},ra),RC(REVP(PID1),RVD(),dict(RDOC,**{PAYP(PID1):PY(invoiceId=INVID2)}),ra),RC(REVP(PID1),RVD(),dict(RDOC,**{INV():DV}),ra),RC(REVP(PID1),RVD(),{k:v for k,v in RDOC.items() if k!=INV()},ra),
+      RC(REVP(PID1),RVD(),RDOC,{INV():rn|{'lastKind':'payment'},REVP(PID1):RVD()}),RC(REVP(PID1),RVD(),RDOC,{INV():rn|{'lastRef':PID2},REVP(PID1):RVD()}),RC(REVP(PID1),RVD(),RDOC,{REVP(PID1):RVD()}),RC(REVP(PID1),RVD(extra=1),RDOC,ra),RC(REVP(PID1),dropk(RVD(),'reason'),RDOC,ra),RC(REVP('abc'),RVD(),dict(RDOC,**{PAYP('abc'):PY()}),{INV():rn|{'lastRef':'abc'},REVP('abc'):RVD()})]))
+    chk(f'B2 [{nm}] boundary controls accepted: reversal reason 3 and 200 characters',RC(REVP(PID1),RVD(reason=R3),RDOC,ra) and RC(REVP(PID1),RVD(reason=R200),RDOC,ra))
+    # ---- adjustment
+    an=ADN(-1000); aa={INV():an,ADJP(AID4):ADR()}
+    chk(f'B2 [{nm}] control (single op): adjustment invoice update alone, adjustment record alone',IU(an,SV,PD,aa) and RC(ADJP(AID4),ADR(),PD,aa))
+    AIV=[('invoice not SENT before',lambda: IU(ADN(-1000,DV),DV,dict(PD,**{INV():DV}),aa)),('status not SENT after',lambda: IU(an|{'status':'READY'},SV,PD,aa)),('sent time changed',lambda: IU(an|{'sentAt':TSNOW},SV,PD,aa)),('due date changed',lambda: IU(an|{'dueDate':'2026-12-31'},SV,PD,aa)),
+      ('paid changed',lambda: IU(an|{'paidMinor':1},SV,PD,aa)),('credit changed',lambda: IU(an|{'creditMinor':1},SV,PD,aa)),('credit held',lambda: IU(ADN(-1000,FULL|{'creditMinor':100}),FULL|{'creditMinor':100},dict(PD,**{INV():FULL|{'creditMinor':100}}),aa)),('adjustment unchanged',lambda: IU(NXT(SV,dict(lastKind='adjustment',lastRef=AID4)),SV,PD,aa)),
+      ('total below paid by 1',lambda: IU(ADN(-5001,SV|{'paidMinor':15000}),SV|{'paidMinor':15000},dict(PD,**{INV():SV|{'paidMinor':15000}}),aa)),('no record in the batch',lambda: IU(an,SV,PD,{INV():an})),('record ID already used',lambda: IU(an,SV,dict(PD,**{ADJP(AID4):ADR()}),aa)),
+      ('record of another invoice',lambda: IU(an,SV,PD,{INV():an,ADJP(AID4):ADR(invoiceId=INVID2)})),('record amount differs',lambda: IU(an,SV,PD,{INV():an,ADJP(AID4):ADR(amountMinor=-999)})),('adjustment above the limit',lambda: IU(NXT(SV|{'adjMinor':10**12},dict(adjMinor=10**12+1,lastKind='adjustment',lastRef=AID4)),SV|{'adjMinor':10**12},dict(PD,**{INV():SV|{'adjMinor':10**12}}),{INV():NXT(SV|{'adjMinor':10**12},dict(adjMinor=10**12+1,lastKind='adjustment',lastRef=AID4)),ADJP(AID4):ADR(amountMinor=1)}))]
+    for lab,f in AIV: chk(f'B2 [{nm}] adjustment, invoice update alone refused: {lab}',not f())
+    AREC=[('invoice not an invoice',dict(invoiceId=INVID2)),('client differs',dict(clientId='CL-002')),('client not valid',dict(clientId='cl-001')),('amount zero',dict(amountMinor=0)),('amount a decimal',dict(amountMinor=-10.5)),('amount above the limit',dict(amountMinor=10**12+1)),('amount below the limit',dict(amountMinor=-10**12-1)),
+      ('reason empty',dict(reason='')),('reason 2 characters',dict(reason='ab')),('reason 201 characters',dict(reason='x'*201)),('reason a number',dict(reason=5)),('entry reference 81 characters',dict(entryRef='x'*81)),('entry reference a number',dict(entryRef=5)),('actor not the owner',dict(actor='someoneelse123')),('created time not server time',dict(createdAt=TS(NOW-1)))]
+    for lab,m in AREC: chk(f'B2 [{nm}] adjustment record alone refused: {lab}',not RC(ADJP(AID4),ADR(**m),PD,aa))
+    chk(f'B2 [{nm}] adjustment record alone refused: invoice not sent, missing, wrong step or pointer, not in the batch, extra/missing field, ID short',not any([RC(ADJP(AID4),ADR(),dict(PD,**{INV():DV}),aa),RC(ADJP(AID4),ADR(),{},aa),RC(ADJP(AID4),ADR(),PD,{INV():an|{'lastKind':'payment'},ADJP(AID4):ADR()}),RC(ADJP(AID4),ADR(),PD,{INV():an|{'lastRef':AID5},ADJP(AID4):ADR()}),RC(ADJP(AID4),ADR(),PD,{ADJP(AID4):ADR()}),
+      RC(ADJP(AID4),ADR(extra=1),PD,aa),RC(ADJP(AID4),dropk(ADR(),'entryRef'),PD,aa),RC(ADJP('abc'),ADR(),PD,aa)]))
+    chk(f'B2 [{nm}] boundary controls accepted: adjustment +/-1, +/-1e12, reason 3 and 200, entry reference 80',all([RC(ADJP(AID4),ADR(amountMinor=1),PD,aa),RC(ADJP(AID4),ADR(amountMinor=-1),PD,aa),RC(ADJP(AID4),ADR(amountMinor=10**12),PD,aa),RC(ADJP(AID4),ADR(amountMinor=-10**12),PD,aa),RC(ADJP(AID4),ADR(reason=R3),PD,aa),RC(ADJP(AID4),ADR(reason=R200),PD,aa),RC(ADJP(AID4),ADR(entryRef='x'*80),PD,aa)]))
+    # ---- due date
+    dn=DUN(); da={INV():dn,DUEP(AID5):DUR()}
+    chk(f'B2 [{nm}] control (single op): due-date invoice update alone, record alone',IU(dn,SV,PD,da) and RC(DUEP(AID5),DUR(),PD,da))
+    DIV=[('invoice not SENT before',lambda: IU(DUN(src=DV),DV,dict(PD,**{INV():DV}),da)),('status not SENT after',lambda: IU(dn|{'status':'READY'},SV,PD,da)),('sent time changed',lambda: IU(dn|{'sentAt':TSNOW},SV,PD,da)),('paid changed',lambda: IU(dn|{'paidMinor':1},SV,PD,da)),('credit changed',lambda: IU(dn|{'creditMinor':1},SV,PD,da)),('adjustment changed',lambda: IU(dn|{'adjMinor':1},SV,PD,da)),
+      ('due date unchanged',lambda: IU(DUN('2026-11-30'),SV,PD,{INV():DUN('2026-11-30'),DUEP(AID5):DUR(next='2026-11-30')})),('new date not a date',lambda: IU(DUN('soon'),SV,PD,{INV():DUN('soon'),DUEP(AID5):DUR(next='soon')})),('new date empty',lambda: IU(DUN(''),SV,PD,{INV():DUN(''),DUEP(AID5):DUR(next='')})),('no record in the batch',lambda: IU(dn,SV,PD,{INV():dn})),
+      ('record ID already used',lambda: IU(dn,SV,dict(PD,**{DUEP(AID5):DUR()}),da)),('record of another invoice',lambda: IU(dn,SV,PD,{INV():dn,DUEP(AID5):DUR(invoiceId=INVID2)})),('record previous date differs',lambda: IU(dn,SV,PD,{INV():dn,DUEP(AID5):DUR(previous='2026-11-29')})),('record next date differs',lambda: IU(dn,SV,PD,{INV():dn,DUEP(AID5):DUR(next='2026-12-16')}))]
+    for lab,f in DIV: chk(f'B2 [{nm}] due date, invoice update alone refused: {lab}',not f())
+    DREC=[('invoice not an invoice',dict(invoiceId=INVID2)),('client differs',dict(clientId='CL-002')),('client not valid',dict(clientId='cl-001')),('previous not a date',dict(previous='soon')),('next not a date',dict(next='soon')),('previous equals next',dict(next='2026-11-30')),('reason empty',dict(reason='')),('reason 2 characters',dict(reason='ab')),('reason 201 characters',dict(reason='x'*201)),
+      ('reason a number',dict(reason=5)),('actor not the owner',dict(actor='someoneelse123')),('created time not server time',dict(createdAt=TS(NOW-1)))]
+    for lab,m in DREC: chk(f'B2 [{nm}] due-date record alone refused: {lab}',not RC(DUEP(AID5),DUR(**m),PD,da))
+    chk(f'B2 [{nm}] due-date record alone refused: invoice not sent, missing, wrong step or pointer, not in the batch, extra/missing field, ID short',not any([RC(DUEP(AID5),DUR(),dict(PD,**{INV():DV}),da),RC(DUEP(AID5),DUR(),{},da),RC(DUEP(AID5),DUR(),PD,{INV():dn|{'lastKind':'adjustment'},DUEP(AID5):DUR()}),RC(DUEP(AID5),DUR(),PD,{INV():dn|{'lastRef':AID4},DUEP(AID5):DUR()}),RC(DUEP(AID5),DUR(),PD,{DUEP(AID5):DUR()}),RC(DUEP(AID5),DUR(extra=1),PD,da),RC(DUEP(AID5),dropk(DUR(),'reason'),PD,da),RC(DUEP('abc'),DUR(),PD,da)]))
+    chk(f'B2 [{nm}] boundary controls accepted: due-date reason 3 and 200',RC(DUEP(AID5),DUR(reason=R3),PD,da) and RC(DUEP(AID5),DUR(reason=R200),PD,da))
+    # ---- workflow, invoice side alone
+    def WA(new,old,docs=None,au=True): return IU(new,old,WD if docs is None else docs,{INV():new,**({INVA(new['lastRef']):IAU()} if au else {}),**({BE():UNL,BEA(AID4):UAU_()} if new['lastKind']=='cancel' else {})})
+    SNT=SENT_AFTER
+    WIV=[('ready: old status READY',lambda: WA(RV|{'rev':3,'lastRef':AID3},RV,dict(WD,**{INV():RV}))),('ready: old status SENT',lambda: WA(RV|{'rev':4},SNT,dict(WD,**{INV():SNT}))),('ready: new status DRAFT',lambda: WA(DV|{'rev':2,'updatedAt':TSNOW,'lastKind':'ready','lastRef':AID2},DV)),
+      ('ready: audit already used',lambda: WA(RV,DV,dict(WD,**{INVA(AID2):IAU()}))),('ready: no audit in the batch',lambda: WA(RV,DV,au=False)),('send: old status DRAFT',lambda: WA(SNT|{'rev':2},DV)),('send: old status SENT',lambda: WA(SNT|{'rev':4},SNT,dict(WD,**{INV():SNT}))),
+      ('send: new status READY',lambda: WA(RV|{'rev':3,'lastKind':'send','lastRef':AID3},RV,dict(WD,**{INV():RV}))),('send: new status CANCELLED',lambda: WA(RV|{'status':'CANCELLED','rev':3,'lastKind':'send','lastRef':AID3},RV,dict(WD,**{INV():RV}))),('send: audit already used',lambda: WA(SNT,RV,dict(WD,**{INV():RV,INVA(AID3):IAU()}))),('send: no audit in the batch',lambda: WA(SNT,RV,dict(WD,**{INV():RV}),au=False)),
+      ('cancel: old status SENT',lambda: WA(CXN(SNT),SNT,dict(WD,**{INV():SNT}))),('cancel: old status CANCELLED',lambda: WA(CXN(CXN()),CXN(),dict(WD,**{INV():CXN()}))),('cancel: new status READY',lambda: WA(CXN(k={'status':'READY'}),DV)),('cancel: new status SENT',lambda: WA(CXN(k={'status':'SENT'}),DV)),('cancel: audit already used',lambda: WA(CXN(),DV,dict(WD,**{INVA(AID5):IAU()}))),('cancel: no audit in the batch',lambda: WA(CXN(),DV,au=False))]
+    for lab,f in WIV: chk(f'B2 [{nm}] workflow, invoice update alone refused: {lab}',not f())
+    chk(f'B2 [{nm}] control (single op): send and cancel (draft and ready) invoice updates alone',WA(SNT,RV,dict(WD,**{INV():RV})) and WA(CXN(),DV) and WA(CXN(RV),RV,dict(WD,**{INV():RV})))
+    def AUDA(a,docs=None,inv=None): return RC(INVA(AID2),a,WD if docs is None else docs,{INV():inv if inv is not None else RV,INVA(AID2):a})
+    SAU=lambda **k: IAU(**dict(dict(action='send',fromStatus='READY',toStatus='SENT',rev=3),**k)); CNA=lambda **k: IAU(**dict(dict(action='cancel',fromStatus='DRAFT',toStatus='CANCELLED',rev=2,reason='Wrong hours'),**k))
+    sa=lambda **k: (SAU(**k),dict(WD,**{INV():RV}),SNT|{'lastRef':AID2}); ca2=lambda **k: (CNA(**k),WD,CXN()|{'lastRef':AID2})
+    chk(f'B2 [{nm}] control (single op): audit records for ready, send, cancel from draft, cancel from ready',AUDA(READYAU()) and AUDA(SAU(),dict(WD,**{INV():RV}),SNT|{'lastRef':AID2}) and AUDA(CNA(),WD,CXN()|{'lastRef':AID2}) and AUDA(CNA(fromStatus='READY',rev=3),dict(WD,**{INV():RV}),CXN(RV)|{'lastRef':AID2}))
+    AUM=[('ready audit: from-status wrong',lambda: AUDA(READYAU(fromStatus='READY'))),('ready audit: to-status wrong',lambda: AUDA(READYAU(toStatus='SENT'),inv=RV|{'status':'SENT'})),('ready audit: stored status not the from-status',lambda: AUDA(READYAU(),dict(WD,**{INV():RV}))),('ready audit: revision not stored + 1',lambda: AUDA(READYAU(rev=3),inv=RV|{'rev':3})),
+      ('ready audit: pointer on the invoice differs',lambda: AUDA(READYAU(),inv=RV|{'lastRef':AID3})),('ready audit: step on the invoice differs',lambda: AUDA(READYAU(),inv=RV|{'lastKind':'send'})),('ready audit: revision differs from the invoice',lambda: AUDA(READYAU(),inv=RV|{'rev':5})),('ready audit: status differs from the invoice',lambda: AUDA(READYAU(),inv=RV|{'status':'DRAFT'})),
+      ('ready audit: total differs from the invoice',lambda: AUDA(READYAU(totalMinor=1))),('ready audit: invoice not in the batch',lambda: RC(INVA(AID2),READYAU(),WD,{INVA(AID2):READYAU()})),('send audit: from-status wrong',lambda: AUDA(*[SAU(fromStatus='DRAFT'),dict(WD,**{INV():RV}),SNT|{'lastRef':AID2}])),
+      ('send audit: to-status wrong',lambda: AUDA(*[SAU(toStatus='READY'),dict(WD,**{INV():RV}),SNT|{'lastRef':AID2}])),('cancel audit: to-status wrong',lambda: AUDA(*[CNA(toStatus='READY'),WD,CXN()|{'lastRef':AID2}])),('cancel audit: from-status SENT',lambda: AUDA(*[CNA(fromStatus='SENT'),dict(WD,**{INV():SNT}),CXN(SNT)|{'lastRef':AID2}])),
+      ('cancel audit: reason 2 characters',lambda: AUDA(*[CNA(reason='ab'),WD,CXN()|{'lastRef':AID2}])),('create audit: revision 2',lambda: RC(INVA(AID1),IAU(rev=2),CDOC,CAF())),('create audit: from-status not empty',lambda: RC(INVA(AID1),IAU(fromStatus='DRAFT'),CDOC,CAF())),('create audit: to-status READY',lambda: RC(INVA(AID1),IAU(toStatus='READY'),CDOC,CAF(inv=IV(status='READY')))),
+      ('audit: invoice ID not a string',lambda: RC(INVA(AID1),IAU(invoiceId=5),CDOC,CAF())),('audit: revision not a number',lambda: RC(INVA(AID1),IAU(rev='1'),CDOC,CAF())),('audit: total not a number',lambda: RC(INVA(AID1),IAU(totalMinor='20000'),CDOC,CAF())),('audit: reason not a string',lambda: RC(INVA(AID1),IAU(reason=5),CDOC,CAF())),
+      ('audit: missing field',lambda: RC(INVA(AID1),dropk(IAU(),'reason'),CDOC,CAF())),('audit: reason 201 characters',lambda: RC(INVA(AID1),IAU(reason='x'*201),CDOC,CAF()))]
+    for lab,f in AUM: chk(f'B2 [{nm}] invoice audit alone refused: {lab}',not f())
+    chk(f'B2 [{nm}] boundary controls accepted: cancel reason 3 and 200 characters',AUDA(CNA(reason=R3),WD,CXN()|{'lastRef':AID2}) and AUDA(CNA(reason=R200),WD,CXN()|{'lastRef':AID2}))
+    # ---- invoice create, single op alone
+    CM=lambda **k: IV(**k)
+    INVCR=[('ID is not client + period (suffix missing from the ID)',lambda: icr(IV(suffix='02'))),('suffix 01 with a matching ID',lambda: P('create',INV(INVID+'__01'),OWN,IV(suffix='01'),None,CDOC,CAF(IV(suffix='01'),e1=LK(OKE1,iid=INVID+'__01')))),('suffix 100 with a matching ID',lambda: P('create',INV(INVID+'__100'),OWN,IV(suffix='100'),None,CDOC,CAF(IV(suffix='100'),e1=LK(OKE1,iid=INVID+'__100')))),
+      ('suffix not a string',lambda: icr(IV(suffix=2))),('client has no billing profile',lambda: icr(docs=dict(R0,**{BE():OKE1}))),('profile has a rate of 0',lambda: icr(docs=dict(R0,**{BP():PRO(rateMinor=0),BE():OKE1}))),('profile exponent differs',lambda: icr(IV(exp=0),docs=dict(CDOC,**{BP():PRO(currency='JPY',exp=0)}))),
+      ('profile due rule differs (after-generation profile, after-send invoice)',lambda: icr(IV(dueKind='afterSend'),docs=dict(CDOC,**{BP():PRO(dueKind='afterGeneration')}))),('profile due days differ',lambda: icr(IV(dueDays=13))),('rate is 0',lambda: icr(IV(rateMinor=0,totalMinor=0),docs=dict(CDOC,**{BP():PRO(rateMinor=0)}))),
+      ('minutes 0',lambda: icr(IV(minutes=0,totalMinor=0),docs=dict(CDOC,**{BE():OKE1|{'approvedMinutes':0}}),after=CAF(IV(minutes=0,totalMinor=0),e1=LK(OKE1|{'approvedMinutes':0})))),('total not a whole number',lambda: icr(IV(totalMinor=20000.5))),('total above the limit',lambda: icr(IV(rateMinor=10**9,minutes=267840,totalMinor=4464000000000,entryIds=[EIDE,EIDE2]),
+        docs=dict(CDOC,**{BP():PRO(rateMinor=10**9),BE():OKE1|{'approvedMinutes':133920},BE(EIDE2):OKE2|{'approvedMinutes':133920}}),after=CAF(IV(rateMinor=10**9,minutes=267840,totalMinor=4464000000000,entryIds=[EIDE,EIDE2]),two=True,e1=LK(OKE1|{'approvedMinutes':133920}),e2=LK(OKE2|{'approvedMinutes':133920},AID4)))),
+      ('minutes not the sum of two entries',lambda: icr(TWO(minutes=599,totalMinor=24975),after=CAF(TWO(minutes=599,totalMinor=24975),two=True))),('two entries but only the first minutes counted',lambda: icr(TWO(minutes=480,totalMinor=20000),after=CAF(TWO(minutes=480,totalMinor=20000),two=True))),
+      ('first entry not linked (two entries)',lambda: icr(TWO(),after=CAF(TWO(),two=True,e1=OKE1))),('second entry not linked (two entries)',lambda: icr(TWO(),after=CAF(TWO(),two=True,e2=OKE2))),('first entry not in the batch (two entries)',lambda: icr(TWO(),after={k:v for k,v in CAF(TWO(),two=True).items() if k not in (BE(),BEA(AID3))})),
+      ('second entry not in the batch (two entries)',lambda: icr(TWO(),after={k:v for k,v in CAF(TWO(),two=True).items() if k not in (BE(EIDE2),BEA(AID4))})),('first entry of another client (two entries)',lambda: icr(TWO(),after=CAF(TWO(),two=True,e1=LK(OKE1)|{'clientId':'CL-002'}))),('first entry of another period (two entries)',lambda: icr(TWO(),after=CAF(TWO(),two=True,e1=LK(OKE1)|{'periodStart':'20261102'}))),
+      ('audit not in the batch',lambda: icr(after={k:v for k,v in CAF().items() if k!=INVA(AID1)})),('audit already used',lambda: icr(docs=dict(CDOC,**{INVA(AID1):IAU()}))),('last step is not create',lambda: icr(IV(lastKind='ready'))),('entry not approved after the batch',lambda: icr(after=CAF(e1=LK(OKE1)|{'status':'DRAFT'}))),
+      ('entry client differs after the batch',lambda: icr(after=CAF(e1=LK(OKE1)|{'clientId':'CL-002'}))),('entry period start differs after the batch',lambda: icr(after=CAF(e1=LK(OKE1)|{'periodStart':'20261102'}))),('entry period end differs after the batch',lambda: icr(after=CAF(e1=LK(OKE1)|{'periodEnd':'20261116'}))),('entry linked to another invoice after the batch',lambda: icr(after=CAF(e1=LK(OKE1,iid=INVID2)))),
+      ('entry missing after the batch',lambda: icr(after={INV():IV(),INVA(AID1):IAU()})),('after-generation due date missing',lambda: icr(IV(dueKind='afterGeneration',dueDate=''),docs=dict(CDOC,**{BP():PRO(dueKind='afterGeneration')}))),('fixed due date differs from the profile',lambda: icr(IV(dueKind='fixed',dueDays=0,dueDate='2026-12-30'),docs=dict(CDOC,**{BP():PRO(dueKind='fixed',dueDays=0,dueDate='2026-12-31')}))),
+      ('after-send invoice carries a date',lambda: icr(IV(dueDate='2026-11-29'))),('archived client',lambda: icr(docs=dict(RARCH,**{BP():PRO(),BE():OKE1}))),('client not in the registry',lambda: icr(docs={BP():PRO(),BE():OKE1}))]
+    for lab,f in INVCR: chk(f'B2 [{nm}] invoice create alone refused: {lab}',not f())
+    chk(f'B2 [{nm}] boundary controls accepted: rate 1 and 1e9, minutes sum of two, total at the edge, suffix 02 and 99',all([icr(IV(rateMinor=1,minutes=480,totalMinor=8),docs=dict(CDOC,**{BP():PRO(rateMinor=1)}),after=CAF(IV(rateMinor=1,minutes=480,totalMinor=8))),
+      P('create',INV(INVID+'__99'),OWN,IV(suffix='99'),None,CDOC,CAF(IV(suffix='99'),e1=LK(OKE1,iid=INVID+'__99'))),P('create',INV(INVID2),OWN,IV(suffix='02'),None,CDOC,CAF(IV(suffix='02'),e1=LK(OKE1,iid=INVID2)))]))
+    # ---- entry link / unlink single op
+    LKE=LK(OKE1); LKD=dict(CDOC); LKA=CAF()
+    ELM=[('old status SUBMITTED',lambda: P('update',BE(),OWN,LKE|{'status':'APPROVED'},OKE1|{'status':'SUBMITTED'},dict(ED0,**{BE():OKE1|{'status':'SUBMITTED'}}),LKA)),('new status DRAFT',lambda: P('update',BE(),OWN,LKE|{'status':'DRAFT'},OKE1,CDOC,CAF(e1=LKE|{'status':'DRAFT'}))),('link with the link left empty',lambda: P('update',BE(),OWN,LKE|{'relatedInvoiceId':''},OKE1,CDOC,CAF(e1=LKE|{'relatedInvoiceId':''}))),
+      ('submitted minutes changed',lambda: P('update',BE(),OWN,LKE|{'submittedMinutes':481},OKE1,CDOC,CAF(e1=LKE|{'submittedMinutes':481}))),('approved minutes changed',lambda: P('update',BE(),OWN,LKE|{'approvedMinutes':481},OKE1,CDOC,CAF(e1=LKE|{'approvedMinutes':481}))),('approved time changed',lambda: P('update',BE(),OWN,LKE|{'approvedAt':TSNOW},OKE1,CDOC,CAF(e1=LKE|{'approvedAt':TSNOW}))),
+      ('approver changed',lambda: P('update',BE(),OWN,LKE|{'approverUid':'someoneelse123'},OKE1,CDOC,CAF(e1=LKE|{'approverUid':'someoneelse123'}))),('replaced-by changed',lambda: P('update',BE(),OWN,LKE|{'supersededBy':EIDE2},OKE1,CDOC,CAF(e1=LKE|{'supersededBy':EIDE2}))),('invoice not in the batch',lambda: P('update',BE(),OWN,LKE,OKE1,CDOC,{BE():LKE,BEA(AID3):LAU()})),
+      ('invoice client differs',lambda: P('update',BE(),OWN,LKE,OKE1,CDOC,CAF(inv=IV(clientId='CL-002')))),('invoice does not list the entry',lambda: P('update',BE(),OWN,LKE,OKE1,CDOC,CAF(inv=IV(entryIds=[EIDE2])))),('invoice not a draft after the batch',lambda: P('update',BE(),OWN,LKE,OKE1,CDOC,CAF(inv=IV(status='READY')))),('invoice exists already',lambda: P('update',BE(),OWN,LKE,OKE1,dict(CDOC,**{INV():IV()}),LKA)),
+      ('already linked to an invoice (re-link)',lambda: P('update',BE(),OWN,LK(OKE1,iid=INVID2),OKE1|{'relatedInvoiceId':INVID},dict(CDOC,**{BE():OKE1|{'relatedInvoiceId':INVID}}),CAF(e1=LK(OKE1,iid=INVID2))))]
+    for lab,f in ELM: chk(f'B2 [{nm}] entry link alone refused: {lab}',not f())
+    chk(f'B2 [{nm}] control (single op): entry link alone',P('update',BE(),OWN,LKE,OKE1,CDOC,LKA))
+    ULE=OKE1|{'relatedInvoiceId':'','rev':4,'lastAudit':AID4}; ULD=dict(WD); ULA=CXAF()
+    UNM=[('old status SUBMITTED',lambda: P('update',BE(),OWN,ULE,LE|{'status':'SUBMITTED'},dict(WD,**{BE():LE|{'status':'SUBMITTED'}}),ULA)),('new status DRAFT',lambda: P('update',BE(),OWN,ULE|{'status':'DRAFT'},LE,WD,CXAF(e=ULE|{'status':'DRAFT'}))),('was not linked',lambda: P('update',BE(),OWN,ULE,OKE1,WD,ULA)),('still linked',lambda: P('update',BE(),OWN,ULE|{'relatedInvoiceId':INVID2},LE,WD,CXAF(e=ULE|{'relatedInvoiceId':INVID2}))),
+      ('submitted minutes changed',lambda: P('update',BE(),OWN,ULE|{'submittedMinutes':1},LE,WD,CXAF(e=ULE|{'submittedMinutes':1}))),('approved minutes changed',lambda: P('update',BE(),OWN,ULE|{'approvedMinutes':1},LE,WD,CXAF(e=ULE|{'approvedMinutes':1}))),('approved time changed',lambda: P('update',BE(),OWN,ULE|{'approvedAt':TSNOW},LE,WD,CXAF(e=ULE|{'approvedAt':TSNOW}))),
+      ('approver changed',lambda: P('update',BE(),OWN,ULE|{'approverUid':'someoneelse123'},LE,WD,CXAF(e=ULE|{'approverUid':'someoneelse123'}))),('replaced-by changed',lambda: P('update',BE(),OWN,ULE|{'supersededBy':EIDE2},LE,WD,CXAF(e=ULE|{'supersededBy':EIDE2}))),('invoice missing',lambda: P('update',BE(),OWN,ULE,LE,{k:v for k,v in WD.items() if k!=INV()},ULA)),
+      ('invoice not in the batch',lambda: P('update',BE(),OWN,ULE,LE,WD,{BE():ULE,BEA(AID4):UAU_()})),('invoice SENT before',lambda: P('update',BE(),OWN,ULE,LE,dict(WD,**{INV():SENT_AFTER}),CXAF(n=CXN(SENT_AFTER)))),('invoice not cancelled after',lambda: P('update',BE(),OWN,ULE,LE,WD,CXAF(n=DV)))]
+    for lab,f in UNM: chk(f'B2 [{nm}] entry unlink alone refused: {lab}',not f())
+    chk(f'B2 [{nm}] control (single op): entry unlink alone (draft and ready invoice)',P('update',BE(),OWN,ULE,LE,WD,ULA) and P('update',BE(),OWN,ULE,LE,dict(WD,**{INV():RV}),CXAF(RV)))
+    chk(f'B2 [{nm}] boundary control accepted: unlink audit reason of exactly 3 characters',P('create',BEA(AID4),OWN,UAU_(reason=R3),None,WD,ULA))
+    # ---------------- 8l. B2 third pass: tests that isolate ONE clause each (found by the mutation check)
+    # a sent-only step must refuse a draft/ready invoice even when the NEW status is SENT (old status checked on its own)
+    RVS=RV|{'status':'READY'}; SENDOLD=lambda **k: NXT(RV,dict(status='SENT',sentAt=RV['sentAt'],**k))
+    chk(f'B2 [{nm}] sent-only steps refuse an old status that is not SENT even when the new status is SENT',not any([
+      IU(SENDOLD(paidMinor=5000,lastKind='payment',lastRef=PID1),RV,dict(PD,**{INV():RV}),pa0),
+      IU(SENDOLD(creditMinor=3000,lastKind='credit',lastRef=PID2),RV|{'paidMinor':20000},dict(PD,**{INV():RV|{'paidMinor':20000}}),ca),
+      IU(NXT(RV|{'paidMinor':5000},dict(status='SENT',paidMinor=0,lastKind='reversal',lastRef=PID1)),RV|{'paidMinor':5000},dict(RDOC,**{INV():RV|{'paidMinor':5000}}),{INV():NXT(RV|{'paidMinor':5000},dict(status='SENT',paidMinor=0,lastKind='reversal',lastRef=PID1)),REVP(PID1):RVD()}),
+      IU(SENDOLD(adjMinor=-1000,lastKind='adjustment',lastRef=AID4),RV,dict(PD,**{INV():RV}),aa),
+      IU(SENDOLD(dueDate='2026-12-15',lastKind='due',lastRef=AID5),RV,dict(PD,**{INV():RV}),da)]))
+    chk(f'B2 [{nm}] payment/credit record amounts of 0 are not accepted by the invoice change (paid must really increase)',not IU(NXT(SV,dict(lastKind='payment',lastRef=PID1)),SV,PD,{INV():NXT(SV,dict(lastKind='payment',lastRef=PID1)),PAYP(PID1):PY(amountMinor=0)}) and not IU(NXT(FULL,dict(lastKind='credit',lastRef=PID2)),FULL,FD,{INV():NXT(FULL,dict(lastKind='credit',lastRef=PID2)),PAYP(PID2):CRY()|{'amountMinor':0}}))
+    chk(f'B2 [{nm}] an adjustment of 0 is not accepted by the invoice change',not IU(NXT(SV,dict(lastKind='adjustment',lastRef=AID4)),SV,PD,{INV():NXT(SV,dict(lastKind='adjustment',lastRef=AID4)),ADJP(AID4):ADR(amountMinor=0)}))
+    HC=FULL|{'creditMinor':100}
+    chk(f'B2 [{nm}] a credit held blocks reversing a payment (even when the credit would silently vanish) and blocks an upward adjustment',not any([
+      IU(NXT(HC,dict(paidMinor=15000,creditMinor=0,lastKind='reversal',lastRef=PID1)),HC,dict(RDOC,**{INV():HC}),ra),IU(ADN(1000,HC),HC,dict(PD,**{INV():HC}),{INV():ADN(1000,HC),ADJP(AID4):ADR(amountMinor=1000)})]))
+    # the invoice ID must be the client + period + suffix (entries are linked to the same wrong ID so nothing else refuses)
+    BADID='CL-001__20261101__20261116'
+    chk(f'B2 [{nm}] an invoice whose ID is not client + period is refused even when its entries point at that ID',not P('create',INV(BADID),OWN,IV(),None,CDOC,CAF(IV(),e1=LK(OKE1,iid=BADID))))
+    chk(f'B2 [{nm}] minutes that are not the entry minutes are refused even when the total fits them',not icr(IV(minutes=479,totalMinor=19958)))
+    chk(f'B2 [{nm}] an after-send invoice cannot carry the due rule of an after-generation profile',not icr(IV(dueKind='afterSend',dueDate='2026-11-29'),docs=dict(CDOC,**{BP():PRO(dueKind='afterGeneration')})))
+    chk(f'B2 [{nm}] total at exactly 1e12 accepted, above refused; paid, credit and adjustment at their limits',all([
+      icr(IV(rateMinor=10**9,minutes=60000,totalMinor=10**12),docs=dict(CDOC,**{BP():PRO(rateMinor=10**9),BE():OKE1|{'approvedMinutes':60000}}),after=CAF(IV(rateMinor=10**9,minutes=60000,totalMinor=10**12),e1=LK(OKE1|{'approvedMinutes':60000}))),
+      IU(ADN(10**12),SV,PD,{INV():ADN(10**12),ADJP(AID4):ADR(amountMinor=10**12)}),
+      IU(ADN(-10**12,SV|{'totalMinor':10**12}),SV|{'totalMinor':10**12},dict(PD,**{INV():SV|{'totalMinor':10**12}}),{INV():ADN(-10**12,SV|{'totalMinor':10**12}),ADJP(AID4):ADR(amountMinor=-10**12)})]))
+    BIG=SV|{'totalMinor':10**12,'adjMinor':10**12,'paidMinor':10**12}
+    chk(f'B2 [{nm}] paid above 1e12 refused even when total + adjustment allow it',not IU(NXT(BIG,dict(paidMinor=10**12+1,lastKind='payment',lastRef=PID1)),BIG,dict(PD,**{INV():BIG}),{INV():NXT(BIG,dict(paidMinor=10**12+1,lastKind='payment',lastRef=PID1)),PAYP(PID1):PY(amountMinor=1)}) and IU(NXT(BIG,dict(paidMinor=10**12,lastKind='payment',lastRef=PID1)),BIG|{'paidMinor':10**12-1},dict(PD,**{INV():BIG|{'paidMinor':10**12-1}}),{INV():NXT(BIG,dict(paidMinor=10**12,lastKind='payment',lastRef=PID1)),PAYP(PID1):PY(amountMinor=1)}))
+    BIGC=SV|{'totalMinor':5*10**11,'adjMinor':5*10**11,'paidMinor':10**12,'creditMinor':10**12-1}
+    CBN=lambda n: NXT(BIGC,dict(creditMinor=n,lastKind='credit',lastRef=PID2))
+    chk(f'B2 [{nm}] credit at exactly 1e12 accepted, 1e12 + 1 refused',IU(CBN(10**12),BIGC,dict(PD,**{INV():BIGC}),{INV():CBN(10**12),PAYP(PID2):CRY()|{'amountMinor':1}}) and not IU(CBN(10**12+1),BIGC,dict(PD,**{INV():BIGC}),{INV():CBN(10**12+1),PAYP(PID2):CRY()|{'amountMinor':2}}))
+    # audit records: each status clause alone
+    def AU1(a,stored,after_inv): return RC(INVA(AID2),a,dict(WD,**{INV():stored}),{INV():after_inv,INVA(AID2):a})
+    chk(f'B2 [{nm}] audit status chains (isolated): wrong from-status, wrong to-status, stored status differs',not any([
+      AU1(READYAU(fromStatus='READY',toStatus='READY',rev=3),RV,RV|{'rev':3,'lastRef':AID2}),
+      AU1(READYAU(fromStatus='DRAFT',toStatus='READY',rev=3),RV,RV|{'rev':3,'lastRef':AID2}),
+      AU1(SAU(fromStatus='SENT',toStatus='SENT',rev=4),SNT,SNT|{'rev':4,'lastRef':AID2,'lastKind':'send'}),
+      AU1(SAU(fromStatus='READY',toStatus='READY',rev=3),RV,RV|{'rev':3,'lastRef':AID2,'lastKind':'send'}),
+      AU1(CNA(fromStatus='DRAFT',toStatus='DRAFT',rev=2),DV,DV|{'rev':2,'lastRef':AID2,'lastKind':'cancel'}),
+      AU1(CNA(fromStatus='SENT',rev=4),SNT,CXN(SNT)|{'lastRef':AID2})]))
+    chk(f'B2 [{nm}] a create audit must be revision 1 even when the invoice says revision 2',not RC(INVA(AID1),IAU(rev=2),CDOC,CAF(inv=IV(rev=2))))
+    # payment kind list: an unknown kind is refused even when the invoice step carries the same word
+    chk(f'B2 [{nm}] a payment record with an unknown kind is refused even when the invoice step says the same',not RC(PAYP(PID1),PY(kind='refund'),PD,{INV():pn|{'lastKind':'refund'},PAYP(PID1):PY(kind='refund')}))
+    chk(f'B2 [{nm}] a due-date record ID of 3 characters is refused (ID rule alone)',not RC(DUEP('abc'),DUR(),PD,{INV():dn|{'lastRef':'abc'},DUEP('abc'):DUR()}))
+    # entry link: re-link needs the other invoice to be in the batch so the old-link clause is the only thing left
+    RL=OKE1|{'relatedInvoiceId':INVID}
+    chk(f'B2 [{nm}] an entry that is already on an invoice cannot be moved to a second one',not P('update',BE(),OWN,LK(OKE1,iid=INVID2),RL,dict(CDOC,**{BE():RL}),{INV(INVID2):IV(suffix='02'),BE():LK(OKE1,iid=INVID2),BEA(AID3):LAU()}))
+    def EA1(a,stored,after_e): return RC(BEA(AID3),a,dict(CDOC,**{BE():stored}),{BE():after_e,BEA(AID3):a})
+    chk(f'B2 [{nm}] entry audit link/unlink: from-status and to-status must be APPROVED (each alone)',not any([
+      EA1(LAU(fromStatus='DRAFT',toStatus='APPROVED'),OKE1|{'status':'DRAFT'},LK(OKE1)),
+      EA1(LAU(toStatus='DRAFT'),OKE1,LK(OKE1)|{'status':'DRAFT'}),
+      EA1(UAU_(fromStatus='DRAFT',toStatus='APPROVED',rev=4),LE|{'status':'DRAFT'},ULE|{'lastAudit':AID3}),
+      EA1(UAU_(toStatus='DRAFT'),LE,ULE|{'status':'DRAFT','lastAudit':AID3})]))
+    chk(f'B2 [{nm}] control (single op): entry audit records for link and unlink',EA1(LAU(),OKE1,LK(OKE1)) and EA1(UAU_(),LE,ULE|{'lastAudit':AID3}))
 # ---------------- 9. cross-check: strict file equals transition file apart from the owner check
 a=re.sub(r'\s+','',TXT); b=re.sub(r'\s+','',re.sub(r'^//.*\n','',STRICT,flags=re.M))
 chk('strict rules differ from the transition rules only in the owner e-mail fallback',a.replace("&&(request.auth.uid==ownerUid()||request.auth.token.email=='fredespinosa86.app@gmail.com');","&&request.auth.uid==ownerUid();")==b,'')

@@ -515,33 +515,47 @@ service cloud.firestore {
         && request.resource.data.clientId == resource.data.clientId && request.resource.data.periodStart == resource.data.periodStart
         && request.resource.data.periodEnd == resource.data.periodEnd && request.resource.data.seq == resource.data.seq
         && request.resource.data.createdAt == resource.data.createdAt && request.resource.data.supersedes == resource.data.supersedes
-        && request.resource.data.relatedInvoiceId == resource.data.relatedInvoiceId
         && request.resource.data.rev == resource.data.rev + 1 && request.resource.data.updatedAt == request.time
         && !exists(beAudit(request.resource.data.lastAudit)) && existsAfter(beAudit(request.resource.data.lastAudit))
         && (
           // edit a draft
-          (resource.data.status == 'DRAFT' && request.resource.data.status == 'DRAFT'
+          (resource.data.status == 'DRAFT' && request.resource.data.status == 'DRAFT' && request.resource.data.relatedInvoiceId == resource.data.relatedInvoiceId
             && request.resource.data.approvedMinutes == null && request.resource.data.approvedAt == null && request.resource.data.approverUid == '' && request.resource.data.supersededBy == '')
           // submit
-          || (resource.data.status == 'DRAFT' && request.resource.data.status == 'SUBMITTED'
+          || (resource.data.status == 'DRAFT' && request.resource.data.status == 'SUBMITTED' && request.resource.data.relatedInvoiceId == resource.data.relatedInvoiceId
             && request.resource.data.submittedMinutes == resource.data.submittedMinutes && request.resource.data.note == resource.data.note
             && request.resource.data.approvedMinutes == null && request.resource.data.approvedAt == null && request.resource.data.approverUid == '' && request.resource.data.supersededBy == '')
           // reopen
-          || (resource.data.status == 'SUBMITTED' && request.resource.data.status == 'DRAFT'
+          || (resource.data.status == 'SUBMITTED' && request.resource.data.status == 'DRAFT' && request.resource.data.relatedInvoiceId == resource.data.relatedInvoiceId
             && request.resource.data.submittedMinutes == resource.data.submittedMinutes && request.resource.data.note == resource.data.note
             && request.resource.data.approvedMinutes == null && request.resource.data.approvedAt == null && request.resource.data.approverUid == '' && request.resource.data.supersededBy == '')
           // approve (self-approved)
-          || (resource.data.status == 'SUBMITTED' && request.resource.data.status == 'APPROVED'
+          || (resource.data.status == 'SUBMITTED' && request.resource.data.status == 'APPROVED' && request.resource.data.relatedInvoiceId == resource.data.relatedInvoiceId
             && request.resource.data.submittedMinutes == resource.data.submittedMinutes && request.resource.data.note == resource.data.note
             && request.resource.data.approvedMinutes != null && request.resource.data.approvedAt == request.time
             && request.resource.data.approverUid == request.auth.uid && request.resource.data.supersededBy == '')
           // replaced by a newer entry (created in the same batch)
-          || (resource.data.status == 'APPROVED' && request.resource.data.status == 'SUPERSEDED'
+          || (resource.data.status == 'APPROVED' && request.resource.data.status == 'SUPERSEDED' && resource.data.relatedInvoiceId == '' && request.resource.data.relatedInvoiceId == ''
             && request.resource.data.submittedMinutes == resource.data.submittedMinutes && request.resource.data.approvedMinutes == resource.data.approvedMinutes
             && request.resource.data.approvedAt == resource.data.approvedAt && request.resource.data.approverUid == resource.data.approverUid && request.resource.data.note == resource.data.note
             && request.resource.data.supersededBy.size() > 0
             && existsAfter(beDoc(request.resource.data.supersededBy)) && getAfter(beDoc(request.resource.data.supersededBy)).data.supersedes == id
             && getAfter(beDoc(request.resource.data.supersededBy)).data.status == 'DRAFT')
+          // B2: put on a new draft invoice (made in the same batch and listing this entry); the hours stay exactly as approved
+          || (resource.data.status == 'APPROVED' && request.resource.data.status == 'APPROVED' && resource.data.relatedInvoiceId == '' && request.resource.data.relatedInvoiceId != ''
+            && request.resource.data.submittedMinutes == resource.data.submittedMinutes && request.resource.data.approvedMinutes == resource.data.approvedMinutes
+            && request.resource.data.approvedAt == resource.data.approvedAt && request.resource.data.approverUid == resource.data.approverUid && request.resource.data.note == resource.data.note
+            && request.resource.data.supersededBy == resource.data.supersededBy
+            && !exists(invDoc(request.resource.data.relatedInvoiceId)) && existsAfter(invDoc(request.resource.data.relatedInvoiceId))
+            && getAfter(invDoc(request.resource.data.relatedInvoiceId)).data.status == 'DRAFT' && getAfter(invDoc(request.resource.data.relatedInvoiceId)).data.clientId == resource.data.clientId
+            && id in getAfter(invDoc(request.resource.data.relatedInvoiceId)).data.entryIds)
+          // B2: released when its draft or ready invoice is cancelled in the same batch
+          || (resource.data.status == 'APPROVED' && request.resource.data.status == 'APPROVED' && resource.data.relatedInvoiceId != '' && request.resource.data.relatedInvoiceId == ''
+            && request.resource.data.submittedMinutes == resource.data.submittedMinutes && request.resource.data.approvedMinutes == resource.data.approvedMinutes
+            && request.resource.data.approvedAt == resource.data.approvedAt && request.resource.data.approverUid == resource.data.approverUid && request.resource.data.note == resource.data.note
+            && request.resource.data.supersededBy == resource.data.supersededBy
+            && exists(invDoc(resource.data.relatedInvoiceId)) && (get(invDoc(resource.data.relatedInvoiceId)).data.status == 'DRAFT' || get(invDoc(resource.data.relatedInvoiceId)).data.status == 'READY')
+            && existsAfter(invDoc(resource.data.relatedInvoiceId)) && getAfter(invDoc(resource.data.relatedInvoiceId)).data.status == 'CANCELLED')
         );
     }
     match /billableEntryAudit/{aid} {
@@ -568,7 +582,9 @@ service cloud.firestore {
             || (request.resource.data.action == 'submit' && request.resource.data.fromStatus == 'DRAFT' && request.resource.data.toStatus == 'SUBMITTED')
             || (request.resource.data.action == 'reopen' && request.resource.data.fromStatus == 'SUBMITTED' && request.resource.data.toStatus == 'DRAFT' && request.resource.data.reason.size() >= 3)
             || (request.resource.data.action == 'approve' && request.resource.data.fromStatus == 'SUBMITTED' && request.resource.data.toStatus == 'APPROVED')
-            || (request.resource.data.action == 'supersede' && request.resource.data.fromStatus == 'APPROVED' && request.resource.data.toStatus == 'SUPERSEDED' && request.resource.data.reason.size() >= 3))
+            || (request.resource.data.action == 'supersede' && request.resource.data.fromStatus == 'APPROVED' && request.resource.data.toStatus == 'SUPERSEDED' && request.resource.data.reason.size() >= 3)
+            || (request.resource.data.action == 'link' && request.resource.data.fromStatus == 'APPROVED' && request.resource.data.toStatus == 'APPROVED' && getAfter(beDoc(request.resource.data.entryId)).data.relatedInvoiceId != '')
+            || (request.resource.data.action == 'unlink' && request.resource.data.fromStatus == 'APPROVED' && request.resource.data.toStatus == 'APPROVED' && getAfter(beDoc(request.resource.data.entryId)).data.relatedInvoiceId == '' && request.resource.data.reason.size() >= 3))
         && (request.resource.data.action == 'create'
             || (exists(beDoc(request.resource.data.entryId)) && get(beDoc(request.resource.data.entryId)).data.status == request.resource.data.fromStatus
                 && get(beDoc(request.resource.data.entryId)).data.rev + 1 == request.resource.data.rev));
@@ -589,6 +605,240 @@ service cloud.firestore {
         && getAfter(bpDoc(request.resource.data.clientId)).data.arrangement == request.resource.data.arrangement
         && ((request.resource.data.registryNew == true && !exists(regDoc(request.resource.data.clientId)) && existsAfter(regDoc(request.resource.data.clientId)))
             || (request.resource.data.registryNew == false && regActive(request.resource.data.clientId)));
+    }
+    // B2 (4.5.0): invoices, payments, reversals, adjustments and due-date changes. Owner only. Money is whole minor units. Every change is ONE batch that pairs the invoice
+    // update with a brand-new record (the "paired write"), so the cached balance on the invoice can never move without a record that explains it.
+    // Rules cannot loop or divide: an invoice holds at most 2 approved entries (their minutes are added up here) and the half-up total is checked as an inequality.
+    // Payment dates and due-date maths are checked by the page; the rules check the date FORMAT only.
+    function invDoc(id) { return /databases/$(database)/documents/invoices/$(id); }
+    function invAudit(aid) { return /databases/$(database)/documents/invoiceAudit/$(aid); }
+    function payDoc(pid) { return /databases/$(database)/documents/payments/$(pid); }
+    function revDoc(pid) { return /databases/$(database)/documents/paymentReversals/$(pid); }
+    function adjDoc(aid) { return /databases/$(database)/documents/invoiceAdjustments/$(aid); }
+    function dueDoc(did) { return /databases/$(database)/documents/invoiceDueDates/$(did); }
+    function dateFmt(s) { return s is string && s.matches('^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$'); }
+    function invBaseId(d) { return d.clientId + '__' + d.periodStart + '__' + d.periodEnd; }
+    function invOk(d) {
+      return d.keys().hasOnly(['clientId','periodStart','periodEnd','suffix','currency','exp','rateMinor','tz','dueKind','dueDays','dueDate','entryIds','minutes','totalMinor','status','sentAt','paidMinor','creditMinor','adjMinor','rev','createdAt','updatedAt','lastKind','lastRef'])
+        && d.keys().hasAll(['clientId','periodStart','periodEnd','suffix','currency','exp','rateMinor','tz','dueKind','dueDays','dueDate','entryIds','minutes','totalMinor','status','sentAt','paidMinor','creditMinor','adjMinor','rev','createdAt','updatedAt','lastKind','lastRef'])
+        && d.clientId is string && validClientId(d.clientId)
+        && d.periodStart is string && d.periodStart.matches('^[0-9]{8}$') && d.periodEnd is string && d.periodEnd.matches('^[0-9]{8}$') && d.periodEnd >= d.periodStart
+        && d.suffix is string && d.suffix.matches('^$|^(0[2-9]|[1-9][0-9])$')
+        && d.currency is string && d.exp is int && curExp(d.currency, d.exp)
+        && d.rateMinor is int && d.rateMinor >= 1 && d.rateMinor <= 1000000000
+        && d.tz is string && d.tz.size() <= 60 && d.tz.matches('^[A-Za-z0-9_+/-]+$')
+        && d.dueKind in ['fixed','afterSend','afterGeneration'] && d.dueDays is int && d.dueDays >= 0 && d.dueDays <= 365
+        && d.dueDate is string && d.dueDate.matches('^$|^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && d.entryIds is list && d.entryIds.size() >= 1 && d.entryIds.size() <= 2
+        && d.minutes is int && d.minutes >= 1 && d.minutes <= 267840
+        && d.totalMinor is int && d.totalMinor >= 0 && d.totalMinor <= 1000000000000
+        && d.status in ['DRAFT','READY','SENT','CANCELLED']
+        && (d.sentAt == null || d.sentAt is timestamp)
+        && d.paidMinor is int && d.paidMinor >= 0 && d.paidMinor <= 1000000000000
+        && d.creditMinor is int && d.creditMinor >= 0 && d.creditMinor <= 1000000000000
+        && d.adjMinor is int && d.adjMinor >= -1000000000000 && d.adjMinor <= 1000000000000
+        && d.rev is int && d.rev >= 1
+        && d.lastKind in ['create','ready','send','cancel','payment','credit','reversal','adjustment','due']
+        && plainKey(d.lastRef);
+    }
+    // The fields an invoice can never change after it is made.
+    function invFixed(n, o) {
+      return n.clientId == o.clientId && n.periodStart == o.periodStart && n.periodEnd == o.periodEnd && n.suffix == o.suffix
+        && n.currency == o.currency && n.exp == o.exp && n.rateMinor == o.rateMinor && n.tz == o.tz && n.dueKind == o.dueKind && n.dueDays == o.dueDays
+        && n.entryIds == o.entryIds && n.minutes == o.minutes && n.totalMinor == o.totalMinor && n.createdAt == o.createdAt;
+    }
+    function invMoneySame(n, o) { return n.paidMinor == o.paidMinor && n.creditMinor == o.creditMinor && n.adjMinor == o.adjMinor; }
+    // Approved minutes of a listed entry as it will be after this batch, and the list of entries all being approved, linked to this invoice, same client and period.
+    function invEntOk(eid, iid, d) {
+      return existsAfter(beDoc(eid)) && getAfter(beDoc(eid)).data.status == 'APPROVED' && getAfter(beDoc(eid)).data.relatedInvoiceId == iid
+        && getAfter(beDoc(eid)).data.clientId == d.clientId && getAfter(beDoc(eid)).data.periodStart == d.periodStart && getAfter(beDoc(eid)).data.periodEnd == d.periodEnd;
+    }
+    function invEntMin(eid) { return getAfter(beDoc(eid)).data.approvedMinutes; }
+    function invEntsOk(iid, d) {
+      return (d.entryIds.size() == 1 && invEntOk(d.entryIds[0], iid, d) && d.minutes == invEntMin(d.entryIds[0]))
+        || (d.entryIds.size() == 2 && d.entryIds[0] != d.entryIds[1] && invEntOk(d.entryIds[0], iid, d) && invEntOk(d.entryIds[1], iid, d)
+            && d.minutes == invEntMin(d.entryIds[0]) + invEntMin(d.entryIds[1]));
+    }
+    // total = round-half-up(rate x minutes / 60), written without division: 120 x total <= 2 x rate x minutes + 60 < 120 x (total + 1)
+    function invTotalOk(d) {
+      return 120 * d.totalMinor <= 2 * d.rateMinor * d.minutes + 60 && 2 * d.rateMinor * d.minutes + 60 < 120 * (d.totalMinor + 1);
+    }
+    function invDueOk(d, p) {
+      return (p.dueKind == 'fixed' && d.dueDate == p.dueDate) || (p.dueKind == 'afterGeneration' && dateFmt(d.dueDate)) || (p.dueKind == 'afterSend' && d.dueDate == '');
+    }
+    function invUnlinked(d) {
+      return (d.entryIds.size() == 1 && existsAfter(beDoc(d.entryIds[0])) && getAfter(beDoc(d.entryIds[0])).data.relatedInvoiceId == '')
+        || (d.entryIds.size() == 2 && existsAfter(beDoc(d.entryIds[0])) && getAfter(beDoc(d.entryIds[0])).data.relatedInvoiceId == '' && existsAfter(beDoc(d.entryIds[1])) && getAfter(beDoc(d.entryIds[1])).data.relatedInvoiceId == '');
+    }
+    match /invoices/{id} {
+      allow read: if isOwner();
+      allow create: if isOwner() && invOk(request.resource.data)
+        && ((request.resource.data.suffix == '' && id == invBaseId(request.resource.data)) || (request.resource.data.suffix != '' && id == invBaseId(request.resource.data) + '__' + request.resource.data.suffix))
+        && regActive(request.resource.data.clientId) && exists(bpDoc(request.resource.data.clientId))
+        && get(bpDoc(request.resource.data.clientId)).data.arrangement == 'hourly' && get(bpDoc(request.resource.data.clientId)).data.rateMinor >= 1
+        && request.resource.data.currency == get(bpDoc(request.resource.data.clientId)).data.currency && request.resource.data.exp == get(bpDoc(request.resource.data.clientId)).data.exp
+        && request.resource.data.rateMinor == get(bpDoc(request.resource.data.clientId)).data.rateMinor && request.resource.data.tz == get(bpDoc(request.resource.data.clientId)).data.tz
+        && request.resource.data.dueKind == get(bpDoc(request.resource.data.clientId)).data.dueKind && request.resource.data.dueDays == get(bpDoc(request.resource.data.clientId)).data.dueDays
+        && invDueOk(request.resource.data, get(bpDoc(request.resource.data.clientId)).data)
+        && request.resource.data.status == 'DRAFT' && request.resource.data.sentAt == null
+        && request.resource.data.paidMinor == 0 && request.resource.data.creditMinor == 0 && request.resource.data.adjMinor == 0
+        && request.resource.data.rev == 1 && request.resource.data.lastKind == 'create'
+        && request.resource.data.createdAt == request.time && request.resource.data.updatedAt == request.time
+        && invTotalOk(request.resource.data) && invEntsOk(id, request.resource.data)
+        && !exists(invAudit(request.resource.data.lastRef)) && existsAfter(invAudit(request.resource.data.lastRef));
+      allow update: if isOwner() && invOk(request.resource.data) && invFixed(request.resource.data, resource.data)
+        && request.resource.data.rev == resource.data.rev + 1 && request.resource.data.updatedAt == request.time
+        && (
+          // draft -> ready
+          (request.resource.data.lastKind == 'ready' && resource.data.status == 'DRAFT' && request.resource.data.status == 'READY'
+            && request.resource.data.sentAt == null && request.resource.data.dueDate == resource.data.dueDate && invMoneySame(request.resource.data, resource.data)
+            && !exists(invAudit(request.resource.data.lastRef)) && existsAfter(invAudit(request.resource.data.lastRef)))
+          // ready -> sent (the sent time is the server time; "after sending" due dates are fixed now)
+          || (request.resource.data.lastKind == 'send' && resource.data.status == 'READY' && request.resource.data.status == 'SENT'
+            && request.resource.data.sentAt == request.time && invMoneySame(request.resource.data, resource.data)
+            && ((resource.data.dueKind == 'afterSend' && dateFmt(request.resource.data.dueDate)) || (resource.data.dueKind != 'afterSend' && request.resource.data.dueDate == resource.data.dueDate))
+            && !exists(invAudit(request.resource.data.lastRef)) && existsAfter(invAudit(request.resource.data.lastRef)))
+          // draft or ready -> cancelled (its entries are released in the same batch)
+          || (request.resource.data.lastKind == 'cancel' && (resource.data.status == 'DRAFT' || resource.data.status == 'READY') && request.resource.data.status == 'CANCELLED'
+            && request.resource.data.sentAt == null && request.resource.data.dueDate == resource.data.dueDate && invMoneySame(request.resource.data, resource.data)
+            && invUnlinked(resource.data)
+            && !exists(invAudit(request.resource.data.lastRef)) && existsAfter(invAudit(request.resource.data.lastRef)))
+          // a payment is recorded (only on a sent invoice; never more than the invoice total)
+          || (request.resource.data.lastKind == 'payment' && resource.data.status == 'SENT' && request.resource.data.status == 'SENT'
+            && request.resource.data.sentAt == resource.data.sentAt && request.resource.data.dueDate == resource.data.dueDate
+            && request.resource.data.creditMinor == resource.data.creditMinor && request.resource.data.adjMinor == resource.data.adjMinor
+            && request.resource.data.paidMinor > resource.data.paidMinor && request.resource.data.paidMinor <= resource.data.totalMinor + resource.data.adjMinor
+            && !exists(payDoc(request.resource.data.lastRef)) && existsAfter(payDoc(request.resource.data.lastRef))
+            && getAfter(payDoc(request.resource.data.lastRef)).data.invoiceId == id && getAfter(payDoc(request.resource.data.lastRef)).data.kind == 'payment'
+            && getAfter(payDoc(request.resource.data.lastRef)).data.amountMinor == request.resource.data.paidMinor - resource.data.paidMinor)
+          // money received beyond a fully paid invoice, recorded as a credit
+          || (request.resource.data.lastKind == 'credit' && resource.data.status == 'SENT' && request.resource.data.status == 'SENT'
+            && request.resource.data.sentAt == resource.data.sentAt && request.resource.data.dueDate == resource.data.dueDate
+            && request.resource.data.paidMinor == resource.data.paidMinor && request.resource.data.adjMinor == resource.data.adjMinor
+            && resource.data.paidMinor == resource.data.totalMinor + resource.data.adjMinor && request.resource.data.creditMinor > resource.data.creditMinor
+            && !exists(payDoc(request.resource.data.lastRef)) && existsAfter(payDoc(request.resource.data.lastRef))
+            && getAfter(payDoc(request.resource.data.lastRef)).data.invoiceId == id && getAfter(payDoc(request.resource.data.lastRef)).data.kind == 'credit'
+            && getAfter(payDoc(request.resource.data.lastRef)).data.amountMinor == request.resource.data.creditMinor - resource.data.creditMinor)
+          // a whole payment is reversed (the reversal's ID is the payment's ID, so it can happen once)
+          || (request.resource.data.lastKind == 'reversal' && resource.data.status == 'SENT' && request.resource.data.status == 'SENT'
+            && request.resource.data.sentAt == resource.data.sentAt && request.resource.data.dueDate == resource.data.dueDate && request.resource.data.adjMinor == resource.data.adjMinor
+            && exists(payDoc(request.resource.data.lastRef)) && get(payDoc(request.resource.data.lastRef)).data.invoiceId == id
+            && !exists(revDoc(request.resource.data.lastRef)) && existsAfter(revDoc(request.resource.data.lastRef))
+            && ((get(payDoc(request.resource.data.lastRef)).data.kind == 'payment' && resource.data.creditMinor == 0 && request.resource.data.creditMinor == 0
+                  && request.resource.data.paidMinor == resource.data.paidMinor - get(payDoc(request.resource.data.lastRef)).data.amountMinor)
+                || (get(payDoc(request.resource.data.lastRef)).data.kind == 'credit' && request.resource.data.paidMinor == resource.data.paidMinor
+                  && request.resource.data.creditMinor == resource.data.creditMinor - get(payDoc(request.resource.data.lastRef)).data.amountMinor)))
+          // an adjustment after sending (never below what was already paid; not while a credit is held)
+          || (request.resource.data.lastKind == 'adjustment' && resource.data.status == 'SENT' && request.resource.data.status == 'SENT'
+            && request.resource.data.sentAt == resource.data.sentAt && request.resource.data.dueDate == resource.data.dueDate
+            && request.resource.data.paidMinor == resource.data.paidMinor && request.resource.data.creditMinor == resource.data.creditMinor && resource.data.creditMinor == 0
+            && request.resource.data.adjMinor != resource.data.adjMinor && resource.data.totalMinor + request.resource.data.adjMinor >= resource.data.paidMinor
+            && !exists(adjDoc(request.resource.data.lastRef)) && existsAfter(adjDoc(request.resource.data.lastRef))
+            && getAfter(adjDoc(request.resource.data.lastRef)).data.invoiceId == id
+            && getAfter(adjDoc(request.resource.data.lastRef)).data.amountMinor == request.resource.data.adjMinor - resource.data.adjMinor)
+          // the due date is changed after sending (old and new date and a reason are recorded)
+          || (request.resource.data.lastKind == 'due' && resource.data.status == 'SENT' && request.resource.data.status == 'SENT'
+            && request.resource.data.sentAt == resource.data.sentAt && invMoneySame(request.resource.data, resource.data)
+            && request.resource.data.dueDate != resource.data.dueDate && dateFmt(request.resource.data.dueDate)
+            && !exists(dueDoc(request.resource.data.lastRef)) && existsAfter(dueDoc(request.resource.data.lastRef))
+            && getAfter(dueDoc(request.resource.data.lastRef)).data.invoiceId == id
+            && getAfter(dueDoc(request.resource.data.lastRef)).data.previous == resource.data.dueDate && getAfter(dueDoc(request.resource.data.lastRef)).data.next == request.resource.data.dueDate)
+        );
+    }
+    match /invoiceAudit/{aid} {
+      allow read: if isOwner();
+      allow create: if isOwner() && plainKey(aid)
+        && request.resource.data.keys().hasOnly(['invoiceId','action','fromStatus','toStatus','rev','totalMinor','reason','actor','createdAt'])
+        && request.resource.data.keys().hasAll(['invoiceId','action','fromStatus','toStatus','rev','totalMinor','reason','actor','createdAt'])
+        && request.resource.data.invoiceId is string && request.resource.data.invoiceId.size() <= 80
+        && request.resource.data.rev is int && request.resource.data.totalMinor is int
+        && request.resource.data.reason is string && request.resource.data.reason.size() <= 200
+        && request.resource.data.actor == request.auth.uid && request.resource.data.createdAt == request.time
+        && existsAfter(invDoc(request.resource.data.invoiceId))
+        && getAfter(invDoc(request.resource.data.invoiceId)).data.lastRef == aid
+        && getAfter(invDoc(request.resource.data.invoiceId)).data.lastKind == request.resource.data.action
+        && getAfter(invDoc(request.resource.data.invoiceId)).data.rev == request.resource.data.rev
+        && getAfter(invDoc(request.resource.data.invoiceId)).data.status == request.resource.data.toStatus
+        && getAfter(invDoc(request.resource.data.invoiceId)).data.totalMinor == request.resource.data.totalMinor
+        && ((request.resource.data.action == 'create' && request.resource.data.rev == 1 && request.resource.data.fromStatus == '' && request.resource.data.toStatus == 'DRAFT')
+            || (request.resource.data.action == 'ready' && request.resource.data.fromStatus == 'DRAFT' && request.resource.data.toStatus == 'READY')
+            || (request.resource.data.action == 'send' && request.resource.data.fromStatus == 'READY' && request.resource.data.toStatus == 'SENT')
+            || (request.resource.data.action == 'cancel' && (request.resource.data.fromStatus == 'DRAFT' || request.resource.data.fromStatus == 'READY') && request.resource.data.toStatus == 'CANCELLED' && request.resource.data.reason.size() >= 3))
+        && (request.resource.data.action == 'create'
+            || (exists(invDoc(request.resource.data.invoiceId)) && get(invDoc(request.resource.data.invoiceId)).data.status == request.resource.data.fromStatus
+                && get(invDoc(request.resource.data.invoiceId)).data.rev + 1 == request.resource.data.rev));
+    }
+    // A payment or a credit. Create-only. The ID is made by the browser when the form opens, so a retry or a second tab can never record it twice.
+    match /payments/{pid} {
+      allow read: if isOwner();
+      allow create: if isOwner() && plainKey(pid)
+        && request.resource.data.keys().hasOnly(['invoiceId','clientId','kind','amountMinor','currency','date','method','note','reason','correctionId','payloadHash','actor','createdAt'])
+        && request.resource.data.keys().hasAll(['invoiceId','clientId','kind','amountMinor','currency','date','method','note','reason','correctionId','payloadHash','actor','createdAt'])
+        && request.resource.data.invoiceId is string && request.resource.data.invoiceId.size() <= 80
+        && request.resource.data.clientId is string && validClientId(request.resource.data.clientId)
+        && request.resource.data.kind in ['payment','credit']
+        && request.resource.data.amountMinor is int && request.resource.data.amountMinor >= 1 && request.resource.data.amountMinor <= 1000000000000
+        && request.resource.data.currency is string && dateFmt(request.resource.data.date)
+        && request.resource.data.method is string && request.resource.data.method.size() <= 40
+        && request.resource.data.note is string && request.resource.data.note.size() <= 200
+        && request.resource.data.reason is string && request.resource.data.reason.size() <= 200
+        && (request.resource.data.kind != 'credit' || request.resource.data.reason.size() >= 3)
+        && request.resource.data.correctionId is string && request.resource.data.correctionId.matches('^$|^[A-Za-z0-9]{16,40}$')
+        && isHex64(request.resource.data.payloadHash)
+        && request.resource.data.actor == request.auth.uid && request.resource.data.createdAt == request.time
+        && exists(invDoc(request.resource.data.invoiceId)) && get(invDoc(request.resource.data.invoiceId)).data.status == 'SENT'
+        && get(invDoc(request.resource.data.invoiceId)).data.clientId == request.resource.data.clientId
+        && get(invDoc(request.resource.data.invoiceId)).data.currency == request.resource.data.currency
+        && existsAfter(invDoc(request.resource.data.invoiceId))
+        && getAfter(invDoc(request.resource.data.invoiceId)).data.lastKind == request.resource.data.kind
+        && getAfter(invDoc(request.resource.data.invoiceId)).data.lastRef == pid;
+    }
+    // Reverses ONE whole payment or credit. The ID is the payment's ID, so it can only happen once.
+    match /paymentReversals/{pid} {
+      allow read: if isOwner();
+      allow create: if isOwner() && plainKey(pid)
+        && request.resource.data.keys().hasOnly(['invoiceId','clientId','kind','amountMinor','reason','correctionId','actor','createdAt'])
+        && request.resource.data.keys().hasAll(['invoiceId','clientId','kind','amountMinor','reason','correctionId','actor','createdAt'])
+        && request.resource.data.reason is string && request.resource.data.reason.size() >= 3 && request.resource.data.reason.size() <= 200
+        && request.resource.data.correctionId is string && request.resource.data.correctionId.matches('^$|^[A-Za-z0-9]{16,40}$')
+        && request.resource.data.actor == request.auth.uid && request.resource.data.createdAt == request.time
+        && exists(payDoc(pid))
+        && get(payDoc(pid)).data.invoiceId == request.resource.data.invoiceId && get(payDoc(pid)).data.clientId == request.resource.data.clientId
+        && get(payDoc(pid)).data.kind == request.resource.data.kind && get(payDoc(pid)).data.amountMinor == request.resource.data.amountMinor
+        && exists(invDoc(request.resource.data.invoiceId)) && get(invDoc(request.resource.data.invoiceId)).data.status == 'SENT'
+        && existsAfter(invDoc(request.resource.data.invoiceId))
+        && getAfter(invDoc(request.resource.data.invoiceId)).data.lastKind == 'reversal' && getAfter(invDoc(request.resource.data.invoiceId)).data.lastRef == pid;
+    }
+    match /invoiceAdjustments/{aid} {
+      allow read: if isOwner();
+      allow create: if isOwner() && plainKey(aid)
+        && request.resource.data.keys().hasOnly(['invoiceId','clientId','amountMinor','reason','entryRef','actor','createdAt'])
+        && request.resource.data.keys().hasAll(['invoiceId','clientId','amountMinor','reason','entryRef','actor','createdAt'])
+        && request.resource.data.invoiceId is string && request.resource.data.invoiceId.size() <= 80
+        && request.resource.data.clientId is string && validClientId(request.resource.data.clientId)
+        && request.resource.data.amountMinor is int && request.resource.data.amountMinor != 0 && request.resource.data.amountMinor >= -1000000000000 && request.resource.data.amountMinor <= 1000000000000
+        && request.resource.data.reason is string && request.resource.data.reason.size() >= 3 && request.resource.data.reason.size() <= 200
+        && request.resource.data.entryRef is string && request.resource.data.entryRef.size() <= 80
+        && request.resource.data.actor == request.auth.uid && request.resource.data.createdAt == request.time
+        && exists(invDoc(request.resource.data.invoiceId)) && get(invDoc(request.resource.data.invoiceId)).data.status == 'SENT'
+        && get(invDoc(request.resource.data.invoiceId)).data.clientId == request.resource.data.clientId
+        && existsAfter(invDoc(request.resource.data.invoiceId))
+        && getAfter(invDoc(request.resource.data.invoiceId)).data.lastKind == 'adjustment' && getAfter(invDoc(request.resource.data.invoiceId)).data.lastRef == aid;
+    }
+    match /invoiceDueDates/{did} {
+      allow read: if isOwner();
+      allow create: if isOwner() && plainKey(did)
+        && request.resource.data.keys().hasOnly(['invoiceId','clientId','previous','next','reason','actor','createdAt'])
+        && request.resource.data.keys().hasAll(['invoiceId','clientId','previous','next','reason','actor','createdAt'])
+        && request.resource.data.invoiceId is string && request.resource.data.invoiceId.size() <= 80
+        && request.resource.data.clientId is string && validClientId(request.resource.data.clientId)
+        && dateFmt(request.resource.data.previous) && dateFmt(request.resource.data.next) && request.resource.data.previous != request.resource.data.next
+        && request.resource.data.reason is string && request.resource.data.reason.size() >= 3 && request.resource.data.reason.size() <= 200
+        && request.resource.data.actor == request.auth.uid && request.resource.data.createdAt == request.time
+        && exists(invDoc(request.resource.data.invoiceId)) && get(invDoc(request.resource.data.invoiceId)).data.status == 'SENT'
+        && get(invDoc(request.resource.data.invoiceId)).data.clientId == request.resource.data.clientId
+        && existsAfter(invDoc(request.resource.data.invoiceId))
+        && getAfter(invDoc(request.resource.data.invoiceId)).data.lastKind == 'due' && getAfter(invDoc(request.resource.data.invoiceId)).data.lastRef == did;
     }
     match /clients/{id} { allow read, write: if isOwner(); }
     match /ownerPrivate/{doc} { allow read, write: if isOwner(); }

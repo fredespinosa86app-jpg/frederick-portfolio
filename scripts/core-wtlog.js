@@ -19,7 +19,7 @@
   const ADD_NAME = { FIRST_BREAK: 'First break', LUNCH: 'Lunch', LAST_BREAK: 'Last break' };
   const KIND_LABEL = { TIME: 'Changed the time of a punch', ADD: 'Added a missed punch', CLIENT_ADD: 'Added a client', CLIENT_REMOVE: 'Removed a client' };
   /* the record collections the log covers, and the field that holds each one's server time */
-  const COLLECTIONS = { workEvents: 'at', workSessions: 'startedAt', workAssignAudit: 'createdAt', workCorrections: 'createdAt', billingProfileAudit: 'createdAt', billableEntryAudit: 'createdAt', billingMigration: 'createdAt' };
+  const COLLECTIONS = { workEvents: 'at', workSessions: 'startedAt', workAssignAudit: 'createdAt', workCorrections: 'createdAt', billingProfileAudit: 'createdAt', billableEntryAudit: 'createdAt', billingMigration: 'createdAt', invoiceAudit: 'createdAt', payments: 'createdAt', paymentReversals: 'createdAt', invoiceAdjustments: 'createdAt', invoiceDueDates: 'createdAt' };
 
   /* ---------------- canonical text (identical on every device) ---------------- */
   function plain(v) {                                          // Timestamp / Date -> milliseconds; everything else unchanged

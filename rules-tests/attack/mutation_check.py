@@ -67,7 +67,8 @@ from mutations_w1 import W1
 from mutations_w2 import W2
 from mutations_w3 import W3
 from mutations_b1 import B1
-M=M+W1+W2+W3+B1
+from mutations_b2 import B2
+M=M+W1+W2+W3+B1+B2
 def mk(rules_text):
     """a throw-away copy of the project parts the attack suite reads (rules + the page state machine used by the W1 case generator)"""
     d=tempfile.mkdtemp(); open(d+'/firestore.rules','w').write(rules_text); shutil.copy(ROOT+'/firestore.rules.strict',d)
@@ -79,6 +80,7 @@ if _bf: print('BASELINE NOT GREEN:',_bf[:3]); sys.exit(2)
 print('baseline green:',_b.strip().splitlines()[-1])
 miss=[]; equiv=[]
 for n,a,b in M:
+    if os.environ.get('ONLY') and not n.startswith(os.environ['ONLY']): continue
     if a not in TXT: print('SKIP (pattern not found):',n); miss.append(n); continue
     d=mk(TXT.replace(a,b,1))
     out=subprocess.run([sys.executable,SP+'/attack_cases.py',d],capture_output=True,text=True).stdout
@@ -87,5 +89,5 @@ for n,a,b in M:
         print(('CAUGHT (although redundant) ' if fails else 'EQUIVALENT (redundant guard, no verdict changes) ')+n); equiv.append(n); continue
     print(('CAUGHT ' if fails else 'MISSED ')+n+(f' ({len(fails)} checks fail)' if fails else ''))
     if not fails: miss.append(n)
-real=len(M)-len(equiv)
+real=len([1 for n,a,b in M if not os.environ.get('ONLY') or n.startswith(os.environ['ONLY'])])-len(equiv)
 print('RESULT',real-len(miss),'of',real,'real mutations caught;',len(equiv),'redundant guards listed separately'); sys.exit(1 if miss else 0)
