@@ -137,6 +137,12 @@ service cloud.firestore {
           || (t == 'CLOCK_OUT' && b.state == 'WORKING' && a.state == 'NOT_STARTED' && wkKeep(b, a))
           || (t == 'CLOSE_INCOMPLETE' && b.state in ['WORKING','FIRST_BREAK','LUNCH','LAST_BREAK'] && a.state == 'NOT_STARTED' && wkKeep(b, a))));
     }
+    // W2 (4.5.0): WorkTrack client assignment helpers. One record per (session, Client ID); no hours are stored on it, so hours can never be multiplied.
+    function waAuditRef(aid) { return /databases/$(database)/documents/workAssignAudit/$(aid); }
+    function waRef(id) { return /databases/$(database)/documents/workAssign/$(id); }
+    // True when, after this batch, the session is the one that is open right now (assignments can only change while it is open).
+    function wkOpen(sid) { return existsAfter(wkState()) && getAfter(wkState()).data.sid == sid && getAfter(wkState()).data.state != 'NOT_STARTED'; }
+    function regActive(cid) { return exists(regDoc(cid)) && get(regDoc(cid)).data.status == 'active'; }
     match /settings/site { allow read: if true; allow write: if isOwner(); }
     match /meetingRequests/{id} {
       allow create: if request.resource.data.keys().hasOnly(['name','email','company','date','time','tz','platform','message','status','createdAt','service','formId','formName','answers'])
@@ -343,6 +349,51 @@ service cloud.firestore {
         && getAfter(wkState()).data.lastEid == eid && getAfter(wkState()).data.sid == request.resource.data.sid && getAfter(wkState()).data.n == request.resource.data.n
         && wkStep(request.resource.data.type, get(wkState()).data, getAfter(wkState()).data)
         && (request.resource.data.type != 'CLOCK_IN' || (!exists(wkSess(request.resource.data.sid)) && existsAfter(wkSess(request.resource.data.sid))));
+    }
+    // W2 (4.5.0): client assignment on a work session. Owner only. IDs only (never a name). Every create or update is ONE batch with a BRAND-NEW
+    // audit record and revision +1. Only while the session is open, only active Client IDs can be added, a client appears once per session
+    // (removed ones can be added back), and there is no delete.
+    match /workAssign/{id} {
+      allow read: if isOwner();
+      allow create: if isOwner()
+        && request.resource.data.keys().hasOnly(['sid','clientId','status','rev','addedAt','updatedAt','lastAudit'])
+        && request.resource.data.keys().hasAll(['sid','clientId','status','rev','addedAt','updatedAt','lastAudit'])
+        && wkSid(request.resource.data.sid) && request.resource.data.clientId is string && validClientId(request.resource.data.clientId)
+        && id == request.resource.data.sid + '__' + request.resource.data.clientId
+        && request.resource.data.status == 'active' && request.resource.data.rev == 1
+        && request.resource.data.addedAt == request.time && request.resource.data.updatedAt == request.time
+        && request.resource.data.lastAudit is string && request.resource.data.lastAudit.matches('^[A-Za-z0-9]{16,40}$')
+        && !exists(waAuditRef(request.resource.data.lastAudit)) && existsAfter(waAuditRef(request.resource.data.lastAudit))
+        && wkOpen(request.resource.data.sid) && regActive(request.resource.data.clientId);
+      allow update: if isOwner()
+        && request.resource.data.keys().hasOnly(['sid','clientId','status','rev','addedAt','updatedAt','lastAudit'])
+        && request.resource.data.keys().hasAll(['sid','clientId','status','rev','addedAt','updatedAt','lastAudit'])
+        && request.resource.data.sid == resource.data.sid && request.resource.data.clientId == resource.data.clientId
+        && request.resource.data.addedAt == resource.data.addedAt && request.resource.data.updatedAt == request.time
+        && request.resource.data.status in ['active','removed'] && request.resource.data.status != resource.data.status
+        && request.resource.data.rev is number && request.resource.data.rev == resource.data.rev + 1
+        && request.resource.data.lastAudit is string && request.resource.data.lastAudit.matches('^[A-Za-z0-9]{16,40}$')
+        && !exists(waAuditRef(request.resource.data.lastAudit)) && existsAfter(waAuditRef(request.resource.data.lastAudit))
+        && wkOpen(request.resource.data.sid)
+        && (request.resource.data.status == 'removed' || regActive(request.resource.data.clientId));
+    }
+    match /workAssignAudit/{aid} {
+      allow read: if isOwner();
+      allow create: if isOwner() && aid.matches('^[A-Za-z0-9]{16,40}$')
+        && request.resource.data.keys().hasOnly(['sid','clientId','action','reason','rev','actor','createdAt'])
+        && request.resource.data.keys().hasAll(['sid','clientId','action','reason','rev','actor','createdAt'])
+        && wkSid(request.resource.data.sid) && request.resource.data.clientId is string && validClientId(request.resource.data.clientId)
+        && request.resource.data.action in ['add','remove','readd']
+        && request.resource.data.reason is string && request.resource.data.reason.size() <= 200
+        && request.resource.data.rev is number
+        && request.resource.data.actor == request.auth.uid && request.resource.data.createdAt == request.time
+        && existsAfter(waRef(request.resource.data.sid + '__' + request.resource.data.clientId))
+        && getAfter(waRef(request.resource.data.sid + '__' + request.resource.data.clientId)).data.lastAudit == aid
+        && getAfter(waRef(request.resource.data.sid + '__' + request.resource.data.clientId)).data.rev == request.resource.data.rev
+        && ((request.resource.data.action == 'add') == (request.resource.data.rev == 1))
+        && (request.resource.data.action != 'add' || (!exists(waRef(request.resource.data.sid + '__' + request.resource.data.clientId)) && getAfter(waRef(request.resource.data.sid + '__' + request.resource.data.clientId)).data.status == 'active'))
+        && (request.resource.data.action != 'remove' || (get(waRef(request.resource.data.sid + '__' + request.resource.data.clientId)).data.status == 'active' && getAfter(waRef(request.resource.data.sid + '__' + request.resource.data.clientId)).data.status == 'removed'))
+        && (request.resource.data.action != 'readd' || (get(waRef(request.resource.data.sid + '__' + request.resource.data.clientId)).data.status == 'removed' && getAfter(waRef(request.resource.data.sid + '__' + request.resource.data.clientId)).data.status == 'active'));
     }
     match /clients/{id} { allow read, write: if isOwner(); }
     match /ownerPrivate/{doc} { allow read, write: if isOwner(); }
@@ -633,3 +684,13 @@ No Firestore rules change in E4 (`ownerPrivate` is already owner only). Rules te
 - **Rules:** new collections `workState`, `workSessions`, `workEvents` in both rules files. **Publish `firestore.rules.strict` again** or the page will say permission denied.
 - **Tests:** `node --test scripts/*.test.mjs`; `python3 rules-tests/attack/attack_cases.py .` (the page's own state machine is compared with the rules for all 108 punch/state cases) and `mutation_check.py .`; real-engine tests in `rules-tests/emulator/worktrack.test.mjs` (run by the GitHub workflow "Firestore rules (emulator)").
 - **Not in W1:** client assignment (W2), corrections and the tamper-evident chain (W3), history and reports (W4). Events written now have no hash yet; W3 decides how the chain starts.
+
+## 4.5.0 - Phase W2: Clients on a work session
+- **Owner Panel > WorkTrack > Clients on this session:** add or remove Client IDs (from the Client IDs registry) while a session is open. Only IDs are stored (no names, no hours). Time is counted once for the session, however many clients are assigned: a 9-hour session with 3 clients is 9 hours, never 27.
+- **Before clocking in:** pick the clients first. The picks are kept only on this device (this browser) and are saved in the same transaction as the clock-in, so a session never starts half-saved. If a picked client was archived meanwhile, nothing is recorded, the pick is dropped and the page says so.
+- **Rules of the road:** at most 10 clients per session (enforced by the page; database rules cannot count); only active Client IDs can be newly added; an archived client already on the session stays and can still be removed; removing has an optional reason (up to 200 characters); a removed client can be added back. When the session closes, its client list is frozen (changes later come with corrections in W3).
+- **Records:** `workAssign/{session}__{CLIENTID}` (status active|removed, revision, times) and `workAssignAudit/{id}` (add, remove, readd, reason, who, when). Every change is one transaction of assignment + a brand-new audit entry; there is no delete. The page also shows the full change history ("Show changes").
+- **Rules:** new collections `workAssign` and `workAssignAudit` in both rules files. **Publish `firestore.rules.strict` again** or the page will say permission denied.
+- **Tests:** unit tests (23 in `core-worktrack.test.mjs`), attack cases section 8g (741 checks in the whole attack suite), `mutation_check.py` (171 real mutations, all caught; 13 guards that are redundant with other rules are listed separately), `qa_w2` browser test, real-engine tests `rules-tests/emulator/assign.test.mjs` (run the workflow "Firestore rules (emulator)").
+- **Not in W2:** past-session lists, filter by Client ID and reports (W4); corrections (W3); billing; splitting hours between clients.
+

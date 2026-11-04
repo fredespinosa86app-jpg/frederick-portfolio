@@ -106,3 +106,52 @@ test('a session that crosses midnight keeps one continuous duration (DST-free zo
   const d = w.derive([E(1, 'CLOCK_IN', a), E(2, 'CLOCK_OUT', b)], b);
   assert.equal(d.grossMs, 3 * H); assert.notEqual(tm.localDateKey(a, 'Asia/Manila'), tm.localDateKey(b, 'Asia/Manila'));
 });
+
+/* ---------------- W2: client assignment ---------------- */
+const SIDX = 'sess0000000000000001', AIDX = 'aaaaaaaaaaaaaaaa';
+const rec = (clientId, status = 'active', rev = 1) => ({ clientId, status, rev, addedAt: 'T' });
+test('assign: a new client is a create (rev 1) with an "add" audit entry', () => {
+  const p = w.assignPlan([], SIDX, 'CL-001', 'add', { aid: AIDX, registryStatus: 'active' });
+  assert.equal(p.ok, true); assert.equal(p.kind, 'create'); assert.equal(p.id, SIDX + '__CL-001');
+  assert.deepEqual(p.doc, { sid: SIDX, clientId: 'CL-001', status: 'active', rev: 1, lastAudit: AIDX });
+  assert.deepEqual(p.audit, { sid: SIDX, clientId: 'CL-001', action: 'add', reason: '', rev: 1 });
+});
+test('assign: the same client twice is refused; a removed client can be added back (update, rev + 1, "readd")', () => {
+  assert.equal(w.assignPlan([rec('CL-001')], SIDX, 'CL-001', 'add', { aid: AIDX, registryStatus: 'active' }).ok, false);
+  const p = w.assignPlan([rec('CL-001', 'removed', 2)], SIDX, 'CL-001', 'add', { aid: AIDX, registryStatus: 'active' });
+  assert.equal(p.ok, true); assert.equal(p.kind, 'update'); assert.equal(p.doc.rev, 3); assert.equal(p.audit.action, 'readd'); assert.equal(p.doc.addedAt, 'T');
+});
+test('assign: archived or unknown clients cannot be added', () => {
+  assert.match(w.assignPlan([], SIDX, 'CL-001', 'add', { aid: AIDX, registryStatus: 'archived' }).reason, /archived/);
+  assert.match(w.assignPlan([], SIDX, 'CL-001', 'add', { aid: AIDX, registryStatus: '' }).reason, /not in the Client IDs/);
+});
+test('assign: remove needs an active assignment and keeps an optional reason', () => {
+  assert.equal(w.assignPlan([], SIDX, 'CL-001', 'remove', { aid: AIDX }).ok, false);
+  assert.equal(w.assignPlan([rec('CL-001', 'removed', 2)], SIDX, 'CL-001', 'remove', { aid: AIDX }).ok, false);
+  const p = w.assignPlan([rec('CL-001')], SIDX, 'CL-001', 'remove', { aid: AIDX, reason: '  wrong client  ' });
+  assert.equal(p.ok, true); assert.equal(p.doc.status, 'removed'); assert.equal(p.doc.rev, 2); assert.equal(p.audit.reason, 'wrong client');
+  assert.equal(w.assignPlan([rec('CL-001')], SIDX, 'CL-001', 'remove', { aid: AIDX, reason: 'x'.repeat(201) }).ok, false);
+});
+test('assign: at most 10 clients; removed ones do not count', () => {
+  const ten = Array.from({ length: 10 }, (_, i) => rec('CL-' + String(i + 1).padStart(3, '0')));
+  assert.equal(w.assignPlan(ten, SIDX, 'CL-011', 'add', { aid: AIDX, registryStatus: 'active' }).ok, false);
+  ten[0].status = 'removed'; assert.equal(w.assignPlan(ten, SIDX, 'CL-011', 'add', { aid: AIDX, registryStatus: 'active' }).ok, true);
+});
+test('assign: invalid input is refused (bad ID, no session, no change ID)', () => {
+  for (const bad of ['cl-001', 'CL_001', 'CL--1', 'AB', '', null]) assert.equal(w.assignPlan([], SIDX, bad, 'add', { aid: AIDX, registryStatus: 'active' }).ok, false, String(bad));
+  assert.equal(w.assignPlan([], '', 'CL-001', 'add', { aid: AIDX, registryStatus: 'active' }).ok, false);
+  assert.equal(w.assignPlan([], SIDX, 'CL-001', 'add', { registryStatus: 'active' }).ok, false);
+  assert.equal(w.assignPlan([], SIDX, 'CL-001', 'zap', { aid: AIDX }).ok, false);
+});
+test('hours are never multiplied: one 9-hour session with three clients is 9 hours', () => {
+  const T0x = Date.UTC(2026, 10, 4, 0, 0, 0), H = 3600000;
+  const d = w.derive([{ n: 1, type: 'CLOCK_IN', atMs: T0x, reason: '' }, { n: 2, type: 'CLOCK_OUT', atMs: T0x + 9 * H, reason: '' }], T0x + 20 * H);
+  const none = w.summary(d, []), three = w.summary(d, [rec('CL-001'), rec('CL-002'), rec('CL-003'), rec('CL-004', 'removed', 2)]);
+  assert.equal(three.sessionMs, 9 * H); assert.equal(three.workingMs, 9 * H); assert.equal(three.clientCount, 3);
+  assert.equal(none.sessionMs, three.sessionMs); assert.equal(none.workingMs, three.workingMs);
+  assert.deepEqual(three.clients, ['CL-001', 'CL-002', 'CL-003']);
+});
+test('clientsOf splits active and removed, sorted', () => {
+  const c = w.clientsOf([rec('CL-003'), rec('CL-001', 'removed', 2), rec('CL-002')]);
+  assert.deepEqual(c, { active: ['CL-002', 'CL-003'], removed: ['CL-001'] });
+});

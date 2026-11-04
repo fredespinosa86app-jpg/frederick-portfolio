@@ -64,13 +64,26 @@ M=[('clients readable by everyone',"match /clients/{id} { allow read, write: if 
  ('catch-all added',"    match /content/{doc} {","    match /{any=**} { allow read, write: if true; }\n    match /content/{doc} {")]
 sys.path.insert(0,SP)
 from mutations_w1 import W1
-M=M+W1
-miss=[]
+from mutations_w2 import W2
+M=M+W1+W2
+def mk(rules_text):
+    """a throw-away copy of the project parts the attack suite reads (rules + the page state machine used by the W1 case generator)"""
+    d=tempfile.mkdtemp(); open(d+'/firestore.rules','w').write(rules_text); shutil.copy(ROOT+'/firestore.rules.strict',d)
+    os.makedirs(d+'/scripts'); shutil.copy(ROOT+'/scripts/core-worktrack.js',d+'/scripts'); return d
+# the suite must be completely green on the UNMUTATED rules first, otherwise "caught" would prove nothing
+_b=subprocess.run([sys.executable,SP+'/attack_cases.py',mk(TXT)],capture_output=True,text=True).stdout
+_bf=[l for l in _b.splitlines() if l.startswith('FAIL')]
+if _bf: print('BASELINE NOT GREEN:',_bf[:3]); sys.exit(2)
+print('baseline green:',_b.strip().splitlines()[-1])
+miss=[]; equiv=[]
 for n,a,b in M:
     if a not in TXT: print('SKIP (pattern not found):',n); miss.append(n); continue
-    d=tempfile.mkdtemp(); open(d+'/firestore.rules','w').write(TXT.replace(a,b,1)); shutil.copy(ROOT+'/firestore.rules.strict',d)
+    d=mk(TXT.replace(a,b,1))
     out=subprocess.run([sys.executable,SP+'/attack_cases.py',d],capture_output=True,text=True).stdout
     fails=[l for l in out.splitlines() if l.startswith('FAIL') and 'strict rules differ' not in l]
-    print(('CAUGHT ' if fails else 'MISSED ')+n+(f' ({len(fails)} checks fail)' if fails else '')); 
+    if n.startswith('EQUIV '):   # a guard that another rule already makes impossible to reach (defence in depth): weakening it changes no verdict
+        print(('CAUGHT (although redundant) ' if fails else 'EQUIVALENT (redundant guard, no verdict changes) ')+n); equiv.append(n); continue
+    print(('CAUGHT ' if fails else 'MISSED ')+n+(f' ({len(fails)} checks fail)' if fails else ''))
     if not fails: miss.append(n)
-print('RESULT',len(M)-len(miss),'of',len(M),'mutations caught'); sys.exit(1 if miss else 0)
+real=len(M)-len(equiv)
+print('RESULT',real-len(miss),'of',real,'real mutations caught;',len(equiv),'redundant guards listed separately'); sys.exit(1 if miss else 0)

@@ -235,6 +235,20 @@ for nm,sim in (('transition',S),('strict',SS)):
     for who,au in (('visitor',None),('stranger',STRANGER),('anonymous provider',dict(OWN,provider='anonymous')),('owner uid, unverified',dict(OWN,verified=False)),('owner e-mail, other uid (strict only)',{'uid':'other','email':EMAIL})):
         if who.endswith('(strict only)') and nm=='transition': continue
         chk(f'W1 [{nm}] {who}: no read, list, create, update or delete on workState, workEvents or workSessions',not any([P(o,SPATH,au,A0,B0,{SPATH:B0},AF0) for o in ('get','create','update','delete')]+[P(o,EP(EID(4)),au,E0,E0,{},AF0) for o in ('get','create','update','delete')]+[P(o,SSP(SID),au,WSES(),WSES(),{},{SSP(SID):WSES(),EP(EID(1)):WEV(type='CLOCK_IN',n=1)}) for o in ('get','create','update','delete')]+[P('list','workEvents',au),P('list','workSessions',au),P('get',SPATH,au)]))
+    # valid payloads sent by someone who is NOT the owner (so removing the owner check from create would be noticed)
+    INIT_=dict({'state':'NOT_STARTED','sid':'','n':0,'fb':False,'lu':False,'lb':False,'lastEid':'','rev':1,'updatedAt':TSNOW})
+    CIN_E=WEV(type='CLOCK_IN',n=1,sid=NEWSID); CIN_S=WST(state='WORKING',sid=NEWSID,n=1,lastEid=EID(1,NEWSID),rev=6); CIN_B=WST(state='NOT_STARTED',n=4,lastEid=EID(4))
+    CIN_AF={SPATH:CIN_S,EP(EID(1,NEWSID)):CIN_E,SSP(NEWSID):WSES()}
+    for who,au in (('visitor',None),('stranger',STRANGER),('anonymous provider',dict(OWN,provider='anonymous'))):
+        chk(f'W1 [{nm}] {who}: a fully valid state create, event create and session create are all refused (control below proves they are valid for the owner)',not any([P('create',SPATH,au,INIT_),P('create',EP(EID(4)),au,E0,None,{SPATH:B0},AF0),P('update',SPATH,au,A0,B0,{SPATH:B0},AF0),P('create',EP(EID(1,NEWSID)),au,CIN_E,None,{SPATH:CIN_B},CIN_AF),P('create',SSP(NEWSID),au,WSES(),None,{SPATH:CIN_B},CIN_AF)]))
+    chk(f'W1 [{nm}] control: the same clock in is accepted for the owner',P('create',EP(EID(1,NEWSID)),OWN,CIN_E,None,{SPATH:CIN_B},CIN_AF) and P('create',SSP(NEWSID),OWN,WSES(),None,{SPATH:CIN_B},CIN_AF))
+    # state that disagrees with the event about the session ID or the counter
+    chk(f'W1 [{nm}] clock in refused: the state record holds a different session ID than the event',not (P('create',EP(EID(1,NEWSID)),OWN,CIN_E,None,{SPATH:CIN_B},{SPATH:WST(state='WORKING',sid='sess0000000000000077',n=1,lastEid=EID(1,NEWSID),rev=6),EP(EID(1,NEWSID)):CIN_E,SSP(NEWSID):WSES()})))
+    chk(f'W1 [{nm}] event refused: the state counter differs from the event counter (event 4, state says 5)',not P('create',EP(EID(4)),OWN,E0,None,{SPATH:B0},{SPATH:WST(state='LUNCH',n=5,lu=True,lastEid=EID(4),rev=6),EP(EID(4)):E0}))
+    chk(f'W1 [{nm}] event refused: the state counter differs from the event counter (event 4, state says 3)',not P('create',EP(EID(4)),OWN,E0,None,{SPATH:B0},{SPATH:WST(state='LUNCH',n=3,lu=True,lastEid=EID(4),rev=6),EP(EID(4)):E0}))
+    for fl in ('fb','lu','lb'):
+        chk(f'W1 [{nm}] clock in refused when the new state already has the {fl} flag set',not (P('update',SPATH,OWN,dict(CIN_S,**{fl:True}),CIN_B,{SPATH:CIN_B},dict(CIN_AF,**{SPATH:dict(CIN_S,**{fl:True})})) and P('create',EP(EID(1,NEWSID)),OWN,CIN_E,None,{SPATH:CIN_B},dict(CIN_AF,**{SPATH:dict(CIN_S,**{fl:True})}))))
+    chk(f'W1 [{nm}] clock in refused when the new state counter is not 1 (state 2, event 1)',not P('create',EP(EID(1,NEWSID)),OWN,CIN_E,None,{SPATH:CIN_B},dict(CIN_AF,**{SPATH:dict(CIN_S,n=2)})))
     chk(f'W1 [{nm}] owner cannot edit or delete an event or a session, and cannot delete the state record',not any([P('update',EP(EID(4)),OWN,WEV(reason=''),WEV(),{EP(EID(4)):WEV()},AF0),P('delete',EP(EID(4)),OWN,None,WEV(),{EP(EID(4)):WEV()}),P('update',SSP(SID),OWN,WSES(tz='UTC'),WSES(),{SSP(SID):WSES()}),P('delete',SSP(SID),OWN,None,WSES(),{SSP(SID):WSES()}),P('delete',SPATH,OWN,None,B0,{SPATH:B0})]))
     # ---- event refusals (everything else legitimate: lunch out from WORKING n=3)
     def EVT(n,e,eid=None,after=None,docs=None,state_after=None):
@@ -307,6 +321,100 @@ for nm,sim in (('transition',S),('strict',SS)):
     # ---- a session cannot be switched in the middle: the state must keep the same session ID for every punch after clock in
     chk(f'W1 [{nm}] a punch cannot move the state to another session ID',not P('update',SPATH,OWN,WST(state='LUNCH',sid=NEWSID,n=4,lu=True,lastEid=EID(4,NEWSID),rev=6),B0,{SPATH:B0},{SPATH:WST(state='LUNCH',sid=NEWSID,n=4,lu=True,lastEid=EID(4,NEWSID),rev=6),EP(EID(4,NEWSID)):WEV(sid=NEWSID)}) or not P('create',EP(EID(4,NEWSID)),OWN,WEV(sid=NEWSID),None,{SPATH:B0},{SPATH:WST(state='LUNCH',sid=NEWSID,n=4,lu=True,lastEid=EID(4,NEWSID),rev=6),EP(EID(4,NEWSID)):WEV(sid=NEWSID)}))
     chk(f'W1 [{nm}] pause switch does not affect owner WorkTrack records (owner-only data, not public intake)',P('create',EP(EID(4)),OWN,E0,None,{SPATH:B0,'content/guard':{'pause':True}},AF0))
+# ---------------- 8g. W2 (4.5.0): client assignment on a session (paired audit records, open session only, active clients only)
+WAP=lambda sid=SID,cid='CL-001': 'workAssign/'+sid+'__'+cid
+WAUP=lambda a: 'workAssignAudit/'+a
+WA=lambda **k: dict({'sid':SID,'clientId':'CL-001','status':'active','rev':1,'addedAt':TSNOW,'updatedAt':TSNOW,'lastAudit':AID1},**k)
+WAD=lambda **k: dict({'sid':SID,'clientId':'CL-001','action':'add','reason':'','rev':1,'actor':UID,'createdAt':TSNOW},**k)
+def WAFTER(doc,aud,aid,sid=SID,cid='CL-001',extra=None):
+    d={WAP(sid,cid):doc,WAUP(aid):aud}
+    if extra: d.update(extra)
+    return d
+OPEN=lambda **k: WST(**k)                                   # session SID is open (WORKING)
+CLOSED=lambda **k: WST(**dict({'state':'NOT_STARTED'},**k))
+for nm,sim in (('transition',S),('strict',SS)):
+    P=lambda op,path,au=None,new=None,old=None,docs=None,after=None: A(op,path,au,new,old,docs,sim=sim) if after is None else sim.allowed(op,path,au,new,old,docs,NOW,after)
+    D0={SPATH:OPEN(),'clientRegistry/CL-001':REG()}           # a normal day: open session, active client
+    # ---- positive controls
+    AFa=WAFTER(WA(),WAD(),AID1)
+    chk(f'W2 [{nm}] control: add a client to the open session (assignment + audit in one batch)',P('create',WAP(),OWN,WA(),None,D0,AFa) and P('create',WAUP(AID1),OWN,WAD(),None,D0,AFa))
+    OLDA=WA(); REM=WA(status='removed',rev=2,lastAudit=AID2); AREM=WAD(action='remove',rev=2,reason='')
+    D1=dict(D0,**{WAP():OLDA}); AFr=WAFTER(REM,AREM,AID2)
+    chk(f'W2 [{nm}] control: remove a client (optional reason), paired with an audit record',P('update',WAP(),OWN,REM,OLDA,D1,AFr) and P('create',WAUP(AID2),OWN,AREM,None,D1,AFr))
+    RMD=WA(status='removed',rev=2,lastAudit=AID2); RE=WA(status='active',rev=3,lastAudit=AID3); ARE=WAD(action='readd',rev=3)
+    D2=dict(D0,**{WAP():RMD}); AFe=WAFTER(RE,ARE,AID3)
+    chk(f'W2 [{nm}] control: a removed client can be added back (readd)',P('update',WAP(),OWN,RE,RMD,D2,AFe) and P('create',WAUP(AID3),OWN,ARE,None,D2,AFe))
+    chk(f'W2 [{nm}] control: owner can read and list both collections',all(P(o,x,OWN) for o,x in (('get',WAP()),('list','workAssign'),('get',WAUP(AID1)),('list','workAssignAudit'))))
+    ARCH=dict(D1,**{'clientRegistry/CL-001':REG(status='archived',rev=2)})
+    chk(f'W2 [{nm}] control: an ARCHIVED client can still be removed from the open session',P('update',WAP(),OWN,REM,OLDA,ARCH,AFr) and P('create',WAUP(AID2),OWN,AREM,None,ARCH,AFr))
+    # clock in with clients picked before: state, event, session and assignments in one batch
+    NS='sess0000000000000002'; BN=CLOSED(n=4,lastEid=EID(4))
+    CIst=WST(state='WORKING',sid=NS,n=1,lastEid=EID(1,NS),rev=6); CIev=WEV(type='CLOCK_IN',n=1,sid=NS)
+    CIA={WAP(NS,'CL-001'):WA(sid=NS),WAUP(AID1):WAD(sid=NS),WAP(NS,'CL-002'):WA(sid=NS,clientId='CL-002',lastAudit=AID2),WAUP(AID2):WAD(sid=NS,clientId='CL-002')}
+    CIAF=dict(CIA); CIAF.update({SPATH:CIst,EP(EID(1,NS)):CIev,SSP(NS):WSES()})
+    CD={SPATH:BN,'clientRegistry/CL-001':REG(),'clientRegistry/CL-002':REG()}
+    chk(f'W2 [{nm}] control: clock in with two clients picked beforehand is accepted as one batch',all([P('create',WAP(NS,'CL-001'),OWN,WA(sid=NS),None,CD,CIAF),P('create',WAP(NS,'CL-002'),OWN,WA(sid=NS,clientId='CL-002',lastAudit=AID2),None,CD,CIAF),P('create',WAUP(AID1),OWN,WAD(sid=NS),None,CD,CIAF),P('create',WAUP(AID2),OWN,WAD(sid=NS,clientId='CL-002'),None,CD,CIAF)]))
+    CD2=dict(CD,**{'clientRegistry/CL-002':REG(status='archived',rev=2)})
+    chk(f'W2 [{nm}] clock in refused when a picked client was archived in the meantime',not P('create',WAP(NS,'CL-002'),OWN,WA(sid=NS,clientId='CL-002',lastAudit=AID2),None,CD2,CIAF))
+    chk(f'W2 [{nm}] clock in refused when a picked client does not exist',not P('create',WAP(NS,'CL-002'),OWN,WA(sid=NS,clientId='CL-002',lastAudit=AID2),None,{SPATH:BN,'clientRegistry/CL-001':REG()},CIAF))
+    # ---- who
+    for who,au in (('visitor',None),('stranger',STRANGER),('anonymous provider',dict(OWN,provider='anonymous')),('owner uid, unverified',dict(OWN,verified=False)),('owner e-mail, other uid (strict only)',{'uid':'other','email':EMAIL})):
+        if who.endswith('(strict only)') and nm=='transition': continue
+        chk(f'W2 [{nm}] {who}: no read, list, create, update or delete on workAssign or workAssignAudit',not any([P(o,WAP(),au,WA(),WA(),D1,AFa) for o in ('get','create','update','delete')]+[P(o,WAUP(AID1),au,WAD(),WAD(),D1,AFa) for o in ('get','create','update','delete')]+[P('list','workAssign',au),P('list','workAssignAudit',au),P('update',WAP(),au,REM,OLDA,D1,AFr),P('create',WAUP(AID2),au,AREM,None,D1,AFr)]))
+    chk(f'W2 [{nm}] owner cannot delete an assignment or an audit record, and cannot edit an audit record',not any([P('delete',WAP(),OWN,None,OLDA,D1),P('delete',WAUP(AID1),OWN,None,WAD(),{WAUP(AID1):WAD()}),P('update',WAUP(AID1),OWN,WAD(reason='x'),WAD(),{WAUP(AID1):WAD()},WAFTER(OLDA,WAD(reason='x'),AID1))]))
+    # ---- add refusals
+    def ADD(n,doc,aud=None,docs=None,aid=AID1,path=None,after=None,cid='CL-001'):
+        aud=aud if aud is not None else WAD(); docs=docs if docs is not None else D0
+        chk(f'W2 [{nm}] add refused: {n}',not P('create',path or WAP(),OWN,doc,None,docs,after if after is not None else {(path or WAP()):doc,WAUP(aid):aud}))
+    ADD('extra field (a name)',WA(name='Ann')); ADD('extra field (hours)',WA(hours=9)); ADD('missing status',{k:v for k,v in WA().items() if k!='status'}); ADD('missing lastAudit',{k:v for k,v in WA().items() if k!='lastAudit'})
+    ADD('status removed',WA(status='removed')); ADD('revision 2',WA(rev=2)); ADD('revision 0',WA(rev=0)); ADD('revision as text',WA(rev='1'))
+    ADD('addedAt not server time',WA(addedAt=TS(NOW-1))); ADD('updatedAt not server time',WA(updatedAt=TS(NOW+1))); ADD('addedAt as client number',WA(addedAt=NOW))
+    ADD('lastAudit too short',WA(lastAudit='abc')); ADD('lastAudit bad characters',WA(lastAudit='a'*15+'-')); ADD('lastAudit number',WA(lastAudit=5))
+    ADD('document ID does not match session and client',WA(),path=WAP(SID,'CL-002'),after={WAP(SID,'CL-002'):WA(),WAUP(AID1):WAD()})
+    ADD('document ID does not match (wrong session part)',WA(),path='workAssign/other00000000000000__CL-001',after={'workAssign/other00000000000000__CL-001':WA(),WAUP(AID1):WAD()})
+    for bad in ('cl-001','CL_001','CL--001','CL-001-','AB'):
+        ADD(f'bad Client ID {bad!r}',WA(clientId=bad),path=f'workAssign/{SID}__{bad}',after={f'workAssign/{SID}__{bad}':WA(clientId=bad),WAUP(AID1):WAD(clientId=bad)})
+    ADD('session ID too short',WA(sid='abc'),path='workAssign/abc__CL-001',after={'workAssign/abc__CL-001':WA(sid='abc'),WAUP(AID1):WAD(sid='abc')})
+    ADD('client is not in the registry',WA(),docs={SPATH:OPEN()}); ADD('client is archived',WA(),docs={SPATH:OPEN(),'clientRegistry/CL-001':REG(status='archived',rev=2)})
+    ADD('the session is closed',WA(),docs={SPATH:CLOSED(),'clientRegistry/CL-001':REG()}); ADD('a different session is open',WA(),docs={SPATH:OPEN(sid=NS),'clientRegistry/CL-001':REG()})
+    ADD('the WorkTrack state record does not exist',WA(),docs={'clientRegistry/CL-001':REG()},after={WAP():WA(),WAUP(AID1):WAD()})
+    chk(f'W2 [{nm}] add refused: no audit record in the same batch',not P('create',WAP(),OWN,WA(),None,D0,{WAP():WA()}))
+    chk(f'W2 [{nm}] add refused: points at an audit record that already exists (replay)',not P('create',WAP(),OWN,WA(),None,dict(D0,**{WAUP(AID1):WAD()}),AFa))
+    chk(f'W2 [{nm}] add refused: the same client again (already on the session, active)',not P('update',WAP(),OWN,WA(status='active',rev=2,lastAudit=AID2),OLDA,D1,WAFTER(WA(status='active',rev=2,lastAudit=AID2),WAD(action='readd',rev=2),AID2)))
+    chk(f'W2 [{nm}] add refused: re-creating an existing assignment as a fresh revision 1',not P('update',WAP(),OWN,WA(rev=1,lastAudit=AID2),WA(rev=2,status='removed'),dict(D0,**{WAP():WA(rev=2,status='removed')}),WAFTER(WA(rev=1,lastAudit=AID2),WAD(),AID2)))
+    # ---- update refusals (remove / readd)
+    def UPD(n,new,aud=None,docs=None,old=None,aid=AID2):
+        old=old or OLDA; aud=aud if aud is not None else AREM; docs=docs if docs is not None else dict(D0,**{WAP():old})
+        chk(f'W2 [{nm}] update refused: {n}',not P('update',WAP(),OWN,new,old,docs,WAFTER(new,aud,aid)))
+    UPD('revision not one higher (same)',REM|{'rev':1} if False else dict(REM,rev=1)); UPD('revision jumps by two',dict(REM,rev=4)); UPD('revision goes backwards',dict(REM,rev=0)); UPD('revision as text',dict(REM,rev='2'))
+    UPD('status unchanged (active to active)',dict(REM,status='active')); UPD('status not active/removed',dict(REM,status='deleted'))
+    UPD('session changed',dict(REM,sid='other00000000000000')); UPD('client changed',dict(REM,clientId='CL-002')); UPD('addedAt changed',dict(REM,addedAt=TS(NOW-9))); UPD('updatedAt not server time',dict(REM,updatedAt=TS(NOW-9)))
+    UPD('extra field',dict(REM,name='Ann')); UPD('field removed',{k:v for k,v in REM.items() if k!='status'})
+    UPD('the session is closed',REM,docs=dict(D0,**{WAP():OLDA,SPATH:CLOSED()})); UPD('a different session is open',REM,docs=dict(D0,**{WAP():OLDA,SPATH:OPEN(sid=NS)}))
+    chk(f'W2 [{nm}] update refused: no audit record in the same batch',not P('update',WAP(),OWN,REM,OLDA,D1,{WAP():REM}))
+    chk(f'W2 [{nm}] update refused: reuses an old audit record (replay)',not P('update',WAP(),OWN,REM,OLDA,dict(D1,**{WAUP(AID2):AREM}),AFr))
+    chk(f'W2 [{nm}] update refused: lastAudit unchanged',not P('update',WAP(),OWN,dict(REM,lastAudit=AID1),OLDA,dict(D1,**{WAUP(AID1):WAD()}),WAFTER(dict(REM,lastAudit=AID1),AREM,AID1)))
+    chk(f'W2 [{nm}] readd refused: the client is archived now',not P('update',WAP(),OWN,RE,RMD,dict(D2,**{'clientRegistry/CL-001':REG(status='archived',rev=2)}),AFe))
+    chk(f'W2 [{nm}] readd refused: the client no longer exists in the registry',not P('update',WAP(),OWN,RE,RMD,{SPATH:OPEN(),WAP():RMD},AFe))
+    chk(f'W2 [{nm}] two tabs: a second remove of the same client is refused (it is already removed)',not P('update',WAP(),OWN,dict(REM,rev=3,lastAudit=AID3),RMD,D2,WAFTER(dict(REM,rev=3,lastAudit=AID3),dict(AREM,rev=3),AID3)))
+    chk(f'W2 [{nm}] two tabs: a second add-back of the same client is refused (it is already active)',not P('update',WAP(),OWN,dict(RE,rev=4,lastAudit=AID3),dict(RE),dict(D0,**{WAP():RE}),WAFTER(dict(RE,rev=4,lastAudit=AID3),dict(ARE,rev=4),AID3)))
+    # ---- audit refusals
+    BASE=WAD(action='remove',rev=2,reason='no longer needed')
+    def AUDT(n,aud,doc=REM,docs=None,aid=AID2):
+        chk(f'W2 [{nm}] audit create refused: {n}',not P('create',WAUP(aid),OWN,aud,None,docs if docs is not None else D1,WAFTER(doc,aud,aid)))
+    chk(f'W2 [{nm}] audit baseline for the refusal cases is accepted',P('create',WAUP(AID2),OWN,BASE,None,D1,WAFTER(REM,BASE,AID2)))
+    AUDT('extra field',dict(BASE,name='Ann')); AUDT('missing field',{k:v for k,v in BASE.items() if k!='reason'}); AUDT('unknown action',dict(BASE,action='delete'))
+    AUDT('someone else as actor',dict(BASE,actor='someoneelse123')); AUDT('createdAt not server time',dict(BASE,createdAt=TS(NOW-1))); AUDT('reason 201 characters',dict(BASE,reason='r'*201)); AUDT('reason is a number',dict(BASE,reason=5))
+    AUDT('bad client ID',dict(BASE,clientId='cl--1')); AUDT('session ID too short',dict(BASE,sid='abc')); AUDT('rev does not match the assignment',dict(BASE,rev=3))
+    AUDT('action add with rev 2',dict(BASE,action='add')); AUDT('action remove with rev 1',dict(BASE,rev=1),doc=dict(REM,rev=1))
+    AUDT('remove, but the assignment was not active before',BASE,docs=D2); AUDT('readd, but the assignment was active before',dict(BASE,action='readd',rev=3),doc=dict(RE,rev=3),docs=D1)
+    AUDT('remove, but the assignment ends up active',BASE,doc=dict(REM,status='active'))
+    AUDT('readd, but the assignment ends up removed',dict(ARE),doc=dict(RE,status='removed'),docs=D2,aid=AID3)
+    AUDT('add for an assignment that already exists',WAD(),doc=WA(),docs=D1,aid=AID1)
+    AUDT('audit id too short',BASE,doc=dict(REM,lastAudit='abc'),aid='abc')
+    chk(f'W2 [{nm}] audit create refused: orphan (no assignment in the same batch)',not P('create',WAUP(AID2),OWN,BASE,None,D1,{WAUP(AID2):BASE}))
+    chk(f'W2 [{nm}] audit create refused: the assignment points at a different audit id',not P('create',WAUP(AID2),OWN,BASE,None,D1,WAFTER(dict(REM,lastAudit=AID3),BASE,AID2)))
+    chk(f'W2 [{nm}] pause switch does not affect owner assignments (owner-only data, not public intake)',P('create',WAP(),OWN,WA(),None,dict(D0,**{'content/guard':{'pause':True}}),AFa))
 # ---------------- 9. cross-check: strict file equals transition file apart from the owner check
 a=re.sub(r'\s+','',TXT); b=re.sub(r'\s+','',re.sub(r'^//.*\n','',STRICT,flags=re.M))
 chk('strict rules differ from the transition rules only in the owner e-mail fallback',a.replace("&&(request.auth.uid==ownerUid()||request.auth.token.email=='fredespinosa86.app@gmail.com');","&&request.auth.uid==ownerUid();")==b,'')

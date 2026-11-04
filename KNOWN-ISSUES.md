@@ -4,8 +4,12 @@ No open defects.
 
 ## Verification status (4.5.0)
 - **P0 Client IDs: VERIFIED.** The real-engine emulator tests (workflow "Firestore rules (emulator)") passed 24 of 24, and the live Client IDs page was tested by the owner (add, custom ID, notes, archive and restore with reasons, history, two tabs).
-- **W1-E Emulator tests for WorkTrack: AWAITING EXTERNAL VERIFICATION.** `rules-tests/emulator/worktrack.test.mjs` was written but could not be executed in the build environment (no emulator download). Run the workflow "Firestore rules (emulator)" from the Actions tab. All tests, including the 108-case state-machine comparison and the concurrent clock-in test, must pass.
+- **W1 WorkTrack: VERIFIED.** Emulator 39 of 39 passed; offline disables the punch buttons; the two-tab "changed in another tab" message works.
+- (history) W1-E was: `rules-tests/emulator/worktrack.test.mjs` was written but could not be executed in the build environment (no emulator download). Run the workflow "Firestore rules (emulator)" from the Actions tab. All tests, including the 108-case state-machine comparison and the concurrent clock-in test, must pass.
 - **W1-R Real Firebase check.** After publishing `firestore.rules.strict`: clock in, take a break and come back, clock out, reload mid-session, then open the page in two tabs and press a punch in the second (it must say the page changed in another tab).
+- **W2-E Emulator tests for client assignment: AWAITING EXTERNAL VERIFICATION.** `rules-tests/emulator/assign.test.mjs` could not be run in the build environment (no emulator download). Run the workflow "Firestore rules (emulator)"; expect the earlier 39 plus the new assignment tests, all passing.
+- **W2-R Real Firebase check.** After publishing `firestore.rules.strict`: pick two clients before clocking in, clock in (both must appear); add and remove a client during the session; check an archived client cannot be added but can be removed; close the session and confirm the list is read-only; try two tabs.
+- **Known limits of W2:** the 10-client limit is enforced by the page, not the database; picks made before clocking in live in this browser only (lost if browser data is cleared); console access can still change data.
 - **Note (public repository):** the site is served with `.nojekyll`, so every file in the repository (including `internal-docs/` and these notes) is publicly readable.
 - **Known limits of W1:** someone with Firebase console access can still change data (the tamper-evident chain is planned for W3); the "counter in the event ID" is built by the page and checked by the rules, but a hand-written record by the owner account could still use a wrong time zone name or date text (the time itself is always the server's).
 

@@ -7,7 +7,8 @@
    One punch = ONE transaction: the new event + the state moved by exactly one valid step (+ the session record at clock in).
    The same state machine (core-worktrack.js) draws the buttons and is compared with the database rules in the test suite.
    A punch needs a live connection on purpose: a write queued while offline would be stamped with a LATER time when it finally arrives.
-   Corrections, client assignment and reports arrive in later phases.
+   W2 adds client assignment (workAssign / workAssignAudit): Client IDs only, no hours, so attendance is never multiplied by the number of clients.
+   Corrections and reports arrive in later phases.
    ========================================================================== */
 (function () {
   'use strict';
@@ -15,7 +16,7 @@
   const { el, notify } = kit;
   const $ = id => document.getElementById(id), own = () => window.OWN;
   const TZ = 'Asia/Manila';                      // fixed in W1; the audited setting arrives with the corrections phase
-  let S = { st: null, events: [], derived: null, sessionTz: TZ, sessionDate: '' }, signed = false, timer = 0, skew = 0, skewKnown = false, busyPunch = false, wasOnline = true;
+  let S = { st: null, events: [], derived: null, sessionTz: TZ, sessionDate: '', assign: [] }, registry = [], pending = readPending(), signed = false, timer = 0, skew = 0, skewKnown = false, busyPunch = false, wasOnline = true;
   const say = (id, msg) => { const n = $(id); if (n) n.textContent = msg || ''; };
   const ms = t => !t ? 0 : typeof t.toMillis === 'function' ? t.toMillis() : t instanceof Date ? t.getTime() : Number(t) || 0;
   const now = () => Date.now() + skew;
@@ -38,6 +39,15 @@
     } catch (e) { /* keep the previous estimate */ }
   }
 
+  /* clients picked for the NEXT session are kept on this device only until Clock in (nothing is saved in the database before that) */
+  function readPending() { try { const a = JSON.parse(localStorage.getItem('wtPending') || '[]'); return Array.isArray(a) ? a.filter(core.validClient).slice(0, core.MAX_CLIENTS) : []; } catch (e) { return []; } }
+  function savePending() { try { localStorage.setItem('wtPending', JSON.stringify(pending)); } catch (e) { /* private mode: the picks just stay in memory */ } }
+  const regStatus = id => { const r = registry.find(x => x.id === id); return r ? r.status : ''; };
+  async function loadRegistry() {
+    const o = own(), f = o.fs, q = await f.getDocs(f.query(f.collection(o.db, 'clientRegistry')));
+    registry = q.docs.map(d => ({ id: d.id, status: d.data().status })).sort((a, b) => a.id < b.id ? -1 : 1);
+  }
+
   /* ---------------------------------------------------------------- data */
   const stateRef = () => { const o = own(); return o.fs.doc(o.db, 'workState', 'main'); };
   function readState(d) { return { state: d.state, sid: d.sid, n: d.n, fb: d.fb, lu: d.lu, lb: d.lb, lastEid: d.lastEid, rev: d.rev }; }
@@ -49,13 +59,17 @@
       snap = await f.getDoc(stateRef());
       if (!snap.exists()) throw new Error('state missing');
     }
-    const st = readState(snap.data()); let events = [], tz = TZ, date = '';
+    const st = readState(snap.data()); let events = [], tz = TZ, date = '', assign = [];
     if (st.sid) {
       const q = await f.getDocs(f.query(f.collection(o.db, 'workEvents'), f.where('sid', '==', st.sid)));
       events = q.docs.map(d => { const x = d.data(); return { n: x.n, type: x.type, atMs: ms(x.at), reason: x.reason || '' }; });
       try { const ss = await f.getDoc(f.doc(o.db, 'workSessions', st.sid)); if (ss.exists()) { tz = ss.data().tz || TZ; date = ss.data().date || ''; } } catch (e) { /* display only */ }
     }
-    S = { st, events, derived: core.derive(events, now()), sessionTz: tz, sessionDate: date };
+    if (st.sid) {
+      const qa = await f.getDocs(f.query(f.collection(o.db, 'workAssign'), f.where('sid', '==', st.sid)));
+      assign = qa.docs.map(d => { const x = d.data(); return { clientId: x.clientId, status: x.status, rev: x.rev, addedAt: x.addedAt }; }).sort((a, b) => a.clientId < b.clientId ? -1 : 1);
+    }
+    S = { st, events, derived: core.derive(events, now()), sessionTz: tz, sessionDate: date, assign };
     const d = S.derived;
     if (d.valid && st.sid && (d.events.length !== st.n || (d.closed ? 'NOT_STARTED' : d.state) !== st.state)) { d.valid = false; d.problem = 'The saved records and the current position do not agree (' + d.events.length + ' records, position "' + st.state + '", counter ' + st.n + ').'; }
   }
@@ -65,7 +79,15 @@
     if (busyPunch) return; say('wtErr', '');
     if (!signed) return;
     if (navigator.onLine === false) { say('wtErr', 'You are offline. Punches need a connection so the saved time is the database\'s time. Nothing was recorded.'); return; }
-    const o = own(), f = o.fs, seen = S.st; busyPunch = true; draw();
+    const o = own(), f = o.fs, seen = S.st; let picks = [];
+    if (type === 'CLOCK_IN' && pending.length) {          // clients picked beforehand: check they are all still active, then save them together with the clock in
+      busyPunch = true; draw();
+      try { await loadRegistry(); } catch (e) { busyPunch = false; draw(); say('wtErr', errText(e)); return; }
+      const bad = pending.filter(c => regStatus(c) !== 'active');
+      if (bad.length) { pending = pending.filter(c => regStatus(c) === 'active'); savePending(); busyPunch = false; draw(); say('wtErr', 'Nothing was recorded. ' + bad.join(', ') + (bad.length > 1 ? ' are' : ' is') + ' no longer an active Client ID, so ' + (bad.length > 1 ? 'they were' : 'it was') + ' removed from your picks. Check the list and press Clock in again.'); return; }
+      picks = pending.slice();
+    }
+    busyPunch = true; draw();
     try {
       let done = null;
       await f.runTransaction(o.db, async tx => {
@@ -75,11 +97,18 @@
         if (cur.rev !== seen.rev) throw new Error('stale');
         const plan = core.plan(cur, type, { sid: ids.newKey(), reason });
         if (!plan.ok) throw new Error('refused:' + plan.reason);
+        if (plan.newSession) picks.forEach(c => {
+          const aid = ids.newKey(), a = core.assignPlan([], plan.sid, c, 'add', { aid, registryStatus: 'active' });
+          if (!a.ok) throw new Error('refused:' + a.reason);
+          tx.set(f.doc(o.db, 'workAssign', a.id), Object.assign({}, a.doc, { addedAt: f.serverTimestamp(), updatedAt: f.serverTimestamp() }));
+          tx.set(f.doc(o.db, 'workAssignAudit', aid), Object.assign({}, a.audit, { actor: o.uid(), createdAt: f.serverTimestamp() }));
+        });
         tx.set(f.doc(o.db, 'workEvents', plan.eid), Object.assign({}, plan.event, { at: f.serverTimestamp(), by: o.uid() }));
         tx.set(stateRef(), Object.assign({}, plan.state, { updatedAt: f.serverTimestamp() }));
         if (plan.newSession) tx.set(f.doc(o.db, 'workSessions', plan.sid), { tz: TZ, date: tm.localDateKey(Date.now(), TZ), startedAt: f.serverTimestamp(), by: o.uid() });
         done = plan;
       });
+      if (type === 'CLOCK_IN' && picks.length) { pending = []; savePending(); }
       await load();
       const last = S.derived.events[S.derived.events.length - 1];
       notify(core.LABEL[type] + ' recorded.', 'success');
@@ -96,14 +125,15 @@
   async function safeLoad() { try { await load(); } catch (e) { say('wtErr', 'Could not read WorkTrack. ' + errText(e)); } }
 
   /* a small dialog that asks for a reason (3 to 200 characters) */
-  function askReason(title, help, okLabel) {
+  function askReason(title, help, okLabel, min) {
+    if (min == null) min = core.REASON_MIN;
     return new Promise(res => {
       const d = el('dialog', { class: 'dmodal', 'aria-labelledby': 'wtRT' });
       const inp = el('input', { type: 'text', maxlength: core.REASON_MAX, 'aria-label': 'Reason', autocomplete: 'off' }), err = el('p', { class: 'ferr', role: 'alert' });
       let done = false; const fin = v => { if (done) return; done = true; d.close(); res(v); };
       d.append(el('div', {}, el('h2', { id: 'wtRT' }, title), el('p', { class: 'dhelp' }, help), el('label', { class: 'fld' }, 'Reason', inp), err,
         el('div', { class: 'dact-row' }, el('button', { type: 'button', class: 'dbtn', onclick: () => fin(null) }, 'Cancel'),
-          el('button', { type: 'button', class: 'dbtn primary', onclick: () => { const r = inp.value.trim(); if (r.length < core.REASON_MIN) { err.textContent = 'Please write at least ' + core.REASON_MIN + ' characters.'; return; } fin(r); } }, okLabel))));
+          el('button', { type: 'button', class: 'dbtn primary', onclick: () => { const r = inp.value.trim(); if (r.length < min) { err.textContent = 'Please write at least ' + min + ' characters.'; return; } fin(r); } }, okLabel))));
       d.addEventListener('close', () => { d.remove(); if (!done) { done = true; res(null); } }); document.body.append(d); d.showModal(); inp.focus();
     });
   }
@@ -139,7 +169,7 @@
     say('wtWarn', stale ? 'This session has been open for more than ' + core.STALE_HOURS + ' hours. If you forgot to clock out, use "Close as incomplete" below.' : '');
     $('wtClose').hidden = st.state === 'NOT_STARTED';
     $('wtClose').disabled = !!why || busyPunch;
-    drawList(); tick();
+    drawList(); drawClients(); tick();
   }
   function drawList() {
     const d = D(), box = $('wtList'); box.replaceChildren();
@@ -158,23 +188,104 @@
     say('wtNet', live.netMs == null ? '—' : tm.formatDuration(live.netMs));
     say('wtNote', live.closed ? (live.incomplete ? 'Closed as incomplete: no working-time total is kept for this session.' : 'Finished. Breaks taken: ' + tm.formatDuration(live.breakMs) + '.') : 'Session time keeps running during breaks; working time pauses.');
   }
+  /* ---------------------------------------------------------------- clients on the session (W2) */
+  const openSession = () => !!(S.st && S.st.state !== 'NOT_STARTED' && S.derived && S.derived.valid);
+  function drawClients() {
+    const open = openSession(), st = S.st; if (!st) return;
+    const active = S.assign.filter(a => a.status === 'active'), removed = S.assign.filter(a => a.status === 'removed');
+    const list = open ? active.map(a => a.clientId) : (st.state === 'NOT_STARTED' ? pending.slice() : []);
+    const mode = open ? 'open' : 'next';
+    say('wtCliHelp', open ? 'Clients on this session. Add or remove while the session is open. Attendance time is counted once, however many clients are assigned.'
+      : 'Clients for your next session. They stay on this device and are saved together with Clock in. Attendance time is counted once, however many clients are assigned.');
+    const sel = $('wtCliSel'), keep = sel.value, taken = new Set(list);
+    sel.replaceChildren(el('option', { value: '' }, registry.some(r => r.status === 'active') ? 'Choose a Client ID…' : 'No active Client IDs yet'));
+    registry.filter(r => r.status === 'active' && !taken.has(r.id)).forEach(r => sel.append(el('option', { value: r.id }, r.id)));
+    if (keep && !taken.has(keep) && regStatus(keep) === 'active') sel.value = keep;
+    const full = list.length >= core.MAX_CLIENTS, off = !!blocked() || busyPunch;
+    $('wtCliAdd').disabled = off || full || !sel.value; $('wtCliSel').disabled = off || full;
+    $('wtCliAdd').dataset.mode = mode;
+    say('wtCliFull', full ? 'A session can have at most ' + core.MAX_CLIENTS + ' clients.' : '');
+    const box = $('wtChips'); box.replaceChildren();
+    if (!list.length) box.append(el('span', { class: 'libmeta' }, open ? 'No clients on this session yet.' : 'No clients picked yet.'));
+    list.forEach(id => {
+      const arch = regStatus(id) === 'archived';
+      const rm = el('button', { type: 'button', class: 'dbtn wtx', 'aria-label': 'Remove ' + id, onclick: () => removeClient(id) }, 'Remove'); rm.disabled = off;
+      box.append(el('span', { class: 'wtchip' }, el('strong', { class: 'cidid' }, id), arch ? el('span', { class: 'cidbadge archived' }, 'archived') : null, rm));
+    });
+    /* assignments of the current or last session, including removed ones (read-only when no session is open) */
+    const hist = $('wtCliHist'); hist.replaceChildren();
+    if (!open && active.length) hist.append(el('div', { class: 'libmeta' }, 'Last session: ' + active.map(a => a.clientId).join(', ')));
+    if (removed.length) hist.append(el('div', { class: 'libmeta' }, 'Removed from ' + (open ? 'this' : 'the last') + ' session: ' + removed.map(a => a.clientId).join(', ')));
+    $('wtCliHistBtn').hidden = !S.assign.length;
+  }
+  async function showClientHistory() {
+    const o = own(), f = o.fs, box = $('wtCliAudit'); box.replaceChildren(el('p', { class: 'dstate' }, 'Loading…'));
+    try {
+      const q = await f.getDocs(f.query(f.collection(o.db, 'workAssignAudit'), f.where('sid', '==', S.st.sid)));
+      const rows = q.docs.map(d => d.data()).sort((a, b) => ms(a.createdAt) - ms(b.createdAt));
+      box.replaceChildren(...rows.map(x => el('div', { class: 'wtev' }, el('strong', {}, (x.action === 'add' ? 'Added ' : x.action === 'readd' ? 'Added back ' : 'Removed ') + x.clientId), el('span', { class: 'libmeta' }, timeFmt(ms(x.createdAt), S.sessionTz)), x.reason ? el('span', { class: 'libmeta' }, 'Reason: ' + x.reason) : null)));
+      if (!rows.length) box.replaceChildren(el('p', { class: 'libmeta' }, 'No changes recorded.'));
+    } catch (e) { box.replaceChildren(el('p', { class: 'ferr' }, 'Could not load the history. ' + errText(e))); }
+  }
+  async function addClient() {
+    say('wtCliErr', ''); const id = $('wtCliSel').value; if (!id || !S.st) return;
+    if (!openSession()) {                                        // before clock in: device-only pick
+      if (pending.includes(id)) return;
+      if (pending.length >= core.MAX_CLIENTS) { say('wtCliErr', 'A session can have at most ' + core.MAX_CLIENTS + ' clients.'); return; }
+      if (regStatus(id) !== 'active') { say('wtCliErr', id + ' is not an active Client ID.'); return; }
+      pending.push(id); savePending(); drawClients(); return;
+    }
+    await changeAssignment('add', id, '');
+  }
+  async function removeClient(id) {
+    say('wtCliErr', '');
+    if (!openSession()) { pending = pending.filter(x => x !== id); savePending(); drawClients(); return; }
+    const r = await askReason('Remove ' + id + ' from this session?', 'The client is taken off this session. It stays in the history. A reason is optional.', 'Remove', 0);
+    if (r === null) return;
+    await changeAssignment('remove', id, r);
+  }
+  /* one change = one transaction (assignment + its audit entry); the session must still be open and the assignment is re-read first */
+  async function changeAssignment(action, cid, reason) {
+    if (busyPunch) return; if (navigator.onLine === false) { say('wtCliErr', 'You are offline. Nothing was changed.'); return; }
+    const o = own(), f = o.fs, sid = S.st.sid; busyPunch = true; draw();
+    try {
+      try { await loadRegistry(); } catch (e) { /* keep the cached list */ }
+      await f.runTransaction(o.db, async tx => {
+        const sSnap = await tx.get(stateRef()); if (!sSnap.exists() || sSnap.data().sid !== sid || sSnap.data().state === 'NOT_STARTED') throw new Error('refused:The session is no longer open, so its clients can no longer be changed here.');
+        const ref = f.doc(o.db, 'workAssign', sid + '__' + cid), snap = await tx.get(ref), d = snap.exists() ? snap.data() : null;
+        const recs = S.assign.filter(a => a.clientId !== cid).concat(d ? [{ clientId: cid, status: d.status, rev: d.rev, addedAt: d.addedAt }] : []);
+        const aid = ids.newKey(), plan = core.assignPlan(recs, sid, cid, action, { aid, reason, registryStatus: regStatus(cid) });
+        if (!plan.ok) throw new Error('refused:' + plan.reason);
+        const doc = plan.kind === 'create' ? Object.assign({}, plan.doc, { addedAt: f.serverTimestamp(), updatedAt: f.serverTimestamp() }) : Object.assign({}, plan.doc, { updatedAt: f.serverTimestamp() });
+        tx.set(ref, doc); tx.set(f.doc(o.db, 'workAssignAudit', aid), Object.assign({}, plan.audit, { actor: o.uid(), createdAt: f.serverTimestamp() }));
+      });
+      await load(); notify(cid + (action === 'add' ? ' added.' : ' removed.'), 'success');
+    } catch (e) {
+      const m = String(e && e.message || '');
+      if (m.startsWith('refused:')) { await safeLoad(); say('wtCliErr', m.slice(8)); }
+      else if (e && e.code === 'permission-denied') { await safeLoad(); say('wtCliErr', 'The database refused this change. It may have changed in another tab, or the Client ID is no longer active. The page has been refreshed.'); }
+      else say('wtCliErr', errText(e));
+    } finally { busyPunch = false; draw(); }
+  }
+
   function startTimer() { stopTimer(); timer = setInterval(() => { if (!document.hidden) tick(); }, 1000); }
   function stopTimer() { if (timer) clearInterval(timer); timer = 0; }
 
   async function show() {
     if (!signed) return;
     say('wtErr', ''); say('wtState', 'Loading…');
-    try { syncClock(); await load(); say('wtState', ''); draw(); startTimer(); }
+    try { syncClock(); await load(); try { await loadRegistry(); } catch (e) { /* the clients card shows what it has */ } say('wtState', ''); draw(); startTimer(); }
     catch (e) { say('wtState', 'Could not load WorkTrack. ' + errText(e)); }
   }
   function init() {
     $('wtRefresh').addEventListener('click', show);
     $('wtClose').addEventListener('click', closeIncomplete);
+    $('wtCliAdd').addEventListener('click', addClient); $('wtCliSel').addEventListener('change', () => { $('wtCliAdd').disabled = !$('wtCliSel').value || !!blocked() || busyPunch; }); $('wtCliHistBtn').addEventListener('click', showClientHistory);
     window.addEventListener('online', () => { if (S.st) { say('wtErr', ''); draw(); } });
     window.addEventListener('offline', () => { if (S.st) draw(); });
     document.addEventListener('visibilitychange', () => { if (!document.hidden && S.st && timer) { syncClock(); tick(); } });
     document.addEventListener('dash:page', e => { if (e.detail === 'worktrack') show(); else stopTimer(); });
-    document.addEventListener('own:auth', e => { signed = !!(e.detail && e.detail.ok); S = { st: null, events: [], derived: null, sessionTz: TZ, sessionDate: '' }; stopTimer(); if (!signed) { $('wtBtns').replaceChildren(); $('wtList').replaceChildren(); say('wtState', ''); say('wtErr', ''); } });
+    document.addEventListener('own:auth', e => { signed = !!(e.detail && e.detail.ok); S = { st: null, events: [], derived: null, sessionTz: TZ, sessionDate: '', assign: [] }; registry = []; stopTimer(); if (!signed) { $('wtBtns').replaceChildren(); $('wtList').replaceChildren(); $('wtChips').replaceChildren(); $('wtCliHist').replaceChildren(); $('wtCliAudit').replaceChildren(); say('wtState', ''); say('wtErr', ''); } });
   }
   window.__wt = { get state() { return S; } };     // read-only test hook
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();

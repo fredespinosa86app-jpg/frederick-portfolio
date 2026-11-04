@@ -103,6 +103,46 @@
     };
   }
   const SID_RE = /^[A-Za-z0-9]{16,40}$/, EID_RE = /^[A-Za-z0-9]{16,40}__[0-9]{1,2}$/;
-  const api = { TYPES, STATES, LABEL, STATE_LABEL, MAX_EVENTS, REASON_MIN, REASON_MAX, STALE_HOURS, SID_RE, EID_RE, initialState, eventId, isType, next, options, derive, isStale, plan };
+
+  /* ---------------- client assignment (W2) ----------------
+     A session can have several Client IDs. The assignment records hold NO hours, so attendance time is counted once however many clients are assigned. */
+  const MAX_CLIENTS = 10, CLIENT_RE = /^[A-Z][A-Z0-9-]{1,22}[A-Z0-9]$/;
+  const validClient = id => typeof id === 'string' && CLIENT_RE.test(id) && !/--/.test(id);
+  /* records: [{ clientId, status, rev, addedAt }] -> ids split into active and removed (sorted) */
+  function clientsOf(records) {
+    const a = [], r = [];
+    (records || []).forEach(x => (x.status === 'active' ? a : r).push(x.clientId));
+    return { active: a.sort(), removed: r.sort() };
+  }
+  /* decide one change. action: 'add' | 'remove'. registryStatus: 'active' | 'archived' | '' (not in the registry).
+     Returns the document, the audit record and whether it is a create or an update (add-back of a removed client is an update). */
+  function assignPlan(records, sid, clientId, action, o) {
+    o = o || {};
+    if (!core_sidOk(sid)) return { ok: false, reason: 'There is no open session.' };
+    if (!validClient(clientId)) return { ok: false, reason: 'That is not a valid Client ID.' };
+    const rec = (records || []).find(x => x.clientId === clientId), reason = String(o.reason || '').trim();
+    if (reason.length > REASON_MAX) return { ok: false, reason: 'The reason is too long (' + REASON_MAX + ' characters at most).' };
+    if (!o.aid) return { ok: false, reason: 'A change needs its own ID.' };
+    const id = sid + '__' + clientId;
+    if (action === 'add') {
+      if (rec && rec.status === 'active') return { ok: false, reason: clientId + ' is already on this session.' };
+      if (o.registryStatus !== 'active') return { ok: false, reason: o.registryStatus === 'archived' ? clientId + ' is archived and cannot be added to a session.' : clientId + ' is not in the Client IDs list.' };
+      if (clientsOf(records).active.length >= MAX_CLIENTS) return { ok: false, reason: 'A session can have at most ' + MAX_CLIENTS + ' clients.' };
+      if (!rec) return { ok: true, id, kind: 'create', doc: { sid, clientId, status: 'active', rev: 1, lastAudit: o.aid }, audit: { sid, clientId, action: 'add', reason: '', rev: 1 } };
+      return { ok: true, id, kind: 'update', doc: { sid, clientId, status: 'active', rev: rec.rev + 1, lastAudit: o.aid, addedAt: rec.addedAt }, audit: { sid, clientId, action: 'readd', reason: '', rev: rec.rev + 1 } };
+    }
+    if (action === 'remove') {
+      if (!rec || rec.status !== 'active') return { ok: false, reason: clientId + ' is not on this session.' };
+      return { ok: true, id, kind: 'update', doc: { sid, clientId, status: 'removed', rev: rec.rev + 1, lastAudit: o.aid, addedAt: rec.addedAt }, audit: { sid, clientId, action: 'remove', reason, rev: rec.rev + 1 } };
+    }
+    return { ok: false, reason: 'Unknown change.' };
+  }
+  function core_sidOk(sid) { return typeof sid === 'string' && SID_RE.test(sid); }
+  /* the numbers shown for a session: attendance never depends on how many clients are assigned */
+  function summary(derived, records) {
+    const c = clientsOf(records);
+    return { sessionMs: derived ? derived.grossMs : 0, workingMs: derived ? derived.netMs : 0, clientCount: c.active.length, clients: c.active };
+  }
+  const api = { MAX_CLIENTS, validClient, clientsOf, assignPlan, summary, TYPES, STATES, LABEL, STATE_LABEL, MAX_EVENTS, REASON_MIN, REASON_MAX, STALE_HOURS, SID_RE, EID_RE, initialState, eventId, isType, next, options, derive, isStale, plan };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.coreWork = api;
 })(typeof window !== 'undefined' ? window : globalThis);

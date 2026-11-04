@@ -206,3 +206,7 @@ button.libtile.pickable{cursor:pointer;min-height:44px}button.libtile.pickable:h
 .wtwhy{font-size:.78rem;opacity:.8}
 .wtlist{display:grid;gap:6px}
 .wtev{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline;padding:6px 8px;border-left:3px solid #2f6fdb;background:rgba(47,111,219,.06)}
+.wtchips{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.wtchip{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--d-line);border-radius:999px;padding:4px 6px 4px 12px;background:var(--d-card)}
+.wtx{min-height:36px;padding:2px 12px}
+#dp-worktrack .dstate:empty{display:none}
