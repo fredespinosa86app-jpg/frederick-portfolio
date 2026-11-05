@@ -83,12 +83,12 @@ const FG=window.formGuard,gx=guardUi();let dec={token:false,status:null};
 if(FG){st.textContent='Checking…';try{dec=await FG.decide()}catch(x){dec={token:false,status:null}}}
 const done=()=>{try{localStorage.setItem('lastReq',Date.now())}catch(x){}
 st.textContent='';mf.reset();pick.reset();syncService();mf.hidden=true;document.getElementById('mDone').hidden=false};
-const failed=(msg,fb)=>{st.className='err';st.textContent=msg;if(fb)addFallback(st,d)};
+const failed=(msg,fb,detail)=>{st.className='err';st.textContent=msg+(detail&&/(?:^|[?&])verify=1(?:&|#|$)/.test(location.search)?' [test detail: '+detail+']':'');if(fb)addFallback(st,d)};
 if(dec.token){
 /* Project F: verified path (switch on, or ?verify=1). The old direct path below is used otherwise. */
 if(dec.error){failed(FG.MSG[dec.error]||FG.MSG.failed,true)}
 else{st.textContent='';const r=await FG.submit(d,gx.hooks,dec.status);gx.hide();
-if(r.ok)done();else if(r.code==='cancelled'){st.textContent=''}else failed(r.message,true)}}
+if(r.ok)done();else if(r.code==='cancelled'){st.textContent=''}else failed(r.message,true,r.detail)}}
 else{st.textContent='Sending…';
 try{if(!window.submitMeeting)throw 0;await Promise.race([window.submitMeeting(d),new Promise((_,j)=>setTimeout(j,15000))]);done()}
 catch(x){failed('Sorry, your request could not be sent. The time may have just been taken, or the connection failed.',true)}}

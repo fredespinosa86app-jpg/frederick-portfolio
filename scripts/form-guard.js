@@ -96,7 +96,7 @@
         if (ans && (ans.expired || ans.renew)) { notice = ans.renew ? '' : 'expired'; break; }
         let v;
         try { v = await call('/v1/verify', 'POST', { challenge: c.json.challenge, code: String(ans) }); } catch (e) { return fail(isNet(e) && root.navigator && root.navigator.onLine === false ? 'offline' : 'unreachable'); }
-        if (v.status === 200 && v.json.token && v.json.uid) return { ok: true, token: v.json.token, uid: v.json.uid, day: v.json.day, expiresInS: v.json.expiresInS };
+        if (v.status === 200 && v.json.token && v.json.uid) return { ok: true, token: v.json.token, uid: v.json.uid, day: v.json.day, expiresInS: v.json.expiresInS, issuedAt: G.now() };
         if (v.status === 401) { left = typeof v.json.left === 'number' ? v.json.left : left - 1; error = 'wrong'; if (left <= 0) { notice = 'wrong'; break; } continue; }
         if (v.status === 410) { notice = 'expired'; break; }
         if (v.status === 429) { if (v.json.error === 'tries') { notice = 'wrong'; break; } return fail('slow'); }
@@ -143,8 +143,15 @@
     if (!dayOk(t.day)) return fail('config');
     let h;
     try { h = await visitorApp(); } catch (e) { return fail('config'); }
-    try { const cred = await withTimeout(h.F.signInWithCustomToken(h.auth, t.token), FETCH_MS, 'timeout'); const u = cred && cred.user && cred.user.uid; if (u !== t.uid) return fail('failed'); }
-    catch (e) { return fail(isNet(e) ? (root.navigator && root.navigator.onLine === false ? 'offline' : 'unreachable') : (e && /expired|invalid-custom-token|custom-token-mismatch/.test(String(e.code)) ? 'session' : 'config')); }
+    try { const cred = await withTimeout(h.F.signInWithCustomToken(h.auth, t.token), FETCH_MS, 'timeout'); const u = cred && cred.user && cred.user.uid; if (u !== t.uid) return fail('failed', { detail: 'uid-mismatch' }); }
+    catch (e) {
+      const code = e && e.code ? String(e.code) : 'unknown';
+      if (root.console && root.console.warn) root.console.warn('formGuard: sign-in refused (' + code + ')');   /* an error code only, never the token */
+      if (isNet(e)) return fail(root.navigator && root.navigator.onLine === false ? 'offline' : 'unreachable', { detail: code });
+      /* "session expired" only when the pass really is old (the Worker's pass lives 10 minutes); any other refusal is a setup problem, not something the visitor can fix by retrying */
+      const age = G.now() - (t.issuedAt || G.now());
+      return fail(age > 540000 ? 'session' : 'config', { detail: code });
+    }
     const r = await writeRequest(h, t, data, status);
     try { await h.F.signOut(h.auth); } catch (e) { /* the token is single-use anyway */ }
     return r;

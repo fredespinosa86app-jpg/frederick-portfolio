@@ -93,9 +93,12 @@ test('permission refused three times: diagnosed as full, paused, or a plain fail
   reset(); fs.commitHook = deny; w.status.paused = true; r = await submit(ui(['123456'])); assert.equal(r.code, 'paused'); });
 test('retries are bounded (3 writes) and each uses the same document ID', async () => { let n = 0; fs.commitHook = async () => { n++; throw Object.assign(new Error('d'), { code: 'permission-denied' }); }; await submit(ui(['123456'])); assert.equal(n, 3); });
 
-test('sign-in problems: wrong uid returned -> failed; invalid or expired custom token -> session/config messages', async () => {
+test('sign-in problems: wrong uid returned -> failed; a refused fresh pass is a setup problem (config) with the real code; only an OLD pass says "session"', async () => {
   w.signUid = 'm_someoneelse12345'; assert.equal((await submit(ui(['123456']))).code, 'failed'); w.signUid = null;
-  w.signErr = Object.assign(new Error('x'), { code: 'auth/custom-token-mismatch' }); assert.equal((await submit(ui(['123456']))).code, 'session');
+  w.signErr = Object.assign(new Error('x'), { code: 'auth/custom-token-mismatch' }); let r = await submit(ui(['123456'])); assert.equal(r.code, 'config'); assert.equal(r.detail, 'auth/custom-token-mismatch');
+  w.signErr = Object.assign(new Error('x'), { code: 'auth/invalid-custom-token' }); r = await submit(ui(['123456'])); assert.equal(r.code, 'config'); assert.equal(r.detail, 'auth/invalid-custom-token');
+  let clock = 1000; G.now = () => clock; const sw = G.fb.signInWithCustomToken; G.fb.signInWithCustomToken = async (a, tk) => { clock += 600000; return sw(a, tk); };   /* ten minutes pass between the pass being issued and the sign-in */
+  r = await submit(ui(['123456'])); assert.equal(r.code, 'session'); G.now = () => Date.now(); G.fb.signInWithCustomToken = sw;
   w.signErr = Object.assign(new Error('x'), { code: 'auth/invalid-api-key' }); assert.equal((await submit(ui(['123456']))).code, 'config');
   w.signErr = Object.assign(new Error('x'), { code: 'auth/network-request-failed', message: 'network error' }); assert.equal((await submit(ui(['123456']))).code, 'unreachable'); assert.equal(fs.commits.length, 0); });
 test('Worker without a day field is refused as a configuration problem (never guesses the day from the visitor clock)', async () => { w.verifyQueue = [{ s: 200, o: { token: 'T', uid: w.uid } }]; assert.equal((await submit(ui(['123456']))).code, 'config'); assert.equal(fs.commits.length, 0); });
