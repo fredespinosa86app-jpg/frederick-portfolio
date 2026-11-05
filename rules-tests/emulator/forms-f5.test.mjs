@@ -28,15 +28,17 @@ async function send(db, uid = UID, o = {}) {
   try { const s = await getDoc(cref); cur = s.exists() ? s.data().count : 0; } catch (e) { throw e; }
   const b = writeBatch(db); b.set(doc(db, 'meetingRequests', uid), TREQ(o)); b.set(cref, { count: cur + 1, lastReq: uid }); return b.commit();
 }
+const sendAs = (uid, o) => send(tok(uid), uid, o);   // the token's uid and the request's document ID must be the same
+const counterNow = async () => (await getDoc(doc(owner(), 'reqCounters', ymd()))).data().count;   // read as the owner (withSecurityRulesDisabled returns nothing)
 const direct = (db, id, o = {}) => setDoc(doc(db, 'meetingRequests', id), BASE(o));
 
 test('token request: first of the day creates request and counter', async () => { await assertSucceeds(send(tok())); });
 test('token request: later request on an existing counter (explicit count + 1)', async () => { await seedCounter(5); await assertSucceeds(send(tok())); });
-test('cap boundary: 29 -> 30 accepted, 30 -> 31 refused (default cap 30)', async () => { await seedCounter(29); await assertSucceeds(send(tok('m_one_abcdefgh12'))); await assertFails(send(tok('m_two_abcdefgh12'))); });
+test('cap boundary: 29 -> 30 accepted, 30 -> 31 refused (default cap 30)', async () => { await seedCounter(29); await assertSucceeds(sendAs('m_one_abcdefgh12')); await assertFails(sendAs('m_two_abcdefgh12')); });
 test('cap from content/guard: 50 allows 30 -> 31, 5 refuses 5 -> 6, a guard without cap keeps 30', async () => {
-  await seed('content/guard', { pause: false, cap: 50 }); await seedCounter(30); await assertSucceeds(send(tok('m_one_abcdefgh12')));
-  await seed('content/guard', { pause: false, cap: 5 }); await seedCounter(5); await assertFails(send(tok('m_two_abcdefgh12')));
-  await seed('content/guard', { pause: false }); await seedCounter(30); await assertFails(send(tok('m_three_abcdefg12')));
+  await seed('content/guard', { pause: false, cap: 50 }); await seedCounter(30); await assertSucceeds(sendAs('m_one_abcdefgh12'));
+  await seed('content/guard', { pause: false, cap: 5 }); await seedCounter(5); await assertFails(sendAs('m_two_abcdefgh12'));
+  await seed('content/guard', { pause: false }); await seedCounter(30); await assertFails(sendAs('m_three_abcdefg12'));
 });
 test('a request without its counter write (stamp missing) is refused', async () => { await seedCounter(5); await assertFails(setDoc(doc(tok(), 'meetingRequests', UID), TREQ())); });
 test('a counter bump without its request is refused (update and create)', async () => {
@@ -105,7 +107,7 @@ test('TWO SIMULTANEOUS requests from two tokens: the counter ends equal to the n
   await seedCounter(29);
   const rs = await Promise.allSettled([send(tok('m_aaaa_abcdefgh12'), 'm_aaaa_abcdefgh12'), send(tok('m_bbbb_abcdefgh12'), 'm_bbbb_abcdefgh12')]);
   const ok = rs.filter(r => r.status === 'fulfilled').length;
-  const n = await env.withSecurityRulesDisabled(async c => (await getDoc(doc(c.firestore(), 'reqCounters', ymd()))).data().count);
+  const n = await counterNow();
   if (n !== 29 + ok) throw new Error('counter ' + n + ' does not match 29 + accepted ' + ok);
   if (n > 30) throw new Error('cap overshoot: ' + n);
   if (ok < 1) throw new Error('both refused');
@@ -114,7 +116,7 @@ test('TWO SIMULTANEOUS requests below the cap: counter equals the number accepte
   await seedCounter(5);
   const rs = await Promise.allSettled([send(tok('m_aaaa_abcdefgh12'), 'm_aaaa_abcdefgh12'), send(tok('m_bbbb_abcdefgh12'), 'm_bbbb_abcdefgh12')]);
   const ok = rs.filter(r => r.status === 'fulfilled').length;
-  const n = await env.withSecurityRulesDisabled(async c => (await getDoc(doc(c.firestore(), 'reqCounters', ymd()))).data().count);
+  const n = await counterNow();
   if (n !== 5 + ok) throw new Error('counter ' + n + ' does not match 5 + accepted ' + ok);
   if (ok < 1) throw new Error('both refused');
 });
