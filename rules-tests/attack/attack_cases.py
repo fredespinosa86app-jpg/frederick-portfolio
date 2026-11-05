@@ -1160,6 +1160,25 @@ for nm,sim in (('transition',S),('strict',SS)):
     chk(f'F5 [{nm}] a visitor token has no other powers: cannot write content/guard, settings, clients, ownerPrivate, or read other private collections',not any(A5(sim,'create',p,TV,{'a':1}) or A5(sim,'update',p,TV,{'a':1},{'a':0},{p:{'a':0}}) for p in ('content/guard','settings/site','clients/c1','ownerPrivate/x','chatUnanswered/x','visits/x')) and not any(A5(sim,'get',p,TV,None,{'a':0},{p:{'a':0}}) for p in ('clients/c1','ownerPrivate/x','chatUnanswered/x','visits/x')))
     chk(f'F5 [{nm}] owner can read requests and counters, set tokenRequired/cap in content/guard, but cannot create through the token path',A5(sim,'get',RPf(),OWN,None,REQ(),{RPf():REQ()}) and A5(sim,'update','content/guard',OWN,{'tokenRequired':True,'cap':40},{'pause':False},{'content/guard':{'pause':False}}) and not A5(sim,'create',RPf('OWNERUID'),OWN,RQ(),None,{},{RPf('OWNERUID'):RQ(),CPf():{'count':1,'lastReq':'OWNERUID'}}))
     chk(f'F5 [{nm}] visitors (token, public, stranger) cannot turn the switch off or change the cap',not any(A5(sim,'update','content/guard',a,{'tokenRequired':False,'cap':9999},{'tokenRequired':True},{'content/guard':{'tokenRequired':True}}) for a in (None,TV,STRANGER)))
+# ---------------- 8k. D1 (4.5.0): owner-only documents portal (checked on BOTH rules files)
+NOWTS=TS(NOW)
+def DOC(**k):
+    d={'title':'Runbook','category':'runbook','body':'Steps...','createdAt':NOWTS,'updatedAt':NOWTS}; d.update(k); return d
+DP=lambda i='abcd1234ef':'ownerDocs/'+i
+for nm,sim in (('transition',S),('strict',SS)):
+    O=lambda op,path=DP(),au=OWN,new=None,old=None,docs=None: A5(sim,op,path,au,new,old,docs)
+    chk(f'D1 [{nm}] control: owner creates, reads, lists and deletes a document',O('create',new=DOC()) and O('get',old=DOC(),docs={DP():DOC()}) and O('list',path='ownerDocs') and O('delete',old=DOC(),docs={DP():DOC()}))
+    chk(f'D1 [{nm}] public, a Google stranger and a visitor token cannot read, list, create, update or delete',not any(A5(sim,op,'ownerDocs' if op=='list' else DP(),a,DOC() if op in ('create','update') else None,DOC() if op!='create' else None,{DP():DOC()}) for a in (None,STRANGER,{'uid':'m_abcDEF1234567890','provider':'custom','claims':{'form':'meeting'}}) for op in ('get','list','create','update','delete')))
+    chk(f'D1 [{nm}] owner update keeps createdAt and sets updatedAt to now',O('update',new=DOC(title='New',body='x'),old=DOC(),docs={DP():DOC()}))
+    chk(f'D1 [{nm}] update with a changed createdAt or a forged updatedAt is refused',not O('update',new=DOC(createdAt=TS(NOW-5000)),old=DOC(),docs={DP():DOC()}) and not O('update',new=DOC(updatedAt=TS(NOW-5000)),old=DOC(),docs={DP():DOC()}))
+    chk(f'D1 [{nm}] create with a forged createdAt or updatedAt is refused',not O('create',new=DOC(createdAt=TS(NOW-5000))) and not O('create',new=DOC(updatedAt=TS(NOW+5000))))
+    chk(f'D1 [{nm}] title: empty, 121 characters, number or missing is refused; 120 accepted',not any(O('create',new=DOC(title=t)) for t in ('', 'x'*121, 5, ['x'], {'a':1})) and O('create',new=DOC(title='x'*120)) and not O('create',new={k:v for k,v in DOC().items() if k!='title'}))
+    chk(f'D1 [{nm}] body: 50000 accepted, 50001 and non-text refused; empty body accepted',O('create',new=DOC(body='x'*50000)) and O('create',new=DOC(body='')) and not O('create',new=DOC(body='x'*50001)) and not O('create',new=DOC(body=123)) and not O('create',new=DOC(body=['x'])) and not O('create',new=DOC(body={'a':1})))
+    chk(f'D1 [{nm}] category must be one of the four values',all(O('create',new=DOC(category=c)) for c in ('security','runbook','notes','other')) and not any(O('create',new=DOC(category=c)) for c in ('', 'admin', 'Security', 5)))
+    chk(f'D1 [{nm}] unknown or missing fields are refused',not O('create',new=DOC(extra='x')) and not O('create',new={k:v for k,v in DOC().items() if k!='category'}) and not O('create',new={k:v for k,v in DOC().items() if k!='body'}))
+    chk(f'D1 [{nm}] timestamps must be real timestamps',not O('create',new=DOC(createdAt=NOW,updatedAt=NOW)) and not O('create',new=DOC(createdAt='now',updatedAt='now')))
+    chk(f'D1 [{nm}] document ID: 7 characters, 33 characters, capitals, symbols refused; 8 to 32 lower-case letters and digits accepted',not any(O('create',path=DP(i),new=DOC()) for i in ('abc1234','a'*33,'ABCD1234EF','abcd-1234e','abcd1234/e')) and O('create',path=DP('abcd1234'),new=DOC()) and O('create',path=DP('a'*32),new=DOC()))
+    chk(f'D1 [{nm}] owner cannot write ownerDocs through a different collection name or reach other private data by it',not O('create',path='ownerDoc/abcd1234ef',new=DOC()) and not O('create',path='ownerDocs/abcd1234ef/sub/x',new=DOC()))
 # ---------------- 9. cross-check: strict file equals transition file apart from the owner check
 a=re.sub(r'\s+','',TXT); b=re.sub(r'\s+','',re.sub(r'^//.*\n','',STRICT,flags=re.M))
 chk('strict rules differ from the transition rules only in the owner e-mail fallback',a.replace("&&(request.auth.uid==ownerUid()||request.auth.token.email=='fredespinosa86.app@gmail.com');","&&request.auth.uid==ownerUid();")==b,'')

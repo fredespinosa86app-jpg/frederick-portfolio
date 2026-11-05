@@ -241,3 +241,7 @@ button.libtile.pickable{cursor:pointer;min-height:44px}button.libtile.pickable:h
 .bb-ok{background:#d9f2e0;color:#0d4a22}.bb-warn{background:#ffe9b8;color:#5c3b00}.bb-info{background:#dde8ff;color:#1b3a7a}.bb-neutral{background:#e6e9ef;color:#2f394d}.bb-bad{background:#fbd9d9;color:#6b1010}
 .bhold{background:#f4f6fa}
 #dp-billing input:not([type=checkbox]),#dp-billing select,#dp-billhours input:not([type=checkbox]),#dp-billhours select{min-height:42px;box-sizing:border-box}
+
+/* D1: owner documents */
+.odpre{white-space:pre-wrap;word-break:break-word;background:var(--d-card);border:1px solid var(--d-line);border-radius:10px;padding:12px;max-height:60vh;overflow:auto;font:inherit;margin:8px 0}
+#odBody{width:100%;min-height:220px;font:inherit}

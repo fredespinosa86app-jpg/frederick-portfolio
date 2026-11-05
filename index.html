@@ -365,6 +365,7 @@
 <h2>Settings</h2>
 <button type="button" data-page="security"><svg aria-hidden="true"><use href="#ic-shield"/></svg><span class="dlabel">Security</span></button>
 <button type="button" data-page="privacy"><svg aria-hidden="true"><use href="#ic-shield"/></svg><span class="dlabel">Privacy &amp; backup</span></button>
+<button type="button" data-page="ownerdocs"><svg aria-hidden="true"><use href="#ic-doc"/></svg><span class="dlabel">Owner documents</span></button>
 <button type="button" data-page="general"><svg aria-hidden="true"><use href="#ic-cog"/></svg><span class="dlabel">General settings</span></button>
 </div>
 <div class="dsidefoot"><button type="button" id="dSignOut" class="dsignout"><svg aria-hidden="true"><use href="#ic-out"/></svg><span class="dlabel">Sign out</span></button></div>
@@ -509,6 +510,25 @@
 <div class="ab"><label class="fld">Time zone<input type="text" id="wtSetTz" list="wtZoneList" autocomplete="off" spellcheck="false" maxlength="60"></label><datalist id="wtZoneList"></datalist>
 <label class="fld">Week starts on<select id="wtSetWeek"><option value="mon">Monday</option><option value="tue">Tuesday</option><option value="wed">Wednesday</option><option value="thu">Thursday</option><option value="fri">Friday</option><option value="sat">Saturday</option><option value="sun">Sunday</option></select></label>
 <button type="button" class="dbtn primary" id="wtSetSave">Save settings</button></div><p class="ferr" id="wtSetErr" role="alert"></p><p class="libmeta" id="wtSetState" role="status"></p></div>
+</section>
+<section class="dpage" id="dp-ownerdocs" hidden>
+<div class="dcard"><h2>Owner documents</h2><p class="dhelp">Private notes and runbooks (for example how to roll back a change). Only you, signed in as owner, can read them. They are <strong>not</strong> part of your public website or GitHub.</p>
+<p class="dhelp"><strong>Never save keys, tokens, passwords or webhook addresses here.</strong> Those belong only in the Cloudflare secrets. The page refuses text that looks like one, but that check is a safety net, not a guarantee.</p>
+<p class="dstate" id="odState" role="status"></p></div>
+<div class="dcard"><h2>Your documents</h2>
+<div class="ab"><label class="fld">Search<input type="search" id="odSearch" placeholder="Title or text" autocomplete="off"></label>
+<label class="fld">Category<select id="odCat"><option value="all">All</option><option value="security">Security</option><option value="runbook">Runbook</option><option value="notes">Notes</option><option value="other">Other</option></select></label>
+<button type="button" class="dbtn" id="odRefresh">Refresh</button><button type="button" class="dbtn primary" id="odNew">New document</button></div>
+<div class="cidlist" id="odList"></div></div>
+<div class="dcard" id="odView" hidden><h2 id="odViewTitle"></h2><pre class="odpre" id="odViewBody"></pre>
+<div class="dact-row"><button type="button" class="dbtn" id="odCopy">Copy text</button><button type="button" class="dbtn" id="odViewClose">Close</button></div></div>
+<div class="dcard" id="odEdit" hidden><h2 id="odEditTitle">New document</h2>
+<div class="ab"><label class="fld">Title<input type="text" id="odTitle" maxlength="120" autocomplete="off"></label>
+<label class="fld">Category<select id="odCategory"><option value="security">Security</option><option value="runbook">Runbook</option><option value="notes" selected>Notes</option><option value="other">Other</option></select></label></div>
+<label class="fld">Text<textarea id="odBody" rows="14" maxlength="50000" spellcheck="true"></textarea><small class="cnt" id="odBodyN"></small></label>
+<div class="ab"><label class="fld">Fill from a file (.md or .txt)<input type="file" id="odFile" accept=".md,.txt,text/plain,text/markdown"></label></div>
+<div class="ab"><button type="button" class="dbtn primary" id="odSave">Save document</button><button type="button" class="dbtn" id="odCancel">Cancel</button></div>
+<p class="ferr" id="odErr" role="alert"></p></div>
 </section>
 <section class="dpage" id="dp-clientids" hidden>
 <div class="dcard"><h2>Client IDs</h2><p class="dhelp">One private list of client IDs used by every business page (time tracking, billing). It holds <strong>only the ID</strong>, a status and an optional private note. Do not type names, e-mails, phone numbers or company names here; keep those in your own private records. An ID can never be renamed, reused or deleted. Archive it instead.</p>
@@ -851,7 +871,7 @@ function doPost(e) {
 <p class="dhelp">Your content lives only in the database. Download a backup file now and then, and before any big change. The file contains private details (clients, visitors’ messages): keep it somewhere safe, not in a shared folder.</p>
 <p class="dstate-line" id="bkLast" role="status"></p>
 <div class="ab"><label class="tog"><input type="checkbox" id="bk_settings" checked> Site settings</label><label class="tog"><input type="checkbox" id="bk_content" checked> Site content</label><label class="tog"><input type="checkbox" id="bk_ownerPrivate" checked> Private settings (rates, capacity)</label><label class="tog"><input type="checkbox" id="bk_clients" checked> Clients</label></div>
-<div class="ab"><label class="tog"><input type="checkbox" id="bk_meetingRequests"> Meeting requests</label><label class="tog"><input type="checkbox" id="bk_chatUnanswered"> Chatbot questions</label><label class="tog"><input type="checkbox" id="bk_activity"> Activity log</label><label class="tog"><input type="checkbox" id="bk_visits"> Visit records (large)</label><label class="tog"><input type="checkbox" id="bk_clientRegistry"> Client IDs</label><label class="tog"><input type="checkbox" id="bk_clientRegistryAudit"> Client ID history</label><label class="tog"><input type="checkbox" id="bk_workState"> WorkTrack position</label><label class="tog"><input type="checkbox" id="bk_workSessions"> WorkTrack sessions</label><label class="tog"><input type="checkbox" id="bk_workEvents"> WorkTrack punches</label><label class="tog"><input type="checkbox" id="bk_workAssign"> WorkTrack clients</label><label class="tog"><input type="checkbox" id="bk_workAssignAudit"> WorkTrack client history</label><label class="tog"><input type="checkbox" id="bk_workCorrections"> WorkTrack corrections</label><label class="tog"><input type="checkbox" id="bk_workSeals"> WorkTrack log seals</label><label class="tog"><input type="checkbox" id="bk_workChain"> WorkTrack log chain head</label><label class="tog"><input type="checkbox" id="bk_workSettings"> WorkTrack settings</label><label class="tog"><input type="checkbox" id="bk_billingProfiles"> Billing profiles</label><label class="tog"><input type="checkbox" id="bk_billingProfileAudit"> Billing profile history</label><label class="tog"><input type="checkbox" id="bk_billableEntries"> Billable hours</label><label class="tog"><input type="checkbox" id="bk_billableEntryAudit"> Billable hours history</label><label class="tog"><input type="checkbox" id="bk_billingMigration"> Client migration records</label><label class="tog"><input type="checkbox" id="bk_invoices"> Invoices</label><label class="tog"><input type="checkbox" id="bk_invoiceAudit"> Invoice history</label><label class="tog"><input type="checkbox" id="bk_payments"> Payments and credits</label><label class="tog"><input type="checkbox" id="bk_paymentReversals"> Payment reversals</label><label class="tog"><input type="checkbox" id="bk_invoiceAdjustments"> Invoice adjustments</label><label class="tog"><input type="checkbox" id="bk_invoiceDueDates"> Due-date changes</label><label class="tog"><input type="checkbox" id="bk_periodSkips"> Skipped billing periods</label><label class="tog"><input type="checkbox" id="bk_reqCounters"> Daily request counters</label></div>
+<div class="ab"><label class="tog"><input type="checkbox" id="bk_meetingRequests"> Meeting requests</label><label class="tog"><input type="checkbox" id="bk_chatUnanswered"> Chatbot questions</label><label class="tog"><input type="checkbox" id="bk_activity"> Activity log</label><label class="tog"><input type="checkbox" id="bk_visits"> Visit records (large)</label><label class="tog"><input type="checkbox" id="bk_clientRegistry"> Client IDs</label><label class="tog"><input type="checkbox" id="bk_clientRegistryAudit"> Client ID history</label><label class="tog"><input type="checkbox" id="bk_workState"> WorkTrack position</label><label class="tog"><input type="checkbox" id="bk_workSessions"> WorkTrack sessions</label><label class="tog"><input type="checkbox" id="bk_workEvents"> WorkTrack punches</label><label class="tog"><input type="checkbox" id="bk_workAssign"> WorkTrack clients</label><label class="tog"><input type="checkbox" id="bk_workAssignAudit"> WorkTrack client history</label><label class="tog"><input type="checkbox" id="bk_workCorrections"> WorkTrack corrections</label><label class="tog"><input type="checkbox" id="bk_workSeals"> WorkTrack log seals</label><label class="tog"><input type="checkbox" id="bk_workChain"> WorkTrack log chain head</label><label class="tog"><input type="checkbox" id="bk_workSettings"> WorkTrack settings</label><label class="tog"><input type="checkbox" id="bk_billingProfiles"> Billing profiles</label><label class="tog"><input type="checkbox" id="bk_billingProfileAudit"> Billing profile history</label><label class="tog"><input type="checkbox" id="bk_billableEntries"> Billable hours</label><label class="tog"><input type="checkbox" id="bk_billableEntryAudit"> Billable hours history</label><label class="tog"><input type="checkbox" id="bk_billingMigration"> Client migration records</label><label class="tog"><input type="checkbox" id="bk_invoices"> Invoices</label><label class="tog"><input type="checkbox" id="bk_invoiceAudit"> Invoice history</label><label class="tog"><input type="checkbox" id="bk_payments"> Payments and credits</label><label class="tog"><input type="checkbox" id="bk_paymentReversals"> Payment reversals</label><label class="tog"><input type="checkbox" id="bk_invoiceAdjustments"> Invoice adjustments</label><label class="tog"><input type="checkbox" id="bk_invoiceDueDates"> Due-date changes</label><label class="tog"><input type="checkbox" id="bk_periodSkips"> Skipped billing periods</label><label class="tog"><input type="checkbox" id="bk_reqCounters"> Daily request counters</label><label class="tog"><input type="checkbox" id="bk_ownerDocs"> Owner documents (private notes)</label></div>
 <p class="dhelp">The last four are saved for your records only: the database lets visitors create them but not you, so they cannot be restored.</p>
 <div class="ab"><button type="button" class="dbtn primary" id="bkGo">Download backup</button></div>
 <p class="dhelp" id="bkpState" role="status"></p></div>
@@ -973,7 +993,7 @@ function doPost(e) {
 <script src="scripts/form-guard.js?v=f6"></script>
 <script src="scripts/meeting-form.js?v=f6"></script>
 <script src="scripts/owner-ui.js?v=b3"></script>
-<script src="scripts/owner-dashboard.js?v=c1"></script>
+<script src="scripts/owner-dashboard.js?v=d1"></script>
 <script src="scripts/owner-content.js?v=b3"></script>
 <script src="scripts/owner-phase1.js?v=c1"></script>
 <script src="scripts/owner-phase2.js?v=b3"></script>
@@ -983,11 +1003,13 @@ function doPost(e) {
 <script src="scripts/owner-phase6.js?v=b3"></script>
 <script src="scripts/owner-phase7.js?v=b3"></script>
 <script src="scripts/owner-security.js?v=f6"></script>
-<script src="scripts/backup-core.js?v=b3"></script>
-<script src="scripts/owner-privacy.js?v=b3"></script>
+<script src="scripts/backup-core.js?v=d1"></script>
+<script src="scripts/owner-privacy.js?v=d1"></script>
 <script src="scripts/owner-library.js?v=b3"></script>
 <script src="scripts/core-ids.js?v=b3"></script>
 <script src="scripts/owner-clientids.js?v=b3"></script>
+<script src="scripts/owner-docs-core.js?v=d1"></script>
+<script src="scripts/owner-docs.js?v=d1"></script>
 <script src="scripts/core-time.js?v=b3"></script>
 <script src="scripts/core-worktrack.js?v=b3"></script>
 <script src="scripts/core-wtlog.js?v=b3"></script>

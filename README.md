@@ -1353,3 +1353,10 @@ No Firestore rules change in E4 (`ownerPrivate` is already owner only). Rules te
 - No code, rules or Worker changes. Follow `R2-CHECKLIST.md`.
 - The browser key (public by design) is limited to the websites of stage 1 plus Identity Toolkit API, Token Service API and Cloud Firestore API. Other Google services refuse it. Firestore rules remain the real protection.
 - If a feature breaks after the change, the Network response names the blocked service; add it, or set API restrictions back to "Don't restrict key".
+
+## 4.5.0 - Phase D1: Owner documents (private notes and runbooks)
+
+- New owner-only page: drawer > Settings > **Owner documents**. Create, open, edit, search, delete and fill from a `.md` or `.txt` file. Stored in Firestore `ownerDocs` (owner-only rules, republish `firestore.rules.strict`).
+- Text is shown as plain text only. Text that looks like a key, token, password or webhook address is refused.
+- Backup: new export-only checkbox "Owner documents (private notes)".
+- Nothing was moved out of the public repo yet: `internal-docs/` and the root checklists are still public. See `D1-CHECKLIST.md` and `internal-docs/4.5.0-D1-owner-documents.md`.

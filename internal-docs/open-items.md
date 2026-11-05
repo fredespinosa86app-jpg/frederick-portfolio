@@ -28,4 +28,5 @@
 - F6 is verified live. F7 (switch-over, rollback drill, monitoring, Safari owner decision) is documented in `F7-CHECKLIST.md`; DONE 2026-11-06: switch is ON in production. Project F complete. D1 and D2 stay parked until Project F is done.
 
 - R1 (reads reduction) built: browser cache for visitors, awaiting live check. Approach B (Worker-served content) stays an option if traffic grows.
-- R2 (key API restriction): documented in `R2-CHECKLIST.md`, awaiting the owner's run. Remaining after R2: rotate the Sheets token, custom domain move, D1/D2.
+- R2 (key API restriction): DONE 2026-11-06 (live test passed). Remaining after R2: rotate the Sheets token, custom domain move, D1/D2.
+- D1 (Owner documents) built, awaiting install and live test. Open: which existing public docs to move into the portal. D2 scope still to be defined.

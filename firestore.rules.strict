@@ -915,5 +915,21 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isOwner();
     }
+    // D1: owner-only documents portal (private notes and runbooks; never keys, tokens or webhook addresses)
+    function ownerDocOk(d) {
+      return d.keys().hasOnly(['title','category','body','createdAt','updatedAt'])
+        && d.keys().hasAll(['title','category','body','createdAt','updatedAt'])
+        && d.title is string && d.title.size() > 0 && d.title.size() <= 120
+        && d.category is string && d.category in ['security','runbook','notes','other']
+        && d.body is string && d.body.size() <= 50000
+        && d.createdAt is timestamp && d.updatedAt is timestamp;
+    }
+    match /ownerDocs/{id} {
+      allow read, delete: if isOwner();
+      allow create: if isOwner() && id.matches('^[a-z0-9]{8,32}$') && ownerDocOk(request.resource.data)
+        && request.resource.data.createdAt == request.time && request.resource.data.updatedAt == request.time;
+      allow update: if isOwner() && ownerDocOk(request.resource.data)
+        && request.resource.data.createdAt == resource.data.createdAt && request.resource.data.updatedAt == request.time;
+    }
   }
 }
