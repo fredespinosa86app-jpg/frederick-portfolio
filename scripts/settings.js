@@ -34,7 +34,7 @@ window.portfolioSettings = {
   appCheckProvider: "enterprise",
 
   firebase: {
-    apiKey: "AIzaSyAZpd6CHagQyLTryW5HizqeeZXZ1crgPJQ",
+    apiKey: "AIzaSyDnwfj5XUK22er6lI1hb3plr6nk1-mt4uY",
     authDomain: "my-online-portfolio-db2a5.firebaseapp.com",
     projectId: "my-online-portfolio-db2a5",
     storageBucket: "my-online-portfolio-db2a5.firebasestorage.app",

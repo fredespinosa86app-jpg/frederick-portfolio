@@ -7,3 +7,8 @@
 - Website restrictions prepared: `https://fredespinosa86-app-jpg.github.io/*`, `https://my-online-portfolio-db2a5.firebaseapp.com/*`, `https://my-online-portfolio-db2a5.web.app/*`.
 - Options when resumed: (a) try the filter "firestore" / Library "Cloud Firestore API" again; (b) stop and dismiss the alert as "public by design / used in tests".
 - Raise this again right after B2 is verified (emulator 131 of 131, rules republished).
+
+## Update 2026-11-05: new restricted web key made and swapped in (`scripts/settings.js`)
+- New key "Portfolio web key": website restrictions (github.io, firebaseapp.com, web.app) and API restrictions (Identity Toolkit, Token Service, Cloud Firestore).
+- Old key stays alive until the live test passes (sign-in, owner data pages, public pages); then delete the old key in Google Cloud > Credentials (it was not listed there, so it may need to be deleted from the Firebase console / left as is) and close the GitHub alert.
+- To go back: restore the old `apiKey` line (the old key starts `AIzaSyAZpd6C`).
