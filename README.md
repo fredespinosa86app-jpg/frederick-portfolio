@@ -1338,3 +1338,12 @@ No Firestore rules change in E4 (`ownerPrivate` is already owner only). Rules te
 
 - **Audit:** the chatbot webhook field is empty and the chatbot uses scripted answers only, so no webhook address is exposed. No Worker deployment or rotation was needed. `server/chat-proxy-worker.js` stays ready for when an AI workflow is added: paste the Worker address, never the real webhook.
 - **Naming:** the chatbot is no longer called Marcus. Default name is now "Chatbot" (Owner Panel > Chatbot appearance & filter > Assistant name). A name already saved there is kept. Drawer entry renamed "Chatbot configuration". Internal page id `marcus` unchanged on purpose.
+
+## 4.5.0 - Phase R1: fewer Firestore reads for visitors
+
+- **Before:** every page visit opened 16 live listeners (15 `content/*` documents + `settings/site`) = 16 reads, and every reload paid them again.
+- **Now (visitors):** `scripts/content-cache.js` keeps a copy of each public document in the visitor's browser for 10 minutes. A repeat visit or reload inside that time costs **0 reads**. A first visit (or after 10 minutes) reads each document once (16 reads) and no longer keeps live listeners open. If a read fails, a saved copy up to 24 hours old is used; if there is none, the built-in default content shows, as before.
+- **Owner:** an owner device (signed in once, flag `ownerDevice`) keeps live listeners exactly as before; signing in during a visit switches the page to live listeners at once.
+- **Visible effect:** a change you publish reaches visitors who already have a copy within about 10 minutes. The hire/availability switch and the chatbot settings are covered by the same delay.
+- **Only public documents are cached** (never owner data, requests or settings that need sign-in). Cache keys start with `pc:v1:`; to force a refresh for everyone after a bad publish, the cache time can be shortened in `content-cache.js` (`CACHE_MS`).
+- **Rollback:** restore `scripts/owner-panel.js` and `index.html` from the R1 rollback ZIP (the extra file `content-cache.js` is then unused and harmless).

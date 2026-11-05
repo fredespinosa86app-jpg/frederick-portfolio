@@ -21,7 +21,16 @@ const $=id=>document.getElementById(id),hire=document.querySelectorAll('.hire-ct
 login.hidden=false;
 /* S3.1: every first answer (data, empty or error) is reported to the loading cover */
 const BC=window.bootCover||{need(){},done(){},panel(){}};
-const watch=(k,r,f)=>{BC.need(k);let d=false;const m=()=>{if(!d){d=true;BC.done(k)}};onSnapshot(r,s=>{try{f(s)}finally{m()}},m)};
+/* Phase R1: a visitor reuses a copy saved in the last 10 minutes (0 reads) or reads the document once; the owner's device keeps live listeners. Any cache problem falls back to the old behaviour. */
+const CC=window.contentCache,REG=[];let LIVE=false;
+const watch=(k,r,f)=>{BC.need(k);let d=false;const m=()=>{if(!d){d=true;BC.done(k)}};
+const live=()=>onSnapshot(r,s=>{try{f(s)}finally{m()}},m);
+REG.push({k,live,on:false});const me=REG[REG.length-1];
+if(!CC||LIVE||CC.ownerDevice()){me.on=true;live();return}
+const now=Date.now(),c=CC.read(k);
+if(CC.isFresh(c,now)){try{f(CC.snap(c.d))}finally{m()}return}
+getDoc(r).then(s=>{try{CC.write(k,s.exists()?s.data():null,Date.now())}catch(e){}try{f(s)}finally{m()}},()=>{if(CC.isUsableStale(c,now)){try{f(CC.snap(c.d))}finally{m()}}else m()})};
+const goLive=()=>{LIVE=true;REG.forEach(x=>{if(!x.on){x.on=true;try{x.live()}catch(e){}}})};
 watch('settings',ref,s=>{const d=s.exists()?s.data():{};const on=d.hireEnabled!==false;if(window.capacityApi)window.capacityApi.setHire(on);else hire.forEach(e=>e.hidden=!on);cb.checked=on;window.chatHook=d.chatAuto&&/^https:\/\//i.test(d.chatWebhook||'')?d.chatWebhook:'';hookUrl.value=d.chatWebhook||'';hookOn.checked=!!d.chatAuto;const iu=typeof d.introUrl==='string'?d.introUrl:window.DEF_INTRO,ie=d.introEnabled!==false;introOn.checked=ie;introUrl.value=iu;window.applySite(d)});
 window.__ownerLoginReady=true;
 const authMsg=e=>{const c=(e&&e.code)||'';
@@ -89,6 +98,6 @@ watch('rates',doc(rdb,'content','rates'),s=>{if(window.availApi)window.availApi.
 watch('testimonials',doc(rdb,'content','testimonials'),s=>{if(window.testiApi)window.testiApi.setDoc(s.exists()?s.data():null)});
 onAuthStateChanged(auth,u=>{const viaGoogle=!!u&&Array.isArray(u.providerData)&&u.providerData.some(x=>x&&x.providerId==='google.com');const ok=!!u&&u.email===OWNER&&u.emailVerified===true&&viaGoogle;
 if(u&&!ok){signOut(auth);notify('The Google account ('+u.email+') is not the owner account. Sign in with '+OWNER+'.','error');return}
-login.hidden=ok;if(ok){try{localStorage.setItem('ownerDevice','1')}catch(e){}}document.dispatchEvent(new CustomEvent('own:auth',{detail:{ok,email:ok?u.email:'',uid:ok?u.uid:'',provider:ok?'google.com':''}}))});
+login.hidden=ok;if(ok){try{localStorage.setItem('ownerDevice','1')}catch(e){}goLive()}document.dispatchEvent(new CustomEvent('own:auth',{detail:{ok,email:ok?u.email:'',uid:ok?u.uid:'',provider:ok?'google.com':''}}))});
 }catch(e){window.__ownerLoginError=String((e&&e.message)||e);console.warn('Owner login unavailable',e)}}
 try{window.bootCover&&window.bootCover.panel()}catch(e){}
