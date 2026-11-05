@@ -16,6 +16,7 @@
     [/\bxox[abprs]-[A-Za-z0-9-]{10,}/, 'a Slack token'],
     [/\bsk-[A-Za-z0-9_-]{20,}/, 'an API secret key'],
     [/\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/, 'a sign-in token'],
+    [/(?<![A-Za-z0-9_-])(?=[A-Za-z0-9_-]*[A-Z])(?=[A-Za-z0-9_-]*[a-z])(?=[A-Za-z0-9_-]*\d)[A-Za-z0-9_-]{32,}(?![A-Za-z0-9_-])/, 'a long random string (possibly a key)'],
     [/\b(?:password|passwd|secret|token|api[_ -]?key)\s*[:=]\s*["']?[A-Za-z0-9_\-\/+=]{16,}/i, 'a password, token or key']
   ];
   function looksSecret(text) {

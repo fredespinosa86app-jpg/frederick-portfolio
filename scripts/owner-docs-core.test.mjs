@@ -23,12 +23,13 @@ test('obvious secrets are refused in the title and in the body', () => {
   const bad = [
     '-----BEGIN PRIVATE KEY-----\nMIIE', 'AIza' + 'a'.repeat(35), 'https://hooks.slack.com/services/T0/B0/xyz',
     'https://example.com/webhook/abc', 'ghp_' + 'A1'.repeat(15), 'xoxb-1234567890-abcdef', 'sk-' + 'a1'.repeat(15),
+    'Qx7Lm2Rt9Vb4Nc8Zd3Kp6Hs1Wf5Jg0Ya', 'aB3dE5fG7hJ9kL1mN3pQ5rS7tU9vW1xY3zA5', 'Qx7Lm2Rt-9Vb4Nc8_Zd3Kp6Hs1Wf5Jg0Yaaa',
     'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abcdefghijk', 'password: Abcd1234Efgh5678Ijkl', 'api_key=abcdEFGH12345678ijkl'
   ];
   for (const t of bad) { assert.equal(ok({ body: t }).ok, false, t); assert.equal(ok({ title: t }).ok, false, 'title ' + t); }
 });
 test('normal technical wording is not flagged', () => {
-  for (const t of ['Set the secret SA_JSON in Cloudflare.', 'The token: see the Cloudflare dashboard.', 'password: ask the owner', 'Open https://github.com/user/repo/settings', 'Rotate the key every year.'])
+  for (const t of ['Set the secret SA_JSON in Cloudflare.', 'The token: see the Cloudflare dashboard.', 'password: ask the owner', 'Open https://github.com/user/repo/settings', 'Rotate the key every year.', 'commit 3f786850e387550fdab836ed7e6dc881de23001b', 'sha256 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', 'https://github.com/fredespinosa86app-jpg/frederick-portfolio/blob/main/scripts/owner-docs-core.js', 'CodeFlow-Portfolio-4.5.0-D1-rollback.zip', 'Firestore rules emulator workflow'])
     assert.equal(ok({ body: t }).ok, true, t);
 });
 test('new ids match the rules pattern and differ', () => {
