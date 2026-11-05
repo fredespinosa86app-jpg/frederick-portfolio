@@ -1,0 +1,5 @@
+# Portfolio form-verification Worker. No secrets in this file: add SA_JSON, CH_SECRET (secrets) and ALLOWED_ORIGINS (text) in the Cloudflare dashboard.
+# If you deploy from the dashboard "Edit code" editor you do not need this file at all.
+name = "portfolio-forms"
+main = "portfolio-forms-worker.js"
+compatibility_date = "2025-01-01"

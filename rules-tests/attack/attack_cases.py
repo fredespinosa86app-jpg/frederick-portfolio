@@ -1116,6 +1116,50 @@ for nm,sim in (('transition',S),('strict',SS)):
       SKC(SK(periodStart='2026-10-01'),path='periodSkips/CL-001__2026-10-01__20261031'),SKC(SK(periodEnd='20261001',periodStart='20261031'),path='periodSkips/CL-001__20261031__20261001'),
       SKC(SK(periodStart=20261001)),SKC(SK(clientId='bad id'),path='periodSkips/bad id__20261001__20261031')]))
     chk(f'B3 [{nm}] a skip can never be changed or removed',not any([P('update',SKP,OWN,SK(reason='Changed my mind'),SK(),SKD),P('delete',SKP,OWN,None,SK(),SKD)]))
+# ---------------- 8j. F5 (4.5.0): visitor token path, daily counter, tokenRequired switch (checked on BOTH rules files)
+import datetime as _dt
+_d=_dt.datetime.fromtimestamp(NOW/1000,_dt.timezone.utc); TODAY=f'{_d.year}{_d.month:02d}{_d.day:02d}'; PREVD=f'{_d.year}{_d.month:02d}{_d.day-1:02d}'
+TU='m_abcDEF1234567890'; TV={'uid':TU,'provider':'custom','claims':{'form':'meeting'}}
+RQ=lambda **k: REQ(**dict({'day':TODAY},**k))
+RPf=lambda u=TU:'meetingRequests/'+u; CPf=lambda d=TODAY:'reqCounters/'+d
+def A5(sim,op,path,au=None,new=None,old=None,docs=None,after=None):
+    try: return sim.allowed(op,path,au,new,old,docs,NOW,after)
+    except Exception: return False
+def TB(sim,auth=TV,pre=None,uid=TU,req=None,cnt=None,guard=None,extra=None):
+    """one token submission = a batch of (request create, counter create/update); returns (request verdict, counter verdict)"""
+    docs=dict(extra or {})
+    if pre is not None: docs[CPf()]={'count':pre,'lastReq':'m_previous_000'}
+    if guard is not None: docs['content/guard']=guard
+    req=RQ() if req is None else req
+    nc=cnt if cnt is not None else {'count':1 if pre is None else pre+1,'lastReq':uid}
+    af={RPf(uid):req,CPf():nc}
+    return (A5(sim,'create',RPf(uid),auth,req,None,docs,af),A5(sim,'create' if pre is None else 'update',CPf(),auth,nc,None if pre is None else docs[CPf()],docs,af))
+for nm,sim in (('transition',S),('strict',SS)):
+    ok5=lambda **k: all(TB(sim,**k))
+    chk(f'F5 [{nm}] control: token request and first counter of the day accepted',ok5())
+    chk(f'F5 [{nm}] control: later request 5 -> 6, and 29 -> 30 (default cap) accepted',ok5(pre=5) and ok5(pre=29))
+    chk(f'F5 [{nm}] cap: 30 -> 31 refused (counter), so the whole batch fails',not TB(sim,pre=30)[1] and not ok5(pre=30))
+    chk(f'F5 [{nm}] cap raised to 50 by the owner: 30 -> 31 accepted; lowered to 5: 5 -> 6 refused; guard without cap keeps the default 30',ok5(pre=30,guard={'cap':50}) and not ok5(pre=5,guard={'cap':5}) and not ok5(pre=30,guard={'pause':False}))
+    chk(f'F5 [{nm}] switch off (absent / false / guard without the field): old direct form still accepted',A5(sim,'create','meetingRequests/n1',None,REQ()) and A5(sim,'create','meetingRequests/n1',None,REQ(),None,{'content/guard':{'tokenRequired':False}}) and A5(sim,'create','meetingRequests/n1',None,REQ(),None,{'content/guard':{'pause':False,'cap':30}}))
+    chk(f'F5 [{nm}] switch ON: old direct form refused (no sign-in, Google stranger, token account writing a legacy-shaped request)',not A5(sim,'create','meetingRequests/n1',None,REQ(),None,{'content/guard':{'tokenRequired':True}}) and not A5(sim,'create','meetingRequests/n1',STRANGER,REQ(),None,{'content/guard':{'tokenRequired':True}}) and not A5(sim,'create','meetingRequests/n1',TV,REQ(),None,{'content/guard':{'tokenRequired':True}}))
+    chk(f'F5 [{nm}] switch ON: token path still accepted',ok5(guard={'tokenRequired':True}) and ok5(pre=5,guard={'tokenRequired':True,'cap':30}))
+    chk(f'F5 [{nm}] switch must be exactly true: string "true" or 1 does not close the old path',A5(sim,'create','meetingRequests/n1',None,REQ(),None,{'content/guard':{'tokenRequired':'true'}}) and A5(sim,'create','meetingRequests/n1',None,REQ(),None,{'content/guard':{'tokenRequired':1}}))
+    chk(f'F5 [{nm}] a direct (non-token) request cannot carry the day field',not A5(sim,'create','meetingRequests/n1',None,RQ()) and not A5(sim,'create','meetingRequests/n1',STRANGER,RQ()))
+    chk(f'F5 [{nm}] pause on: token submission refused as well; capacity full and busy slot too',not ok5(guard={'pause':True}) and not ok5(extra={'content/capacity':{'open':False}}) and not ok5(extra={'content/busy':{'keys':['2026-12-01T09:00']}}))
+    chk(f'F5 [{nm}] token request keeps every normal field check (bad e-mail, long name, long message, wrong status, forged time, unknown field, missing company)',not any(TB(sim,req=RQ(**k))[0] for k in ({'email':'x'},{'name':''},{'name':'n'*101},{'message':'m'*2001},{'status':'confirmed'},{'createdAt':TS(NOW-1000)},{'admin':True},{'tz':'<b>'})) and not TB(sim,req={k:v for k,v in RQ().items() if k!='company'})[0])
+    chk(f'F5 [{nm}] no sign-in, Google account, wrong claim value, claim on a non-custom provider: all refused',not any(ok5(auth=a) for a in (None,{'uid':TU,'provider':'google.com','email':'a@b.c'},{'uid':TU,'provider':'custom','claims':{'form':'x'}},{'uid':TU,'provider':'custom'},{'uid':TU,'provider':'anonymous','claims':{'form':'meeting'}})))
+    chk(f'F5 [{nm}] token uid without the m_ shape, too short, or with bad characters is refused',not any(ok5(auth={'uid':u,'provider':'custom','claims':{'form':'meeting'}},uid=u) for u in ('abc','m_short','x_abcDEF1234567890','m_bad id 123456','m_'+'a'*41)))
+    chk(f'F5 [{nm}] request ID different from the token uid refused (one request per token)',not A5(sim,'create',RPf('m_other_12345'),TV,RQ(),None,{},{RPf('m_other_12345'):RQ(),CPf():{'count':1,'lastReq':TU}}))
+    chk(f'F5 [{nm}] request without a counter write in the same batch refused; stale counter stamped by another token refused',not A5(sim,'create',RPf(),TV,RQ(),None,{},{RPf():RQ()}) and not A5(sim,'create',RPf(),TV,RQ(),None,{CPf():{'count':5,'lastReq':'m_previous_000'}},{RPf():RQ(),CPf():{'count':5,'lastReq':'m_previous_000'}}))
+    chk(f'F5 [{nm}] request day field not today (yesterday, wrong format, number) refused',not any(TB(sim,req=RQ(day=d))[0] for d in (PREVD,'2026-12-01',20261201,'')))
+    chk(f'F5 [{nm}] counter: stamp by another token, jump by 2, start at 2, decrement, extra field, no lastReq: all refused',not any(TB(sim,pre=p,cnt=c)[1] for p,c in ((5,{'count':6,'lastReq':'m_other_12345'}),(5,{'count':7,'lastReq':TU}),(None,{'count':2,'lastReq':TU}),(None,{'count':1,'lastReq':'m_other_12345'}),(None,{'count':1,'lastReq':TU,'x':1}),(None,{'count':1}),(5,{'count':4,'lastReq':TU}),(5,{'count':6,'lastReq':TU,'x':1}),(5,{'count':6}))))
+    chk(f'F5 [{nm}] counter: other day key (create and update) refused; counter write without its request refused',not A5(sim,'create',CPf(PREVD),TV,{'count':1,'lastReq':TU},None,{},{RPf():RQ(),CPf(PREVD):{'count':1,'lastReq':TU}}) and not A5(sim,'update',CPf(PREVD),TV,{'count':6,'lastReq':TU},{'count':5,'lastReq':'m_p'},{CPf(PREVD):{'count':5,'lastReq':'m_p'}},{RPf():RQ(),CPf(PREVD):{'count':6,'lastReq':TU}}) and not A5(sim,'create',CPf(),TV,{'count':1,'lastReq':TU},None,{},{CPf():{'count':1,'lastReq':TU}}) and not A5(sim,'update',CPf(),TV,{'count':6,'lastReq':TU},{'count':5,'lastReq':'m_p'},{CPf():{'count':5,'lastReq':'m_p'}},{CPf():{'count':6,'lastReq':TU}}))
+    chk(f'F5 [{nm}] counter cannot be written by the public, a Google stranger or the owner; nobody can delete it',not any(A5(sim,'create',CPf(),a,{'count':1,'lastReq':'x'},None,{},{RPf():RQ(),CPf():{'count':1,'lastReq':'x'}}) for a in (None,STRANGER,OWN)) and not any(A5(sim,'delete',CPf(),a,None,{'count':5},{CPf():{'count':5}}) for a in (None,TV,OWN)))
+    chk(f'F5 [{nm}] counter readable by a visitor token and the owner only',A5(sim,'get',CPf(),TV,None,{'count':1},{CPf():{'count':1}}) and A5(sim,'get',CPf(),OWN,None,{'count':1},{CPf():{'count':1}}) and not A5(sim,'get',CPf(),None,None,{'count':1},{CPf():{'count':1}}) and not A5(sim,'get',CPf(),STRANGER,None,{'count':1},{CPf():{'count':1}}) and not A5(sim,'list','reqCounters',TV))
+    chk(f'F5 [{nm}] a token may read ONLY its own request; no list; no update or delete (single use)',A5(sim,'get',RPf(),TV,None,REQ(),{RPf():REQ()}) and not A5(sim,'get',RPf('m_other_12345'),TV,None,REQ(),{RPf('m_other_12345'):REQ()}) and not A5(sim,'list','meetingRequests',TV) and not A5(sim,'update',RPf(),TV,RQ(message='x'),RQ(),{RPf():RQ()},{RPf():RQ(message='x')}) and not A5(sim,'delete',RPf(),TV,None,RQ(),{RPf():RQ()}))
+    chk(f'F5 [{nm}] a visitor token has no other powers: cannot write content/guard, settings, clients, ownerPrivate, or read other private collections',not any(A5(sim,'create',p,TV,{'a':1}) or A5(sim,'update',p,TV,{'a':1},{'a':0},{p:{'a':0}}) for p in ('content/guard','settings/site','clients/c1','ownerPrivate/x','chatUnanswered/x','visits/x')) and not any(A5(sim,'get',p,TV,None,{'a':0},{p:{'a':0}}) for p in ('clients/c1','ownerPrivate/x','chatUnanswered/x','visits/x')))
+    chk(f'F5 [{nm}] owner can read requests and counters, set tokenRequired/cap in content/guard, but cannot create through the token path',A5(sim,'get',RPf(),OWN,None,REQ(),{RPf():REQ()}) and A5(sim,'update','content/guard',OWN,{'tokenRequired':True,'cap':40},{'pause':False},{'content/guard':{'pause':False}}) and not A5(sim,'create',RPf('OWNERUID'),OWN,RQ(),None,{},{RPf('OWNERUID'):RQ(),CPf():{'count':1,'lastReq':'OWNERUID'}}))
+    chk(f'F5 [{nm}] visitors (token, public, stranger) cannot turn the switch off or change the cap',not any(A5(sim,'update','content/guard',a,{'tokenRequired':False,'cap':9999},{'tokenRequired':True},{'content/guard':{'tokenRequired':True}}) for a in (None,TV,STRANGER)))
 # ---------------- 9. cross-check: strict file equals transition file apart from the owner check
 a=re.sub(r'\s+','',TXT); b=re.sub(r'\s+','',re.sub(r'^//.*\n','',STRICT,flags=re.M))
 chk('strict rules differ from the transition rules only in the owner e-mail fallback',a.replace("&&(request.auth.uid==ownerUid()||request.auth.token.email=='fredespinosa86.app@gmail.com');","&&request.auth.uid==ownerUid();")==b,'')

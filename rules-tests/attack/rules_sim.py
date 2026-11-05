@@ -202,6 +202,7 @@ class Sim:
             a=s.ev(n[1],env); b=s.ev(n[2],env)
             if isinstance(b,list): return any(s.eq(a,x) for x in b)
             if isinstance(b,dict): return isinstance(a,str) and a in b
+            if isinstance(b,KeySet): return isinstance(a,str) and a in b.k
             raise EvalErr('in')
         if t=='is':
             v=s.ev(n[1],env); k=n[2]
@@ -231,6 +232,10 @@ class Sim:
                 p=s.ev(n[2][0],env).p
                 if p not in s.docs: raise EvalErr('get missing')
                 return Doc(s.docs[p])
+            if name=='string':
+                v=s.ev(n[2][0],env)
+                if isinstance(v,bool) or not isinstance(v,(int,float,str)): raise EvalErr('string')
+                return str(v)
             if name in s.funcs:
                 prm,lets,ret=s.funcs[name]; e2=dict(env)
                 for pn,a in zip(prm,n[2]): e2[pn]=s.ev(a,env)
@@ -247,6 +252,8 @@ class Sim:
             unit={'h':3600000,'m':60000,'s':1000,'ms':1,'d':86400000,'w':604800000}
             if a[1] not in unit: raise EvalErr('unit')
             return Dur(a[0]*unit[a[1]])
+        if isinstance(o,TS) and name in ('year','month','day'):
+            import datetime; d=datetime.datetime.fromtimestamp(o.ms/1000,datetime.timezone.utc); return {'year':d.year,'month':d.month,'day':d.day}[name]
         if name=='size':
             if isinstance(o,(str,list,dict)): return len(o)
             raise EvalErr('size')
@@ -275,6 +282,7 @@ class Sim:
         s.post=dict(s.docs); s.post.update(after or {})   # state after the whole batch (existsAfter/getAfter); None = deleted
         a=None
         if auth: a={'uid':auth['uid'],'token':{'email':auth.get('email',''),'email_verified':auth.get('verified',True),'firebase':{'sign_in_provider':auth.get('provider','google.com')}}}
+        if auth and auth.get('claims'): a['token'].update(auth['claims'])
         req={'auth':a,'time':TS(now),'method':op,'resource':{'data':new} if new is not None else None}
         env={'request':req,'resource':{'data':old} if old is not None else None,'database':'(default)','duration':'<duration>'}
         parts=path.split('/')

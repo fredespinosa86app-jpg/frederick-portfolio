@@ -31,6 +31,21 @@ service cloud.firestore {
       let g = /databases/$(database)/documents/content/guard;
       return !exists(g) || get(g).data.get('pause', false) != true;
     }
+    // F5 (4.5.0): form-verification helpers. A visitor token is a Firebase custom token issued by the portfolio-forms Worker after the
+    // visitor passed its challenge. It carries the claim form == 'meeting' and a uid of the shape m_<random>. See internal-docs/f5-setup.md.
+    function visitorTok() {
+      return request.auth != null && request.auth.token.firebase.sign_in_provider == 'custom'
+        && request.auth.token.form == 'meeting' && request.auth.uid.matches('^m_[A-Za-z0-9_-]{8,40}$');
+    }
+    // UTC calendar day as YYYYMMDD, from the server's request time (the visitor's clock is never used).
+    function today() { return string(request.time.year() * 10000 + request.time.month() * 100 + request.time.day()); }
+    function capDoc(day) { return /databases/$(database)/documents/reqCounters/$(day); }
+    function reqDoc(uid) { return /databases/$(database)/documents/meetingRequests/$(uid); }
+    function guardDoc() { return /databases/$(database)/documents/content/guard; }
+    // The daily limit lives in content/guard.cap (already read by intakeOpen(), so it adds no document lookup). Default 30.
+    function underCap(n) { return (!exists(guardDoc()) && n <= 30) || (exists(guardDoc()) && n <= get(guardDoc()).data.get('cap', 30)); }
+    // The switch: while content/guard.tokenRequired is absent or false, the old direct form still works. true closes the old path.
+    function tokenRequired() { return exists(guardDoc()) && get(guardDoc()).data.get('tokenRequired', false) == true; }
     // P0 (4.5.0): Client ID registry helpers. An ID is A-Z, 0-9 and "-", 3 to 24 characters, starts with a letter, no "--", no trailing "-".
     function validClientId(id) { return id.matches('^[A-Z][A-Z0-9-]{1,22}[A-Z0-9]$') && !id.matches('.*--.*'); }
     function regDoc(cid) { return /databases/$(database)/documents/clientRegistry/$(cid); }
@@ -115,7 +130,7 @@ service cloud.firestore {
     }
     match /settings/site { allow read: if true; allow write: if isOwner(); }
     match /meetingRequests/{id} {
-      allow create: if request.resource.data.keys().hasOnly(['name','email','company','date','time','tz','platform','message','status','createdAt','service','formId','formName','answers'])
+      allow create: if request.resource.data.keys().hasOnly(['name','email','company','date','time','tz','platform','message','status','createdAt','service','formId','formName','answers','day'])
         && request.resource.data.keys().hasAll(['name','email','company','date','time','tz','platform','message','status','createdAt'])
         && request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 100
         && request.resource.data.email is string && request.resource.data.email.size() > 4 && request.resource.data.email.size() <= 120
@@ -134,8 +149,29 @@ service cloud.firestore {
         && request.resource.data.createdAt == request.time
         && intakeOpen()
         && capOpen()
-        && slotFree();
+        && slotFree()
+        && (
+          // old direct path: no token, no day field. Closed when the owner sets content/guard.tokenRequired = true.
+          (!tokenRequired() && !('day' in request.resource.data.keys()))
+          // token path: one request per token (the document ID is the token's uid), counted in the same batch under today's counter
+          || (visitorTok() && id == request.auth.uid && request.resource.data.day == today()
+              && getAfter(capDoc(today())).data.lastReq == request.auth.uid)
+        );
+      // a visitor may confirm ONLY their own request (resolves a lost acknowledgement); no list, no update, no delete
+      allow get: if visitorTok() && id == request.auth.uid;
       allow read, update, delete: if isOwner();
+    }
+    // F5: one counter per UTC day. Only a visitor token can bump it, by exactly 1, in the same batch as its own request.
+    match /reqCounters/{day} {
+      allow create: if visitorTok() && day == today() && request.resource.data.keys().hasOnly(['count','lastReq'])
+        && request.resource.data.count == 1 && request.resource.data.lastReq == request.auth.uid
+        && existsAfter(reqDoc(request.auth.uid));
+      allow update: if visitorTok() && day == today() && request.resource.data.keys().hasOnly(['count','lastReq'])
+        && request.resource.data.count == resource.data.count + 1 && underCap(request.resource.data.count)
+        && request.resource.data.lastReq == request.auth.uid && existsAfter(reqDoc(request.auth.uid));
+      allow get: if visitorTok() || isOwner();   // the page reads today's count to show "almost full"; listing is for the owner only
+      allow list: if isOwner();
+      allow delete: if false;
     }
     match /chatUnanswered/{id} {
       allow create: if intakeOpen()

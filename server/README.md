@@ -35,3 +35,6 @@ and pass only `{{ $json.body.message }}` as the user message. Do not give the AI
 
 ## Tests
 `node --test server/worker.test.mjs` (Node 20 or newer, no packages) runs 11 checks of the rules above with a pretend upstream.
+
+## Form-verification Worker (`portfolio-forms-worker.js`, 4.5.0 F5)
+A second, separate Worker (different secrets and limits from the chat proxy). It signs a Firebase custom token after a typed code; it never sees or stores the form text. Secrets: `SA_JSON` (the role-less service-account key), `CH_SECRET`, text `ALLOWED_ORIGINS`. Endpoints: `GET /v1/status`, `POST /v1/challenge`, `POST /v1/verify`. Full setup: `internal-docs/4.5.0-F5-form-verification.md`. Tests: `node --test server/portfolio-forms-worker.test.mjs` (26 checks, throwaway key).

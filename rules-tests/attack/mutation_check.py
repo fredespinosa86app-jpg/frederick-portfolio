@@ -5,13 +5,13 @@ M=[('clients readable by everyone',"match /clients/{id} { allow read, write: if 
  ('ownerPrivate world-writable',"match /ownerPrivate/{doc} { allow read, write: if isOwner(); }","match /ownerPrivate/{doc} { allow read, write: if true; }"),
  ('email format check removed',"        && request.resource.data.email.matches('^[^@\\\\s]+@[^@\\\\s]+\\\\.[^@\\\\s]+$')\n",""),
  ('status forced to new removed',"        && request.resource.data.status == 'new'\n        && request.resource.data.createdAt == request.time\n        && intakeOpen()\n        && capOpen()","        && intakeOpen()\n        && capOpen()"),
- ('field whitelist on requests removed',"allow create: if request.resource.data.keys().hasOnly(['name','email','company','date','time','tz','platform','message','status','createdAt','service','formId','formName','answers'])\n        &&","allow create: if true\n        &&"),
+ ('field whitelist on requests removed',"allow create: if request.resource.data.keys().hasOnly(['name','email','company','date','time','tz','platform','message','status','createdAt','service','formId','formName','answers','day'])\n        &&","allow create: if true\n        &&"),
  ('message size limit removed',"request.resource.data.message.size() <= 2000","request.resource.data.message.size() <= 2000000"),
  ('pause ignored on visits',"match /visits/{id} {\n      allow create: if intakeOpen()\n        &&","match /visits/{id} {\n      allow create: if true\n        &&"),
  ('visit id binding removed',"        && id == request.resource.data.sid + '_' + request.resource.data.type + '_' + request.resource.data.path\n",""),
  ('chat id binding removed',"        && id.matches('^' + request.resource.data.sessionId + '_[a-z0-9]{1,12}$')\n",""),
  ('capacity check removed',"        && capOpen()\n",""),
- ('busy-slot check removed',"        && slotFree();","        && true;"),
+ ('busy-slot check removed',"        && slotFree()\n        && (","        && true\n        && ("),
  ('provider check removed',"        && request.auth.token.firebase.sign_in_provider == 'google.com';","        && true;"),
  ('verified e-mail check removed',"        && request.auth.token.email_verified == true\n",""),
  ('visitors may read visits',"      allow read, delete: if isOwner();\n    }\n    // E3","      allow read, delete: if true;\n    }\n    // E3"),
@@ -68,7 +68,8 @@ from mutations_w2 import W2
 from mutations_w3 import W3
 from mutations_b1 import B1
 from mutations_b2 import B2
-M=M+W1+W2+W3+B1+B2
+from mutations_f5 import F5
+M=M+W1+W2+W3+B1+B2+F5
 def mk(rules_text):
     """a throw-away copy of the project parts the attack suite reads (rules + the page state machine used by the W1 case generator)"""
     d=tempfile.mkdtemp(); open(d+'/firestore.rules','w').write(rules_text); shutil.copy(ROOT+'/firestore.rules.strict',d)
