@@ -260,6 +260,14 @@
 <label>Preferred platform <select name="platform"><option>No preference</option><option>Google Meet</option><option>Zoom</option><option>Microsoft Teams</option><option>WhatsApp call</option><option>Other</option></select></label>
 <label class="full">What would you like to discuss? <textarea name="message" rows="5" maxlength="1900" required></textarea></label>
 <div class="hp" aria-hidden="true"><label>Leave this field empty <input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>
+<fieldset class="full guard" id="mGuard" hidden><legend>Quick check</legend>
+<p id="gHelp">To keep this form free of spam, please type the six digits shown here. The code is valid for 5 minutes.</p>
+<p class="gline">Your code: <strong class="gcode" id="gCode" role="img" aria-label="Your code"></strong></p>
+<label class="glabel" for="gInput">Type the code</label>
+<input id="gInput" class="ginput" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off" aria-describedby="gHelp gMsg">
+<div class="gbtns"><button type="button" class="btn navy" id="gOk">Confirm and send</button><button type="button" class="btn gsec" id="gNew">Get a new code</button><button type="button" class="btn gsec" id="gCancel">Cancel</button></div>
+<p class="gmsg" id="gMsg" role="status" aria-live="polite"></p>
+</fieldset>
 <p class="fine">By sending this request you agree that Frederick may contact you by email about it.</p>
 <button class="btn navy full" type="submit" id="mBtn">Send Meeting Request</button>
 <p id="mStatus" role="status" aria-live="polite"></p>
@@ -899,6 +907,14 @@ function doPost(e) {
 <div class="ab"><button type="button" class="dbtn" id="secCheck">Check now</button><button type="button" class="dbtn" id="secPause">Pause public submissions</button></div>
 <p class="dhelp" id="secGuard" role="status"></p>
 <p class="dhelp">Pausing makes the database refuse new visits, meeting requests and chatbot questions from visitors until you resume. Your own panel keeps working. There is no background monitor on the free plan, so this only watches while the panel is open.</p></div>
+<div class="dcard"><h2>Form verification (Meeting Request form)</h2>
+<p class="dhelp">Visitors type a six-digit code, then a one-time pass lets the form save one request. The database refuses anything beyond your <strong>daily limit</strong>. The code is a speed bump, not a CAPTCHA.</p>
+<p class="dhelp" id="vfToday" role="status">Requests counted today: checking…</p>
+<div class="ab"><label class="fld">Daily limit (1 to 200)<input type="number" id="vfCap" min="1" max="200" step="1" inputmode="numeric"></label><button type="button" class="dbtn" id="vfCapSave">Save daily limit</button></div>
+<p class="dhelp" id="vfCapMsg" role="status"></p>
+<div class="ab"><button type="button" class="dbtn" id="vfSwitch">Turn verification ON</button></div>
+<p class="dhelp" id="vfState" role="status"></p>
+<p class="dhelp"><strong>Leave verification OFF until the switch-over checklist says to turn it on.</strong> While it is off the form works as before. When it is on, the old direct form is refused by the database. Turning it off again is the instant rollback. Counts use the UTC day (it changes at 8:00 AM Philippine time).</p></div>
 </section>
 <section class="dpage" id="dp-general" hidden>
 <div class="dcard"><h2>Loading screen</h2><p class="dhelp">A screen with moving dots covers the page until your saved settings are applied, so visitors never see the default page first. It also appears briefly when a visitor clicks Hire Me. Changes reach a visitor on their <strong>next</strong> visit; a first-time visitor sees the standard values.</p>
@@ -934,7 +950,7 @@ function doPost(e) {
 <form id="chatForm" autocomplete="off"><input id="chatInput" type="text" placeholder="Type your question…" aria-label="Type your question" maxlength="200"><button type="submit">Send</button></form>
 </div>
 <dialog id="lb" aria-label="Enlarged image"><button type="button" id="close" aria-label="Close enlarged view">×</button><img alt="Enlarged view"></dialog>
-<script src="scripts/settings.js?v=b3"></script>
+<script src="scripts/settings.js?v=f6"></script>
 <script src="scripts/contacts.js?v=b3"></script>
 <script src="scripts/content.js?v=b3"></script>
 <script src="scripts/testimonials.js?v=b3"></script>
@@ -954,7 +970,8 @@ function doPost(e) {
 <script src="scripts/availability.js?v=b3"></script>
 <script src="scripts/capacity.js?v=b3"></script>
 <script src="scripts/service-forms.js?v=b3"></script>
-<script src="scripts/meeting-form.js?v=b3"></script>
+<script src="scripts/form-guard.js?v=f6"></script>
+<script src="scripts/meeting-form.js?v=f6"></script>
 <script src="scripts/owner-ui.js?v=b3"></script>
 <script src="scripts/owner-dashboard.js?v=b3"></script>
 <script src="scripts/owner-content.js?v=b3"></script>
@@ -965,7 +982,7 @@ function doPost(e) {
 <script src="scripts/owner-phase5.js?v=b3"></script>
 <script src="scripts/owner-phase6.js?v=b3"></script>
 <script src="scripts/owner-phase7.js?v=b3"></script>
-<script src="scripts/owner-security.js?v=b3"></script>
+<script src="scripts/owner-security.js?v=f6"></script>
 <script src="scripts/backup-core.js?v=b3"></script>
 <script src="scripts/owner-privacy.js?v=b3"></script>
 <script src="scripts/owner-library.js?v=b3"></script>

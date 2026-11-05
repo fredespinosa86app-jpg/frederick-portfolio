@@ -11,7 +11,8 @@
      CH_SECRET            Secret  long random text (40+ characters) that signs challenges and derives the codes.
      ALLOWED_ORIGINS      Text    comma list of page origins, e.g. https://fredespinosa86app-jpg.github.io  (no path, no trailing slash)
      FIREBASE_PROJECT_ID  Text    optional; default is read from the service-account key (project_id). Used only to read content/guard.
-   Endpoints (all need an allowed Origin header):  GET /v1/status   POST /v1/challenge   POST /v1/verify          */
+   Endpoints (all need an allowed Origin header):  GET /v1/status   POST /v1/challenge   POST /v1/verify
+   (F6: status and verify also return `day`, the Worker's UTC date as YYYYMMDD.)          */
 const enc = new TextEncoder();
 const b64u = b => btoa(String.fromCharCode(...new Uint8Array(b))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 const b64uStr = s => b64u(enc.encode(s));
@@ -46,6 +47,9 @@ export async function codeFor(secret, nonce, exp) {
   return String((((h[0] << 24) | (h[1] << 16) | (h[2] << 8) | h[3]) >>> 0) % 1000000).padStart(6, '0');
 }
 const chalSig = async (secret, nonce, exp) => b64u(await hmac(secret, 'chal|' + nonce + '|' + exp));
+// UTC calendar day as YYYYMMDD from the Worker's clock. The page uses it for the request's day field and the counter's document ID,
+// so a visitor whose own clock is wrong cannot break the daily counter (the rules compare it with Firestore's server time).
+export const utcDay = ms => { const d = new Date(ms); return String(d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate()); };
 const randId = n => b64u(crypto.getRandomValues(new Uint8Array(n)));
 function pemToDer(pem) { const s = atob(pem.replace(/-----[^-]+-----/g, '').replace(/\s+/g, '')); return Uint8Array.from(s, c => c.charCodeAt(0)); }
 // The service-account key is parsed and imported once per instance, not on every request.
@@ -102,7 +106,7 @@ export default {
     if (!env.CH_SECRET || String(env.CH_SECRET).length < 32 || !loadSa(env)) return J(500, { error: 'config' }, h);
     if (p === '/v1/status' && req.method === 'GET') {
       const g = await readGuard(env, nowMs);
-      return J(200, { ok: true, open: !g.paused, paused: g.paused, tokenRequired: g.tokenRequired, cap: g.cap }, h);
+      return J(200, { ok: true, open: !g.paused, paused: g.paused, tokenRequired: g.tokenRequired, cap: g.cap, day: utcDay(nowMs) }, h);
     }
     if (p === '/v1/challenge' && req.method === 'POST') {
       if (!hit(ip, 'c', LIMITS.ipChallenges, nowMs)) return J(429, { error: 'slow' }, h);
@@ -129,7 +133,7 @@ export default {
       triesByNonce.set(nonce, LIMITS.maxTries);                         // a solved challenge cannot be solved again on this instance
       const uid = 'm_' + randId(12);                                    // 'm_' + 16 random URL-safe characters; unrelated to the challenge
       let token; try { token = await customToken(loadSa(env), uid, { form: 'meeting' }, nowS); } catch (e) { return J(500, { error: 'sign' }, h); }
-      return J(200, { token, uid, expiresInS: LIMITS.tokenS }, h);
+      return J(200, { token, uid, expiresInS: LIMITS.tokenS, day: utcDay(nowMs) }, h);
     }
     return J(404, { error: 'not found' }, h);
   }

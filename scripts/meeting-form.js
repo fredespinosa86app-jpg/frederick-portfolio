@@ -78,12 +78,36 @@ d.formId=svcForm.id.slice(0,40);d.formName=svcForm.name.slice(0,100);if(r.answer
 if(VTZ)d.message=(d.message+'\n\n[Visitor time zone: '+VTZ+']').slice(0,2000);
 let last=0;try{last=+localStorage.getItem('lastReq')||0}catch(x){}
 if(Date.now()-last<60000){st.className='err';st.textContent='Please wait a minute before sending another request.';return}
-b.disabled=true;st.textContent='Sending…';
-try{if(!window.submitMeeting)throw 0;await Promise.race([window.submitMeeting(d),new Promise((_,j)=>setTimeout(j,15000))]);
-try{localStorage.setItem('lastReq',Date.now())}catch(x){}
-st.textContent='';mf.reset();pick.reset();syncService();mf.hidden=true;document.getElementById('mDone').hidden=false}
-catch(x){st.className='err';st.textContent='Sorry, your request could not be sent. The time may have just been taken, or the connection failed.';const em=window.contactsApi&&window.contactsApi.get('email');if(em){const a=document.createElement('a');a.href=em.href+'?subject=Meeting%20request';a.textContent=em.value;st.append(' Please email ',a,' instead.')}}
+b.disabled=true;
+const FG=window.formGuard,gx=guardUi();let dec={token:false,status:null};
+if(FG){st.textContent='Checking…';try{dec=await FG.decide()}catch(x){dec={token:false,status:null}}}
+const done=()=>{try{localStorage.setItem('lastReq',Date.now())}catch(x){}
+st.textContent='';mf.reset();pick.reset();syncService();mf.hidden=true;document.getElementById('mDone').hidden=false};
+const failed=(msg,fb)=>{st.className='err';st.textContent=msg;if(fb)addFallback(st,d)};
+if(dec.token){
+/* Project F: verified path (switch on, or ?verify=1). The old direct path below is used otherwise. */
+if(dec.error){failed(FG.MSG[dec.error]||FG.MSG.failed,true)}
+else{st.textContent='';const r=await FG.submit(d,gx.hooks,dec.status);gx.hide();
+if(r.ok)done();else if(r.code==='cancelled'){st.textContent=''}else failed(r.message,true)}}
+else{st.textContent='Sending…';
+try{if(!window.submitMeeting)throw 0;await Promise.race([window.submitMeeting(d),new Promise((_,j)=>setTimeout(j,15000))]);done()}
+catch(x){failed('Sorry, your request could not be sent. The time may have just been taken, or the connection failed.',true)}}
 b.disabled=false});
+/* "Email me instead": a draft with what the visitor typed, so nobody is silently dropped */
+function addFallback(st,d){const em=window.contactsApi&&window.contactsApi.get('email');if(!em)return;const a=document.createElement('a');a.href=window.formGuard?window.formGuard.mailtoFor(em.value,d):em.href+'?subject=Meeting%20request';a.textContent='Email me instead';a.className='gfb';st.append(' ',a)}
+/* The challenge step of the verified path: a labelled box with the code, a typed field, three buttons, announced by screen readers */
+function guardUi(){const box=document.getElementById('mGuard');if(!box)return{hooks:{askCode:async()=>null},hide(){}};
+const code=document.getElementById('gCode'),inp=document.getElementById('gInput'),ok=document.getElementById('gOk'),nw=document.getElementById('gNew'),no=document.getElementById('gCancel'),msg=document.getElementById('gMsg');
+const M=window.formGuard.MSG;
+return{hide(){box.hidden=true;msg.textContent='';inp.value=''},hooks:{askCode(o){return new Promise(res=>{
+box.hidden=false;code.textContent=o.code;code.setAttribute('aria-label','Your code: '+o.code.split('').join(' '));
+msg.textContent=o.error==='wrong'?M.wrong+' '+o.left+(o.left===1?' try left.':' tries left.'):o.error==='expired'?M.expired:o.fresh?'Here is a new code.':'';
+inp.value='';let over=false;const t=setTimeout(()=>fin({expired:true}),Math.max(10,(o.expiresInS||300)-5)*1000);
+function fin(v){if(over)return;over=true;clearTimeout(t);ok.onclick=nw.onclick=no.onclick=inp.onkeydown=null;if(v!==null&&!(v&&v.expired)&&!(v&&v.renew))msg.textContent='Checking…';res(v)}
+ok.onclick=()=>{const v=inp.value.trim();if(!/^\d{6}$/.test(v)){msg.textContent='Type the six digits shown above.';inp.focus();return}fin(v)};
+nw.onclick=()=>fin({renew:true});no.onclick=()=>fin(null);
+inp.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();ok.onclick()}else if(e.key==='Escape'){e.preventDefault();no.onclick()}};
+if(o.fresh||o.error)setTimeout(()=>inp.focus(),0);else{box.scrollIntoView({block:'center'});inp.focus()}})}}}}
 function route(){if(location.hash==='#schedule'&&window.capacityApi&&!window.capacityApi.open())history.replaceState(null,'',location.pathname+location.search+'#home');const s=location.hash==='#schedule';document.getElementById('page').hidden=s;document.getElementById('schedule').hidden=!s;
 if(s){mf.hidden=false;document.getElementById('mDone').hidden=true;window.scrollTo(0,0);document.title='Schedule a Meeting · Frederick Espinosa'}
 else{document.title=ORIG;if(location.hash.length>1){const t=document.getElementById(location.hash.slice(1));if(t)t.scrollIntoView()}}}

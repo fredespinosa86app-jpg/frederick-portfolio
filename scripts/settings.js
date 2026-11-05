@@ -26,6 +26,9 @@ window.portfolioSettings = {
 
   ownerEmail: "fredespinosa86.app@gmail.com",
 
+  /* Project F: public address of the form-verification Worker (not a secret). Used by the Meeting Request form. */
+  formsApi: "https://portfolio-forms.fredespinosa86-app.workers.dev",
+
   /* Firebase web config (public identifiers, safe to publish).
      Security comes from Google sign-in + the Firestore rules in README.md. */
   /* Security S2: public reCAPTCHA SITE key for Firebase App Check (never the secret key). Leave empty until registered.

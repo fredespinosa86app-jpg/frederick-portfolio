@@ -85,16 +85,44 @@
     $('secFloodMsg').textContent = failed ? 'Could not read the counts right now. Try again in a moment.' : (flood ? 'WARNING: one count is far above normal. If you did not expect this, press Pause public submissions.' : 'Looks normal. About ' + total + ' of the 20,000 daily writes are visible here (other writes are not counted).');
     if (flood) notify('Unusually many public submissions in the last hour. See Security > Abuse protection.', 'error');
   }
-  $('secCheck').addEventListener('click', () => { checkFlood(); loadGuard(); });
+  $('secCheck').addEventListener('click', () => { checkFlood(); loadGuard(); loadVf(); });
   $('secPause').addEventListener('click', async () => {
     const o = own(), want = !paused;
     try { await o.fs.setDoc(o.fs.doc(o.db, 'content', 'guard'), { pause: want, at: Date.now() }, { merge: true }); paused = want; drawGuard(); notify(want ? 'Public submissions paused.' : 'Public submissions resumed.', 'success'); }
     catch (e) { notify('Could not change the pause setting.', 'error'); }
   });
+  /* ---- form verification (Project F / F6): daily limit, switch, today's count ---- */
+  let vf = { cap: 30, on: false }, vfBusy = false;
+  const utcDay = () => { const d = new Date(); return String(d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate()); };
+  function drawVf() {
+    $('vfCap').value = String(vf.cap);
+    $('vfState').textContent = vf.on ? 'Verification is ON: visitors must pass the code check. The old direct form is refused.' : 'Verification is OFF: the form works as before.';
+    $('vfSwitch').textContent = vf.on ? 'Turn verification OFF (rollback)' : 'Turn verification ON';
+  }
+  async function loadVf() {
+    const o = own(); if (!o) return;
+    try { const s = await o.fs.getDoc(o.fs.doc(o.db, 'content', 'guard')); const d = s.exists() ? s.data() : {}; vf = { cap: Number.isInteger(d.cap) && d.cap >= 1 ? d.cap : 30, on: d.tokenRequired === true }; drawVf(); } catch (e) { $('vfState').textContent = 'Could not read the current setting. Try again in a moment.'; }
+    try { const c = await o.fs.getDoc(o.fs.doc(o.db, 'reqCounters', utcDay())); const n = c.exists() ? Number(c.data().count) || 0 : 0; $('vfToday').textContent = 'Requests counted today (UTC day ' + utcDay() + '): ' + n + ' of ' + vf.cap + (n >= vf.cap ? '. The limit is reached: visitors see "try again tomorrow" until the UTC day changes.' : '.'); }
+    catch (e) { $('vfToday').textContent = 'Could not read today\u2019s count.'; }
+  }
+  $('vfCapSave').addEventListener('click', async () => {
+    const n = Number($('vfCap').value); const msg = $('vfCapMsg');
+    if (!Number.isInteger(n) || n < 1 || n > 200) { msg.textContent = 'Enter a whole number from 1 to 200.'; return; }
+    try { await own().fs.setDoc(own().fs.doc(own().db, 'content', 'guard'), { cap: n, at: Date.now() }, { merge: true }); vf.cap = n; drawVf(); msg.textContent = 'Daily limit saved: ' + n + '.'; notify('Daily limit saved.', 'success'); loadVf(); }
+    catch (e) { msg.textContent = 'Could not save. Check that you are signed in as the owner.'; notify('Could not save the daily limit.', 'error'); }
+  });
+  $('vfSwitch').addEventListener('click', async () => {
+    if (vfBusy) return; const want = !vf.on;
+    const ask = want ? 'Turn verification ON?\n\nThe old direct form will be refused by the database. Only turn this on after you tested the form with ?verify=1 and the switch-over checklist says so.' : 'Turn verification OFF?\n\nThe old direct form works again.';
+    if (!window.confirm(ask)) return;
+    vfBusy = true;
+    try { await own().fs.setDoc(own().fs.doc(own().db, 'content', 'guard'), { tokenRequired: want, at: Date.now() }, { merge: true }); vf.on = want; drawVf(); notify(want ? 'Verification is ON.' : 'Verification is OFF.', 'success'); }
+    catch (e) { notify('Could not change the switch.', 'error'); } finally { vfBusy = false; }
+  });
   let floodTimer = 0;
   document.addEventListener('dash:page', e => {
     const on = e.detail && (e.detail.page === 'security' || e.detail === 'security');
-    clearInterval(floodTimer); if (on) { checkFlood(); loadGuard(); floodTimer = setInterval(checkFlood, 300000); }
+    clearInterval(floodTimer); if (on) { checkFlood(); loadGuard(); loadVf(); floodTimer = setInterval(checkFlood, 300000); }
   });
   wire();
 

@@ -1,7 +1,7 @@
 // Run:  node --test server/portfolio-forms-worker.test.mjs      (Node 20+; no packages needed)
 // Uses a throwaway in-memory RSA key (a fake service account, never a real credential).
 import test, { beforeEach } from 'node:test'; import assert from 'node:assert/strict'; import { generateKeyPairSync, createVerify } from 'node:crypto';
-import worker, { safeEq, LIMITS, _reset } from './portfolio-forms-worker.js';
+import worker, { safeEq, LIMITS, _reset, utcDay } from './portfolio-forms-worker.js';
 const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
 const SA = { client_email: 'portfolio-form-signer@demo-proj.iam.gserviceaccount.com', project_id: 'demo-proj', private_key: privateKey.export({ type: 'pkcs8', format: 'pem' }) };
 const env = { SA_JSON: JSON.stringify(SA), CH_SECRET: 'test-secret-'.repeat(5), ALLOWED_ORIGINS: 'https://me.github.io,https://www.example.com' };
@@ -55,9 +55,9 @@ test('per-visitor limit: many wrong codes from one address end in 429 even acros
   assert.equal(last, 429); });
 test('window resets after ten minutes', async () => { const real = Date.now; try { for (let i = 0; i < LIMITS.ipChallenges; i++) await call('/v1/challenge', 'POST', undefined, { ip: '3.3.3.9' }); assert.equal((await call('/v1/challenge', 'POST', undefined, { ip: '3.3.3.9' })).status, 429);
   Date.now = () => real() + LIMITS.ipWindowMs + 1000; assert.equal((await call('/v1/challenge', 'POST', undefined, { ip: '3.3.3.9' })).status, 200); } finally { Date.now = real; } });
-test('status: no guard document means open, switch off, cap 30', async () => { const j = await (await call('/v1/status', 'GET')).json(); assert.deepEqual(j, { ok: true, open: true, paused: false, tokenRequired: false, cap: 30 }); });
+test('status: no guard document means open, switch off, cap 30', async () => { const j = await (await call('/v1/status', 'GET')).json(); assert.deepEqual({ ...j, day: undefined }, { ok: true, open: true, paused: false, tokenRequired: false, cap: 30, day: undefined }); assert.match(j.day, /^\d{8}$/); });
 test('status reads pause, tokenRequired and cap from content/guard', async () => { guardStatus = 200; guardFields = { pause: { booleanValue: true }, tokenRequired: { booleanValue: true }, cap: { integerValue: '45' } };
-  assert.deepEqual(await (await call('/v1/status', 'GET')).json(), { ok: true, open: false, paused: true, tokenRequired: true, cap: 45 }); });
+  const j = await (await call('/v1/status', 'GET')).json(); assert.deepEqual({ ...j, day: undefined }, { ok: true, open: false, paused: true, tokenRequired: true, cap: 45, day: undefined }); });
 test('pause: challenge and verify answer 503 and no token is issued', async () => { const c = await chal(); guardStatus = 200; guardFields = { pause: { booleanValue: true } }; _guardReset();
   assert.equal((await call('/v1/challenge', 'POST')).status, 503); assert.equal((await call('/v1/verify', 'POST', { challenge: c.challenge, code: c.code })).status, 503); });
 function _guardReset() { _reset(); }
@@ -72,3 +72,7 @@ test('no secret is echoed in any response body', async () => { const c = await c
   for (const s of [env.CH_SECRET, SA.private_key.slice(40, 80)]) assert.ok(!txt.includes(s)); });
 test('safeEq behaves', () => { assert.ok(safeEq('abc', 'abc')); assert.ok(!safeEq('abc', 'abd')); assert.ok(!safeEq('abc', 'abcd')); assert.ok(!safeEq('', 'a')); });
 test('the key file text of this Worker contains no private key or token', async () => { const fs = await import('node:fs'); const t = fs.readFileSync(new URL('./portfolio-forms-worker.js', import.meta.url), 'utf8'); assert.ok(!/BEGIN (RSA )?PRIVATE KEY/.test(t)); assert.ok(!/"private_key"\s*:/.test(t)); });
+test('F6: day is the Worker UTC date (status and verify), and utcDay handles month and year ends', async () => {
+  const s = await (await call('/v1/status', 'GET')).json(); assert.equal(s.day, utcDay(Date.now()));
+  const c = await chal(); const v = await (await call('/v1/verify', 'POST', { challenge: c.challenge, code: c.code })).json(); assert.equal(v.day, utcDay(Date.now()));
+  assert.equal(utcDay(Date.UTC(2026, 11, 31, 23, 59, 59)), '20261231'); assert.equal(utcDay(Date.UTC(2027, 0, 1, 0, 0, 0)), '20270101'); assert.equal(utcDay(Date.UTC(2026, 1, 28, 12)), '20260228'); assert.equal(utcDay(Date.UTC(2026, 8, 5)), '20260905'); });

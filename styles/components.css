@@ -322,3 +322,19 @@ dialog.vplayer{width:min(960px,96vw);background:#0b1020;border-radius:16px;overf
 .hdr-login svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
 #ownerLogin{display:none}
 @media(max-width:1100px){.hdr-login{order:2;padding:0;width:44px}.hdr-login .hl-t{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}.dm-toggle{margin-left:0!important}.hdr-login{margin-left:auto}}
+
+/* Project F (F6): quick check box. 44px targets, visible focus, no colour-only meaning. */
+.mform .guard{border:2px solid var(--line);border-radius:14px;padding:16px 18px;display:grid;gap:10px}
+.mform .guard[hidden]{display:none}
+.mform .guard legend{font-weight:700;color:var(--navy);padding:0 8px}
+.mform .guard p{margin:0}
+.gline{font-size:16px}
+.gcode{display:inline-block;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:28px;letter-spacing:.35em;padding:6px 14px;border:1px dashed var(--navy);border-radius:10px;background:var(--field,#fff);user-select:all}
+.mform .ginput{max-width:12rem;font-size:22px;letter-spacing:.3em;text-align:center;min-height:44px}
+.gbtns{display:flex;flex-wrap:wrap;gap:10px}
+.gbtns .btn{min-height:44px}
+.gmsg{min-height:1.4em;font-weight:600}
+#mStatus .gfb{display:inline-block;margin-left:6px;padding:10px 14px;min-height:44px;line-height:24px;border:2px solid var(--navy);border-radius:10px;font-weight:700;text-decoration:none}
+.mform .guard :focus-visible,#mStatus .gfb:focus-visible{outline:3px solid #1a5fd0;outline-offset:2px}
+.gbtns .btn.gsec{background:transparent;color:var(--navy);border:2px solid var(--navy)}
+.gbtns .btn.gsec:hover{background:rgba(20,33,61,.08)}
