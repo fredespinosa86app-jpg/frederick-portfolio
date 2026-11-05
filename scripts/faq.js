@@ -1,7 +1,7 @@
 /* ==========================================================================
    faq.js - public FAQ section, rendered from data (Firestore content/faq, owner dashboard "FAQ").
    Defaults are the original ten questions. Each item can belong to a training category
-   (shown in that category's panel) and can be offered to the Marcus chatbot (owner opt-in only).
+   (shown in that category's panel) and can be offered to the chatbot (owner opt-in only).
    ========================================================================== */
 (function () {
   'use strict';

@@ -54,4 +54,6 @@ No open defects.
 - Phases M1-M3: skipped by owner decision 2026-11-05 (leads stay in Firestore; Sheet remains a synced copy). See internal-docs/open-items.md.
 
 - **Safari (owner decision, 2026-11-06):** the verified path is not tested in Safari because no tester is available. Go-live proceeds without it; the "Email me instead" button is the safety net. Revisit when a tester is found.
-- **F7 (switch-over):** AWAITING your run of `F7-CHECKLIST.md` (switch ON, rollback drill). The switch is OFF until you do it.
+- **F7 (switch-over): DONE 2026-11-06.** Checklist B and C passed: switch OFF = old path, no code box; switch ON = Quick check box, request arrives. Rollback drill passed. Verification is ON in production. Not proven: Safari; cap under real concurrency.
+
+- **C1 (chat webhook audit, 2026-11-06):** chatbot webhook field is empty and the chatbot is scripted only, so nothing is exposed. Chatbot renamed from Marcus (default name "Chatbot"); a name already saved in Owner Panel > Chatbot appearance & filter is kept. AWAITING your live check of the renamed texts.

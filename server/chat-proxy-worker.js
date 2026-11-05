@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Marcus chat proxy - Cloudflare Worker (free plan is enough)          Security Phase 4 (v2)
+   Chatbot chat proxy - Cloudflare Worker (free plan is enough)          Security Phase 4 (v2)
    Why: the portfolio runs in the visitor's browser, so any webhook address placed in it can be
    read and called by anyone. This Worker keeps the real n8n / Make webhook URL (and any secret
    header) in encrypted Worker secrets, checks every request, rate-limits it, cleans the visitor's

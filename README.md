@@ -24,11 +24,11 @@ Load order matters: `settings.js` first, `owner-panel.js` (type="module") last.
   owner's saved theme; turning it off returns to the owner's theme.
 - The owner picks the site theme (Gold & Silver, Nature, Outer Space, plus Classic, Dark, Vegapunk, Girly, Ocean) in
   **Owner login > Dashboard > Theme & effects**. Changes preview instantly and are published with Save.
-- Dashboard pages: Overview, Inbox (meeting requests), Chatbot question history, Marcus configuration, Testimonials,
+- Dashboard pages: Overview, Inbox (meeting requests), Chatbot question history, Chatbot configuration, Testimonials,
   Intro video, Theme & effects, Hero, Social media & contact, General settings.
 - Contact/social icons come from `scripts/settings.js` (defaults) or Dashboard > Social media & contact. Only valid, enabled links are shown.
-- Marcus records a visitor question only when it shows its fallback answer (one record per distinct question per visit).
-  Review them in Dashboard > Chatbot question history; nothing is added to Marcus automatically.
+- The chatbot records a visitor question only when it shows its fallback answer (one record per distinct question per visit).
+  Review them in Dashboard > Chatbot question history; nothing is added to the chatbot automatically.
 
 ## Services and Toolkit content
 - The original services and toolkit are the defaults in `scripts/content.js`.
@@ -997,7 +997,7 @@ No Firestore rule change is needed (new documents live under `content/{doc}`: pu
 - **Timestamps**: `November 2, 2026 – 8:30 PM`, in the visitor's own time zone (hover shows the zone).
 - **Language filter**: runs before anything is forwarded. Profanity (English and common Filipino words, configurable lists in the owner page) gets a polite warning the first time; a second profane message in the same browser-tab session hides the chatbot until the tab is closed (counter kept in `sessionStorage`). Threats and sexual requests are refused politely, are not counted as profanity and never reach the webhook. Ordinary criticism is never flagged. Limit: spaced-out letters ("f u c k") are not detected.
 - **Idle message**: after 5 minutes without interaction while the chat is open, once per idle period; not sent after the chat is closed or while a reply is running.
-- **Webhook security review**: see Owner Panel > Marcus configuration, and `server/` for a ready proxy. Finding: the webhook address is stored in `settings/site`, which visitors can read, and is called from the browser, so it is publicly visible. On the free Spark plan nothing inside Firebase can hide it, so the fix is the free Cloudflare Worker in `server/` (keeps the real URL and secret, checks origin, size, format and rate). **Replace the old webhook URL in n8n/Make** once the proxy is in use.
+- **Webhook security review**: see Owner Panel > Chatbot configuration, and `server/` for a ready proxy. Finding: the webhook address is stored in `settings/site`, which visitors can read, and is called from the browser, so it is publicly visible. On the free Spark plan nothing inside Firebase can hide it, so the fix is the free Cloudflare Worker in `server/` (keeps the real URL and secret, checks origin, size, format and rate). **Replace the old webhook URL in n8n/Make** once the proxy is in use.
 
 ## Phase 6 (themes and service-specific forms)
 **Publish the updated rules again.** The `meetingRequests` create rule now also accepts the optional `service`, `formId`, `formName` and `answers` fields (size-limited). Until then, a meeting request sent with the service-forms switch ON is rejected by Firestore, so publish the rules before enabling the switch.
@@ -1025,7 +1025,7 @@ No Firestore rule change is needed (new documents live under `content/{doc}`: pu
 2. **Authorised domains** (Firebase Console > Authentication > Settings): add `fredespinosa86app-jpg.github.io` and your custom domain, if any.
 3. **Restrict the Firebase web API key** (Google Cloud Console > APIs & Services > Credentials): limit it to HTTP referrers `https://fredespinosa86app-jpg.github.io/*` (and your custom domain). The key in `scripts/settings.js` is public by design, but restricting it stops reuse elsewhere.
 4. **Sign in once** as the owner, then open *Availability, rates & capacity* so the public capacity flag is created.
-5. **Marcus webhook** (optional): deploy `server/chat-proxy-worker.js` on Cloudflare (free) and paste the Worker address instead of the n8n/Make address. Replace any webhook URL that was saved before Phase 5.
+5. **Chatbot webhook** (optional): deploy `server/chat-proxy-worker.js` on Cloudflare (free) and paste the Worker address instead of the n8n/Make address. Replace any webhook URL that was saved before Phase 5.
 6. **GitHub Pages**: push the folder contents to the repository root (the branch Pages serves). Browsers pick up new files because every script/style link has a version tag (`?v=p8`); change it when you edit a file.
 
 ### What was reviewed in Phase 8
@@ -1101,7 +1101,7 @@ Google has retired classic reCAPTCHA for new keys, so use **Fraud Defense** (for
 **What changed**
 - **Content Security Policy (CSP)** in `index.html` (a `<meta http-equiv="Content-Security-Policy">` line near the top). Only this site, Google sign-in/App Check, YouTube/Loom videos and Firebase may load scripts or frames. Injected scripts, inline event handlers, plug-ins (`object`), a changed `<base>` and forms that post to other sites are refused. The one inline script (dark-mode switch) is allowed by its fingerprint (hash). If you ever edit that script, its hash must be recomputed (the test in S3 shows the expected value).
 - **Anti-clickjacking:** `scripts/frame-guard.js` makes the page hide itself or break out if another website puts it in a frame. GitHub Pages cannot send the usual `X-Frame-Options` / `frame-ancestors` headers, so this is the best available protection on this host.
-- **Chatbot answers:** owner-typed values (rates, currency, availability text) placed inside Marcus' built-in answers are now escaped. AI/knowledge-base answers were already shown as plain text.
+- **Chatbot answers:** owner-typed values (rates, currency, availability text) placed inside the chatbot's built-in answers are now escaped. AI/knowledge-base answers were already shown as plain text.
 - **Fonts hosted on this site** (`assets/fonts`, `styles/fonts.css`): visitors' browsers no longer contact Google Fonts, so no visitor IP address is shared with Google for fonts, and the CSP can stay tighter. (Fraunces uses its standard optical size instead of the variable one; the difference is barely visible.)
 - Referrer policy set to `strict-origin-when-cross-origin`.
 
@@ -1333,3 +1333,8 @@ No Firestore rules change in E4 (`ownerPrivate` is already owner only). Rules te
 - No code, rules or Worker changes. Follow `F7-CHECKLIST.md`: backup, switch ON, rollback drill, then leave ON.
 - Monitoring, rollback and the Safari owner decision are in `internal-docs/4.5.0-F7-switch-over.md`.
 - Rollback at any time: Security page > Form verification > switch OFF.
+
+## 4.5.0 - Phase C1: chat webhook audit and chatbot naming
+
+- **Audit:** the chatbot webhook field is empty and the chatbot uses scripted answers only, so no webhook address is exposed. No Worker deployment or rotation was needed. `server/chat-proxy-worker.js` stays ready for when an AI workflow is added: paste the Worker address, never the real webhook.
+- **Naming:** the chatbot is no longer called Marcus. Default name is now "Chatbot" (Owner Panel > Chatbot appearance & filter > Assistant name). A name already saved there is kept. Drawer entry renamed "Chatbot configuration". Internal page id `marcus` unchanged on purpose.

@@ -176,7 +176,7 @@
       { key: 'q', label: 'Question', required: true, max: 200 },
       { key: 'a', label: 'Answer', type: 'textarea', required: true, max: 1500, help: 'Up to 1,500 characters. A blank line starts a new paragraph.' },
       { key: 'category', label: 'Training category', type: 'select', options: trainingOptions(), help: 'Choose a category to also show this question inside it. It always stays in the main FAQ section.' },
-      { key: 'kb', label: 'Chatbot knowledge', type: 'select', options: [{ value: 'no', label: 'Do not add to the chatbot' }, { value: 'yes', label: 'Add to the Marcus chatbot knowledge' }], help: 'Marcus only uses this question when you choose “Add”.' }];
+      { key: 'kb', label: 'Chatbot knowledge', type: 'select', options: [{ value: 'no', label: 'Do not add to the chatbot' }, { value: 'yes', label: 'Add to the chatbot knowledge' }], help: 'The chatbot only uses this question when you choose “Add”.' }];
     const toRec = r => ({ q: r.q, a: r.a, category: r.category || '', kb: r.kb === 'yes' });
     function renderFaq() {
       const L = fq.draft;

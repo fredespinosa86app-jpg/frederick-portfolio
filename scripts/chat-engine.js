@@ -1,5 +1,5 @@
 /* ==========================================================================
-   chat-engine.js - pure helpers for the Marcus chatbot (Phase 5):
+   chat-engine.js - pure helpers for the chatbot (Phase 5):
    question matching (alternative phrasings), moderation, timestamps, reply delay,
    and the shared chatbot settings (name, picture, filter lists, knowledge base).
    ========================================================================== */
@@ -101,7 +101,7 @@
 
   /* ---------------- shared settings ---------------- */
   const listeners = [];
-  const DEF_ID = { name: 'Marcus', avatar: '', mod: { extra: [], allow: [] } };
+  const DEF_ID = { name: 'Chatbot', avatar: '', mod: { extra: [], allow: [] } };
   let ident = Object.assign({}, DEF_ID), kb = null;
   const cleanId = d => {
     d = d && typeof d === 'object' ? d : {};

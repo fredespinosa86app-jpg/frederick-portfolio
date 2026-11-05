@@ -10,7 +10,7 @@
   const dash = $('dash'), openBtn = $('dashOpen');
   if (!dash || !openBtn) return;
 
-  const TITLES = { security: 'Security', privacy: 'Privacy & backup', seo: 'SEO & social preview', svcforms: 'Service forms', chatid: 'Chatbot appearance & filter', chatkb: 'Chatbot knowledge base', visitors: 'Visitors', integrations: 'Integrations', domain: 'Custom domain', experience: 'Experience', booking: 'Availability, rates & capacity', clients: 'Clients & invoices', clientids: 'Client IDs', billing: 'Billing profiles', billhours: 'Billable hours', due: 'Billing due', invoices: 'Invoices', worktrack: 'WorkTrack', training: 'Training categories', videos: 'How I Work videos', faq: 'FAQ', secbg: 'Section backgrounds', dashboard: 'Dashboard', inbox: 'Inbox: meeting requests', questions: 'Chatbot question history', marcus: 'Marcus configuration',
+  const TITLES = { security: 'Security', privacy: 'Privacy & backup', seo: 'SEO & social preview', svcforms: 'Service forms', chatid: 'Chatbot appearance & filter', chatkb: 'Chatbot knowledge base', visitors: 'Visitors', integrations: 'Integrations', domain: 'Custom domain', experience: 'Experience', booking: 'Availability, rates & capacity', clients: 'Clients & invoices', clientids: 'Client IDs', billing: 'Billing profiles', billhours: 'Billable hours', due: 'Billing due', invoices: 'Invoices', worktrack: 'WorkTrack', training: 'Training categories', videos: 'How I Work videos', faq: 'FAQ', secbg: 'Section backgrounds', dashboard: 'Dashboard', inbox: 'Inbox: meeting requests', questions: 'Chatbot question history', marcus: 'Chatbot configuration',
     services: 'Services', toolkit: 'Toolkit', testimonials: 'Testimonials', video: 'Intro video', library: 'Image library', theme: 'Theme & effects', hero: 'Hero', social: 'Social media & contact', general: 'General settings' };
   const REQ_STATUS = { new: 'New', pending: 'Pending', confirmed: 'Confirmed', completed: 'Completed', cancelled: 'Cancelled' };
   const Q_STATUS = { new: 'New', reviewed: 'Reviewed', addressed: 'Addressed', archived: 'Archived' };
@@ -252,7 +252,7 @@
   }
 
   function renderQuestions() {
-    const root = $('qList'), st = stateFor('q', S.q.length, 'No unanswered questions recorded. Marcus is currently handling the available questions.');
+    const root = $('qList'), st = stateFor('q', S.q.length, 'No unanswered questions recorded. The chatbot is currently handling the available questions.');
     if (st) return root.replaceChildren(st);
     const rows = filterList(S.q, F.q, q => [q.question, q.context], normQ);
     if (!rows.length) return root.replaceChildren(el('p', { class: 'dstate' }, 'No questions match your filters.'));

@@ -1,4 +1,4 @@
-# Marcus chat proxy (Cloudflare Worker) - version 2 (Security Phase 4)
+# Chatbot chat proxy (Cloudflare Worker) - version 2 (Security Phase 4)
 
 Browsers can read anything a website sends them, so a webhook URL stored in the portfolio or in a
 public Firestore document can be copied and abused (spam, cost, data scraping). This Worker hides it,
@@ -12,7 +12,7 @@ and from v2 it also protects the AI workflow behind it from prompt injection.
    - `UPSTREAM_AUTH_HEADER` + `UPSTREAM_AUTH_VALUE` (Secret) = a header your workflow checks, e.g. `X-Webhook-Token` and a long random value. In n8n/Make add a check that rejects requests without it.
    - `ALLOWED_ORIGINS` (Text) = `https://fredespinosa86app-jpg.github.io` (add your custom domain too, comma separated)
    - Optional (Text): `MAX_PER_MINUTE` 8, `MAX_PER_SESSION` 20 (per hour), `MAX_PER_DAY` 150 (per visitor address), `MAX_TOTAL_PER_DAY` 1500 (spend guard), `INJECTION_MODE` = `block` (default) or `flag`, `ALLOWED_LINK_HOSTS` (default: your allowed origins).
-4. In Owner Panel > Marcus configuration paste the Worker address (`https://marcus-chat.<you>.workers.dev`) instead of the n8n/Make address and save.
+4. In Owner Panel > Chatbot configuration paste the Worker address (`https://chatbot-chat.<you>.workers.dev`) instead of the n8n/Make address and save.
 5. Hard rate limit (recommended): Cloudflare dashboard > your domain/Worker > Security > WAF > Rate limiting rules (the free plan allows one simple rule). Match the Worker host, count per IP, for example 10 requests per 10 seconds, action Block. The limits inside the Worker are per Worker instance and best effort.
 6. Rotate (replace) the old n8n/Make webhook URL, because it was publicly readable until now.
 7. Add the guard to your AI step (below).

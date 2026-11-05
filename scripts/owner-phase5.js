@@ -19,7 +19,7 @@
   function fill() { draft = clone(E.identity()); $('ciName').value = draft.name; $('ciExtra').value = lines(draft.mod.extra); $('ciAllow').value = lines(draft.mod.allow); setDirty(false); preview(); }
   function setDirty(v) { dirty = v; $('ciSave').disabled = !v; $('ciDiscard').disabled = !v; $('ciState').textContent = v ? 'Unsaved changes (only the preview above is changed).' : 'Everything is saved.'; }
   function preview() {
-    const n = ($('ciName').value.trim() || 'Marcus').slice(0, 30);
+    const n = ($('ciName').value.trim() || 'Chatbot').slice(0, 30);
     $('cpName').textContent = n + ' - Assistant'; $('cpAv').hidden = !draft.avatar; if (draft.avatar) $('cpAv').src = draft.avatar;
     const b = $('cpBtn'); b.replaceChildren(draft.avatar ? el('img', { src: draft.avatar, alt: '' }) : el('span', {}, '💬'));
     $('cpMsg').textContent = 'Hi! I’m ' + n + ', the automated assistant for Frederick’s portfolio. Ask me about his services, tools, training or how to hire him.';

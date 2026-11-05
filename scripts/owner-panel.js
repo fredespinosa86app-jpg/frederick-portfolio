@@ -54,7 +54,7 @@ const rdb=getFirestore(app);
 const hash=s=>{let x=5381;for(const c of s)x=((x<<5)+x+c.charCodeAt(0))>>>0;return x.toString(36)};
 /* Visitors: meeting request form (validated again by the Firestore rules) */
 window.submitMeeting=d=>addDoc(collection(rdb,'meetingRequests'),{...d,status:'new',createdAt:serverTimestamp()});
-/* Visitors: questions Marcus could not answer. The document id is session+question, so a repeated question
+/* Visitors: questions the chatbot could not answer. The document id is session+question, so a repeated question
    is a second create on the same id, which the rules reject (no duplicate records). */
 window.recordUnanswered=r=>{const q=String(r.question||'').trim().slice(0,300);if(!q)return Promise.resolve();const sid=String(r.sessionId||'anon').slice(0,40);
 return setDoc(doc(rdb,'chatUnanswered',sid+'_'+hash(q.toLowerCase())),{question:q,response:String(r.response||'').slice(0,600),sessionId:sid,context:String(r.context||'').slice(0,300),status:'new',createdAt:serverTimestamp()}).catch(()=>{})};
