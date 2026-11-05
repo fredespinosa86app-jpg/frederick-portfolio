@@ -25,4 +25,4 @@
 
 ## Update 2026-11-05: Project F, phase F5 built
 - Worker `portfolio-forms`, rules (visitor token, daily counter, `tokenRequired` switch, cap in `content/guard.cap`), tests and runbook delivered; awaiting the owner's service-account key, Worker deploy, emulator run and rules republish. Switch stays OFF until F7.
-- F6 (page, Security page cap field and switch toggle, messages) and F7 (backup, switch-over, monitoring, rollback drill, Safari tester run) follow. D1 and D2 stay parked until Project F is done.
+- F6 is verified live. F7 (switch-over, rollback drill, monitoring, Safari owner decision) is documented in `F7-CHECKLIST.md`; awaiting the owner's run. D1 and D2 stay parked until Project F is done.

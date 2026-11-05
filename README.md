@@ -1327,3 +1327,9 @@ No Firestore rules change in E4 (`ownerPrivate` is already owner only). Rules te
 - **Rules:** unchanged in F6. **Files:** `scripts/form-guard.js` (+ test), `meeting-form.js`, `owner-security.js`, `settings.js` (public `formsApi` address), `index.html`, `styles/components.css`.
 - **Tests:** `node --test scripts/*.test.mjs server/*.test.mjs` (27 client-flow checks, 27 Worker checks); browser checks with mocked Firebase and Worker (old path unchanged, verified path, wrong/expired/cancel, every failure message and the email draft, keyboard, 375 px, axe WCAG 2.2 AA, owner Security card).
 - **Not proven here:** the real key signing a real token (your `?verify=1` test), Safari (blocking before F7).
+
+## 4.5.0 - Phase F7: switch-over guide (docs only)
+
+- No code, rules or Worker changes. Follow `F7-CHECKLIST.md`: backup, switch ON, rollback drill, then leave ON.
+- Monitoring, rollback and the Safari owner decision are in `internal-docs/4.5.0-F7-switch-over.md`.
+- Rollback at any time: Security page > Form verification > switch OFF.
