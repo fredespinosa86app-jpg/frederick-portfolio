@@ -1347,3 +1347,9 @@ No Firestore rules change in E4 (`ownerPrivate` is already owner only). Rules te
 - **Visible effect:** a change you publish reaches visitors who already have a copy within about 10 minutes. The hire/availability switch and the chatbot settings are covered by the same delay.
 - **Only public documents are cached** (never owner data, requests or settings that need sign-in). Cache keys start with `pc:v1:`; to force a refresh for everyone after a bad publish, the cache time can be shortened in `content-cache.js` (`CACHE_MS`).
 - **Rollback:** restore `scripts/owner-panel.js` and `index.html` from the R1 rollback ZIP (the extra file `content-cache.js` is then unused and harmless).
+
+## 4.5.0 - Phase R2: Firebase browser key limited to three APIs (docs and checklist only)
+
+- No code, rules or Worker changes. Follow `R2-CHECKLIST.md`.
+- The browser key (public by design) is limited to the websites of stage 1 plus Identity Toolkit API, Token Service API and Cloud Firestore API. Other Google services refuse it. Firestore rules remain the real protection.
+- If a feature breaks after the change, the Network response names the blocked service; add it, or set API restrictions back to "Don't restrict key".
