@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-fGX5IcsLgeneh8q3k50FD0Z3izvKrJM1aduFLTysApk=' https://www.gstatic.com https://apis.google.com https://accounts.google.com https://www.google.com/recaptcha/; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; font-src 'self'; img-src 'self' data: blob: https:; media-src 'self' blob: https:; connect-src 'self' https:; frame-src https://www.youtube-nocookie.com https://www.youtube.com https://www.loom.com https://www.google.com https://recaptcha.google.com https://accounts.google.com https://apis.google.com https://*.firebaseapp.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
-<script src="scripts/frame-guard.js?v=b2"></script>
+<script src="scripts/frame-guard.js?v=b3"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Frederick Espinosa | Amazon Product Researcher &amp; VA</title>
 <meta name="description" content="Amazon product researcher and virtual assistant in the Philippines. I find profitable online arbitrage leads with SellerAmp SAS and Keepa, backed by data.">
@@ -33,16 +33,16 @@
 <meta name="twitter:image" content="https://fredespinosa86app-jpg.github.io/frederick-portfolio/assets/images/social/og-image.jpg">
 <meta name="twitter:image:alt" content="Frederick Espinosa, Amazon Product Researcher and Virtual Assistant">
 <script type="application/ld+json" id="ldjson">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","@id":"https://fredespinosa86app-jpg.github.io/frederick-portfolio/#website","url":"https://fredespinosa86app-jpg.github.io/frederick-portfolio/","name":"Frederick Espinosa","description":"Amazon product researcher and virtual assistant in the Philippines. I find profitable online arbitrage leads with SellerAmp SAS and Keepa, backed by data.","inLanguage":"en","publisher":{"@id":"https://fredespinosa86app-jpg.github.io/frederick-portfolio/#person"}},{"@type":"Person","@id":"https://fredespinosa86app-jpg.github.io/frederick-portfolio/#person","name":"Frederick Espinosa","url":"https://fredespinosa86app-jpg.github.io/frederick-portfolio/","image":"https://fredespinosa86app-jpg.github.io/frederick-portfolio/assets/images/hero/hero-portrait.webp","jobTitle":"Amazon Product Researcher & Virtual Assistant","description":"Amazon product researcher and virtual assistant in the Philippines. I find profitable online arbitrage leads with SellerAmp SAS and Keepa, backed by data.","address":{"@type":"PostalAddress","addressLocality":"Plaridel","addressRegion":"Bulacan","addressCountry":"PH"},"knowsAbout":["Amazon product research","Online arbitrage","Product sourcing","Keepa","SellerAmp SAS","Amazon Seller Central","Virtual assistance"],"sameAs":["https://www.linkedin.com/in/frederick-espinosa-4a03b03b9/","https://v2.onlinejobs.ph/jobseekers/info/4884720","https://www.upwork.com/freelancers/~017a9a8bf9e0f5c289"]}]}</script>
-<link rel="stylesheet" href="styles/boot.css?v=b2">
-<script src="scripts/boot-cover.js?v=b2"></script>
+<link rel="stylesheet" href="styles/boot.css?v=b3">
+<script src="scripts/boot-cover.js?v=b3"></script>
 <noscript><style>#boot{display:none}</style></noscript>
-<link rel="stylesheet" href="styles/fonts.css?v=b2">
+<link rel="stylesheet" href="styles/fonts.css?v=b3">
 <script>try{if(localStorage.getItem('portfolio-dark')==='1')document.documentElement.setAttribute('data-theme','dark')}catch(e){}</script>
-<link rel="stylesheet" href="styles/main.css?v=b2">
-<link rel="stylesheet" href="styles/components.css?v=b2">
-<link rel="stylesheet" href="styles/owner.css?v=b2">
-<link rel="stylesheet" href="styles/themes.css?v=b2">
-<link rel="stylesheet" href="styles/responsive.css?v=b2">
+<link rel="stylesheet" href="styles/main.css?v=b3">
+<link rel="stylesheet" href="styles/components.css?v=b3">
+<link rel="stylesheet" href="styles/owner.css?v=b3">
+<link rel="stylesheet" href="styles/themes.css?v=b3">
+<link rel="stylesheet" href="styles/responsive.css?v=b3">
 </head>
 <body>
 <div id="boot" role="status" aria-live="polite" aria-busy="true"><span class="bdots" aria-hidden="true"><i></i><i></i><i></i></span><span class="bsr">Loading the portfolio…</span></div>
@@ -341,6 +341,7 @@
 <button type="button" data-page="clientids"><svg aria-hidden="true"><use href="#ic-shield"/></svg><span class="dlabel">Client IDs</span></button>
 <button type="button" data-page="billing"><svg aria-hidden="true"><use href="#ic-doc"/></svg><span class="dlabel">Billing profiles</span></button>
 <button type="button" data-page="billhours"><svg aria-hidden="true"><use href="#ic-clock"/></svg><span class="dlabel">Billable hours</span></button>
+<button type="button" data-page="due"><svg aria-hidden="true"><use href="#ic-clock"/></svg><span class="dlabel">Billing due</span><span class="nbadge" id="dueBadge" hidden></span></button>
 <button type="button" data-page="invoices"><svg aria-hidden="true"><use href="#ic-doc"/></svg><span class="dlabel">Invoices</span></button>
 <button type="button" data-page="visitors"><svg aria-hidden="true"><use href="#ic-grid"/></svg><span class="dlabel">Visitors</span></button>
 <button type="button" data-page="integrations"><svg aria-hidden="true"><use href="#ic-link"/></svg><span class="dlabel">Integrations</span></button>
@@ -559,6 +560,12 @@
 <div class="dcard"><h2>Entries</h2>
 <div class="ab"><label class="fld">Client<select id="bhFilter"></select></label><label class="fld">Show<select id="bhStatus"><option value="all">All</option><option value="open">Not approved yet</option><option value="APPROVED">Approved</option><option value="SUPERSEDED">Replaced</option></select></label><button type="button" class="dbtn" id="bhRefresh">Refresh</button></div>
 <div id="bhSums"></div><div class="cidlist" id="bhList"></div></div>
+</section>
+<section class="dpage" id="dp-due" hidden>
+<div class="dcard"><h2>Billing due</h2><p class="dhelp">Each hourly client's <strong>billing periods</strong>, worked out from their billing profile schedule (nothing is stored except a period you skip). A period is <strong>due</strong> on the day after its last day, at the generation time in the client's time zone. From here you jump to <strong>Billable hours</strong> to enter the hours and to <strong>Invoices</strong> to make the invoice. Nothing is created, sent or emailed for you, and nothing runs while this panel is closed.</p>
+<p class="dstate" id="dueState" role="status"></p><div class="ab"><button type="button" class="dbtn" id="dueRefresh">Refresh</button></div></div>
+<div class="dcard"><div class="ab"><label class="fld">Client<select id="dueFilter"></select></label><label class="fld">Show<select id="dueShow"><option value="need">Needs action</option><option value="all">All periods</option></select></label></div>
+<div id="dueList" class="cidlist"></div></div>
 </section>
 <section class="dpage" id="dp-invoices" hidden>
 <div class="dcard"><h2>Invoices</h2><p class="dhelp">An invoice is made from your <strong>approved</strong> billable hours (at most 2 entries per invoice). It goes <strong>Draft</strong>, <strong>Ready</strong> (amounts locked), <strong>Sent</strong>. <strong>Sent</strong> is a mark you make yourself after you send the invoice by email or any other way; nothing is emailed from here and there is no PDF. After sending, use payments, credits, adjustments and due-date changes; each one is kept in the history and cannot be edited, only reversed. Whether an invoice is unpaid, partly paid, paid or overdue is worked out from these records. The old <strong>Clients &amp; invoices</strong> page is not changed.</p>
@@ -836,7 +843,7 @@ function doPost(e) {
 <p class="dhelp">Your content lives only in the database. Download a backup file now and then, and before any big change. The file contains private details (clients, visitors’ messages): keep it somewhere safe, not in a shared folder.</p>
 <p class="dstate-line" id="bkLast" role="status"></p>
 <div class="ab"><label class="tog"><input type="checkbox" id="bk_settings" checked> Site settings</label><label class="tog"><input type="checkbox" id="bk_content" checked> Site content</label><label class="tog"><input type="checkbox" id="bk_ownerPrivate" checked> Private settings (rates, capacity)</label><label class="tog"><input type="checkbox" id="bk_clients" checked> Clients</label></div>
-<div class="ab"><label class="tog"><input type="checkbox" id="bk_meetingRequests"> Meeting requests</label><label class="tog"><input type="checkbox" id="bk_chatUnanswered"> Chatbot questions</label><label class="tog"><input type="checkbox" id="bk_activity"> Activity log</label><label class="tog"><input type="checkbox" id="bk_visits"> Visit records (large)</label><label class="tog"><input type="checkbox" id="bk_clientRegistry"> Client IDs</label><label class="tog"><input type="checkbox" id="bk_clientRegistryAudit"> Client ID history</label><label class="tog"><input type="checkbox" id="bk_workState"> WorkTrack position</label><label class="tog"><input type="checkbox" id="bk_workSessions"> WorkTrack sessions</label><label class="tog"><input type="checkbox" id="bk_workEvents"> WorkTrack punches</label><label class="tog"><input type="checkbox" id="bk_workAssign"> WorkTrack clients</label><label class="tog"><input type="checkbox" id="bk_workAssignAudit"> WorkTrack client history</label><label class="tog"><input type="checkbox" id="bk_workCorrections"> WorkTrack corrections</label><label class="tog"><input type="checkbox" id="bk_workSeals"> WorkTrack log seals</label><label class="tog"><input type="checkbox" id="bk_workChain"> WorkTrack log chain head</label><label class="tog"><input type="checkbox" id="bk_workSettings"> WorkTrack settings</label><label class="tog"><input type="checkbox" id="bk_billingProfiles"> Billing profiles</label><label class="tog"><input type="checkbox" id="bk_billingProfileAudit"> Billing profile history</label><label class="tog"><input type="checkbox" id="bk_billableEntries"> Billable hours</label><label class="tog"><input type="checkbox" id="bk_billableEntryAudit"> Billable hours history</label><label class="tog"><input type="checkbox" id="bk_billingMigration"> Client migration records</label><label class="tog"><input type="checkbox" id="bk_invoices"> Invoices</label><label class="tog"><input type="checkbox" id="bk_invoiceAudit"> Invoice history</label><label class="tog"><input type="checkbox" id="bk_payments"> Payments and credits</label><label class="tog"><input type="checkbox" id="bk_paymentReversals"> Payment reversals</label><label class="tog"><input type="checkbox" id="bk_invoiceAdjustments"> Invoice adjustments</label><label class="tog"><input type="checkbox" id="bk_invoiceDueDates"> Due-date changes</label></div>
+<div class="ab"><label class="tog"><input type="checkbox" id="bk_meetingRequests"> Meeting requests</label><label class="tog"><input type="checkbox" id="bk_chatUnanswered"> Chatbot questions</label><label class="tog"><input type="checkbox" id="bk_activity"> Activity log</label><label class="tog"><input type="checkbox" id="bk_visits"> Visit records (large)</label><label class="tog"><input type="checkbox" id="bk_clientRegistry"> Client IDs</label><label class="tog"><input type="checkbox" id="bk_clientRegistryAudit"> Client ID history</label><label class="tog"><input type="checkbox" id="bk_workState"> WorkTrack position</label><label class="tog"><input type="checkbox" id="bk_workSessions"> WorkTrack sessions</label><label class="tog"><input type="checkbox" id="bk_workEvents"> WorkTrack punches</label><label class="tog"><input type="checkbox" id="bk_workAssign"> WorkTrack clients</label><label class="tog"><input type="checkbox" id="bk_workAssignAudit"> WorkTrack client history</label><label class="tog"><input type="checkbox" id="bk_workCorrections"> WorkTrack corrections</label><label class="tog"><input type="checkbox" id="bk_workSeals"> WorkTrack log seals</label><label class="tog"><input type="checkbox" id="bk_workChain"> WorkTrack log chain head</label><label class="tog"><input type="checkbox" id="bk_workSettings"> WorkTrack settings</label><label class="tog"><input type="checkbox" id="bk_billingProfiles"> Billing profiles</label><label class="tog"><input type="checkbox" id="bk_billingProfileAudit"> Billing profile history</label><label class="tog"><input type="checkbox" id="bk_billableEntries"> Billable hours</label><label class="tog"><input type="checkbox" id="bk_billableEntryAudit"> Billable hours history</label><label class="tog"><input type="checkbox" id="bk_billingMigration"> Client migration records</label><label class="tog"><input type="checkbox" id="bk_invoices"> Invoices</label><label class="tog"><input type="checkbox" id="bk_invoiceAudit"> Invoice history</label><label class="tog"><input type="checkbox" id="bk_payments"> Payments and credits</label><label class="tog"><input type="checkbox" id="bk_paymentReversals"> Payment reversals</label><label class="tog"><input type="checkbox" id="bk_invoiceAdjustments"> Invoice adjustments</label><label class="tog"><input type="checkbox" id="bk_invoiceDueDates"> Due-date changes</label><label class="tog"><input type="checkbox" id="bk_periodSkips"> Skipped billing periods</label></div>
 <p class="dhelp">The last four are saved for your records only: the database lets visitors create them but not you, so they cannot be restored.</p>
 <div class="ab"><button type="button" class="dbtn primary" id="bkGo">Download backup</button></div>
 <p class="dhelp" id="bkpState" role="status"></p></div>
@@ -927,60 +934,62 @@ function doPost(e) {
 <form id="chatForm" autocomplete="off"><input id="chatInput" type="text" placeholder="Type your question…" aria-label="Type your question" maxlength="200"><button type="submit">Send</button></form>
 </div>
 <dialog id="lb" aria-label="Enlarged image"><button type="button" id="close" aria-label="Close enlarged view">×</button><img alt="Enlarged view"></dialog>
-<script src="scripts/settings.js?v=b2"></script>
-<script src="scripts/contacts.js?v=b2"></script>
-<script src="scripts/content.js?v=b2"></script>
-<script src="scripts/testimonials.js?v=b2"></script>
-<script src="scripts/faq.js?v=b2"></script>
-<script src="scripts/videos.js?v=b2"></script>
-<script src="scripts/training.js?v=b2"></script>
-<script src="scripts/experience.js?v=b2"></script>
-<script src="scripts/section-bg.js?v=b2"></script>
-<script src="scripts/hero-photo.js?v=b2"></script>
-<script src="scripts/main.js?v=b2"></script>
-<script src="scripts/chat-engine.js?v=b2"></script>
-<script src="scripts/chatbot.js?v=b2"></script>
-<script src="scripts/video-section.js?v=b2"></script>
-<script src="scripts/theme-switcher.js?v=b2"></script>
-<script src="scripts/seo.js?v=b2"></script>
-<script src="scripts/site-settings.js?v=b2"></script>
-<script src="scripts/availability.js?v=b2"></script>
-<script src="scripts/capacity.js?v=b2"></script>
-<script src="scripts/service-forms.js?v=b2"></script>
-<script src="scripts/meeting-form.js?v=b2"></script>
-<script src="scripts/owner-ui.js?v=b2"></script>
-<script src="scripts/owner-dashboard.js?v=b2"></script>
-<script src="scripts/owner-content.js?v=b2"></script>
-<script src="scripts/owner-phase1.js?v=b2"></script>
-<script src="scripts/owner-phase2.js?v=b2"></script>
-<script src="scripts/analytics.js?v=b2"></script>
-<script src="scripts/owner-phase3.js?v=b2"></script>
-<script src="scripts/owner-phase5.js?v=b2"></script>
-<script src="scripts/owner-phase6.js?v=b2"></script>
-<script src="scripts/owner-phase7.js?v=b2"></script>
-<script src="scripts/owner-security.js?v=b2"></script>
-<script src="scripts/backup-core.js?v=b2"></script>
-<script src="scripts/owner-privacy.js?v=b2"></script>
-<script src="scripts/owner-library.js?v=b2"></script>
-<script src="scripts/core-ids.js?v=b2"></script>
-<script src="scripts/owner-clientids.js?v=b2"></script>
-<script src="scripts/core-time.js?v=b2"></script>
-<script src="scripts/core-worktrack.js?v=b2"></script>
-<script src="scripts/core-wtlog.js?v=b2"></script>
-<script src="scripts/owner-worktrack.js?v=b2"></script>
-<script src="scripts/owner-wtlog.js?v=b2"></script>
-<script src="scripts/core-wtreport.js?v=b2"></script>
-<script src="scripts/owner-wtreport.js?v=b2"></script>
-<script src="scripts/core-money.js?v=b2"></script>
-<script src="scripts/core-billing.js?v=b2"></script>
-<script src="scripts/owner-billing.js?v=b2"></script>
-<script src="scripts/owner-billhours.js?v=b2"></script>
-<script src="scripts/core-invoice.js?v=b2"></script>
-<script src="scripts/owner-invoices.js?v=b2"></script>
-<script src="scripts/owner-google.js?v=b2"></script>
-<script src="scripts/privacy-notice.js?v=b2"></script>
-<script src="scripts/owner-entry.js?v=b2"></script>
-<script src="scripts/owner-seo.js?v=b2"></script>
-<script type="module" src="scripts/owner-panel.js?v=b2"></script>
+<script src="scripts/settings.js?v=b3"></script>
+<script src="scripts/contacts.js?v=b3"></script>
+<script src="scripts/content.js?v=b3"></script>
+<script src="scripts/testimonials.js?v=b3"></script>
+<script src="scripts/faq.js?v=b3"></script>
+<script src="scripts/videos.js?v=b3"></script>
+<script src="scripts/training.js?v=b3"></script>
+<script src="scripts/experience.js?v=b3"></script>
+<script src="scripts/section-bg.js?v=b3"></script>
+<script src="scripts/hero-photo.js?v=b3"></script>
+<script src="scripts/main.js?v=b3"></script>
+<script src="scripts/chat-engine.js?v=b3"></script>
+<script src="scripts/chatbot.js?v=b3"></script>
+<script src="scripts/video-section.js?v=b3"></script>
+<script src="scripts/theme-switcher.js?v=b3"></script>
+<script src="scripts/seo.js?v=b3"></script>
+<script src="scripts/site-settings.js?v=b3"></script>
+<script src="scripts/availability.js?v=b3"></script>
+<script src="scripts/capacity.js?v=b3"></script>
+<script src="scripts/service-forms.js?v=b3"></script>
+<script src="scripts/meeting-form.js?v=b3"></script>
+<script src="scripts/owner-ui.js?v=b3"></script>
+<script src="scripts/owner-dashboard.js?v=b3"></script>
+<script src="scripts/owner-content.js?v=b3"></script>
+<script src="scripts/owner-phase1.js?v=b3"></script>
+<script src="scripts/owner-phase2.js?v=b3"></script>
+<script src="scripts/analytics.js?v=b3"></script>
+<script src="scripts/owner-phase3.js?v=b3"></script>
+<script src="scripts/owner-phase5.js?v=b3"></script>
+<script src="scripts/owner-phase6.js?v=b3"></script>
+<script src="scripts/owner-phase7.js?v=b3"></script>
+<script src="scripts/owner-security.js?v=b3"></script>
+<script src="scripts/backup-core.js?v=b3"></script>
+<script src="scripts/owner-privacy.js?v=b3"></script>
+<script src="scripts/owner-library.js?v=b3"></script>
+<script src="scripts/core-ids.js?v=b3"></script>
+<script src="scripts/owner-clientids.js?v=b3"></script>
+<script src="scripts/core-time.js?v=b3"></script>
+<script src="scripts/core-worktrack.js?v=b3"></script>
+<script src="scripts/core-wtlog.js?v=b3"></script>
+<script src="scripts/owner-worktrack.js?v=b3"></script>
+<script src="scripts/owner-wtlog.js?v=b3"></script>
+<script src="scripts/core-wtreport.js?v=b3"></script>
+<script src="scripts/owner-wtreport.js?v=b3"></script>
+<script src="scripts/core-money.js?v=b3"></script>
+<script src="scripts/core-billing.js?v=b3"></script>
+<script src="scripts/owner-billing.js?v=b3"></script>
+<script src="scripts/owner-billhours.js?v=b3"></script>
+<script src="scripts/core-invoice.js?v=b3"></script>
+<script src="scripts/owner-invoices.js?v=b3"></script>
+<script src="scripts/core-schedule.js?v=b3"></script>
+<script src="scripts/owner-due.js?v=b3"></script>
+<script src="scripts/owner-google.js?v=b3"></script>
+<script src="scripts/privacy-notice.js?v=b3"></script>
+<script src="scripts/owner-entry.js?v=b3"></script>
+<script src="scripts/owner-seo.js?v=b3"></script>
+<script type="module" src="scripts/owner-panel.js?v=b3"></script>
 </body>
 </html>

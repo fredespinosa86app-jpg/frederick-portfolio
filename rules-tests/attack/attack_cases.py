@@ -1095,6 +1095,27 @@ for nm,sim in (('transition',S),('strict',SS)):
       EA1(UAU_(fromStatus='DRAFT',toStatus='APPROVED',rev=4),LE|{'status':'DRAFT'},ULE|{'lastAudit':AID3}),
       EA1(UAU_(toStatus='DRAFT'),LE,ULE|{'status':'DRAFT','lastAudit':AID3})]))
     chk(f'B2 [{nm}] control (single op): entry audit records for link and unlink',EA1(LAU(),OKE1,LK(OKE1)) and EA1(UAU_(),LE,ULE|{'lastAudit':AID3}))
+    # ---------------- 8m. B3: skipping a billing period (create-only record, period ID = record ID)
+    SID='CL-001__20261001__20261031'; SKP='periodSkips/'+SID
+    SK=lambda **k: dict({'clientId':'CL-001','periodStart':'20261001','periodEnd':'20261031','reason':'Client paused work','actor':UID,'createdAt':TSNOW},**k)
+    SKD=dict(R0,**{BP():PRO()}); SKC=lambda doc,docs=None,au=OWN,path=SKP: P('create',path,au,doc,None,SKD if docs is None else docs)
+    chk(f'B3 [{nm}] control: the owner skips a period of an active hourly client',SKC(SK()))
+    chk(f'B3 [{nm}] boundary controls accepted: reason of 3 and 200 characters, one-day period',SKC(SK(reason='abc')) and SKC(SK(reason='x'*200)) and SKC(SK(periodStart='20261015',periodEnd='20261015'),path='periodSkips/CL-001__20261015__20261015'))
+    chk(f'B3 [{nm}] owner can read skips, others cannot',P('get',SKP,OWN,None,SK(),SKD) and not P('get',SKP,STRANGER,None,SK(),SKD) and not P('get',SKP,None,None,SK(),SKD))
+    chk(f'B3 [{nm}] skip refused: not the owner, not signed in',not any([SKC(SK(),au=STRANGER),SKC(SK(),au=None)]))
+    chk(f'B3 [{nm}] skip refused: the ID does not match the client or the dates',not any([SKC(SK(),path='periodSkips/CL-001__20261001__20261030'),SKC(SK(),path='periodSkips/CL-001__20261002__20261031'),SKC(SK(),path='periodSkips/CL-002__20261001__20261031'),SKC(SK(),path='periodSkips/anything'),SKC(SK(clientId='CL-002'))]))
+    chk(f'B3 [{nm}] skip refused: client not registered, archived, no billing profile, or a monthly-arrangement client',not any([
+      SKC(SK(),docs={BP():PRO()}),SKC(SK(),docs=dict(RARCH,**{BP():PRO()})),SKC(SK(),docs=R0),SKC(SK(),docs=dict(R0,**{BP():PRO(arrangement='monthly')}))]))
+    chk(f'B3 [{nm}] skip refused: extra field, missing field',not any([SKC(SK(extra=1)),SKC({k:v for k,v in SK().items() if k!='reason'}),SKC({k:v for k,v in SK().items() if k!='actor'}),SKC({k:v for k,v in SK().items() if k!='periodEnd'})]))
+    chk(f'B3 [{nm}] skip refused: reason too short, too long, not text',not any([SKC(SK(reason='ab')),SKC(SK(reason='x'*201)),SKC(SK(reason=5)),SKC(SK(reason=''))]))
+    chk(f'B3 [{nm}] skip refused: a signed-in stranger who writes their OWN ID as the actor (the owner check itself, alone)',not any([SKC(SK(actor='someoneelse123'),au=STRANGER)]))
+    chk(f'B3 [{nm}] skip refused: period end that is not 8 digits but sorts after the start; reason that is a list of 3 items',not any([
+      SKC(SK(periodEnd='abcdefgh'),path='periodSkips/CL-001__20261001__abcdefgh'),SKC(SK(periodEnd='2026103x'),path='periodSkips/CL-001__20261001__2026103x'),SKC(SK(periodEnd='202610319'),path='periodSkips/CL-001__20261001__202610319'),SKC(SK(reason=['a','b','c']))]))
+    chk(f'B3 [{nm}] skip refused: actor is someone else, time is not the server time',not any([SKC(SK(actor='someoneelse123')),SKC(SK(createdAt=TS(NOW-1000))),SKC(SK(createdAt=None))]))
+    chk(f'B3 [{nm}] skip refused: dates not in YYYYMMDD form, end before start, invalid client ID',not any([
+      SKC(SK(periodStart='2026-10-01'),path='periodSkips/CL-001__2026-10-01__20261031'),SKC(SK(periodEnd='20261001',periodStart='20261031'),path='periodSkips/CL-001__20261031__20261001'),
+      SKC(SK(periodStart=20261001)),SKC(SK(clientId='bad id'),path='periodSkips/bad id__20261001__20261031')]))
+    chk(f'B3 [{nm}] a skip can never be changed or removed',not any([P('update',SKP,OWN,SK(reason='Changed my mind'),SK(),SKD),P('delete',SKP,OWN,None,SK(),SKD)]))
 # ---------------- 9. cross-check: strict file equals transition file apart from the owner check
 a=re.sub(r'\s+','',TXT); b=re.sub(r'\s+','',re.sub(r'^//.*\n','',STRICT,flags=re.M))
 chk('strict rules differ from the transition rules only in the owner e-mail fallback',a.replace("&&(request.auth.uid==ownerUid()||request.auth.token.email=='fredespinosa86.app@gmail.com');","&&request.auth.uid==ownerUid();")==b,'')

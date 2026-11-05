@@ -935,6 +935,21 @@ service cloud.firestore {
         && existsAfter(invDoc(request.resource.data.invoiceId))
         && getAfter(invDoc(request.resource.data.invoiceId)).data.lastKind == 'due' && getAfter(invDoc(request.resource.data.invoiceId)).data.lastRef == did;
     }
+    // B3 (4.5.0): the owner can skip a billing period (create-only; the period ID is the record ID, so a period can be skipped once). Nothing else about
+    // periods is stored: they are worked out from the billing profile. That no hours exist for the period is checked by the page, not the rules.
+    function skipOk(id, d) {
+      let bp = get(bpDoc(d.clientId)).data;
+      return d.keys().hasOnly(['clientId','periodStart','periodEnd','reason','actor','createdAt'])
+        && validClientId(d.clientId) && regActive(d.clientId) && bp.arrangement == 'hourly'
+        && d.periodStart.matches('^[0-9]{8}$') && d.periodEnd.matches('^[0-9]{8}$') && d.periodEnd >= d.periodStart
+        && id == d.clientId + '__' + d.periodStart + '__' + d.periodEnd
+        && d.reason is string && d.reason.size() >= 3 && d.reason.size() <= 200
+        && d.actor == request.auth.uid && d.createdAt == request.time;
+    }
+    match /periodSkips/{id} {
+      allow read: if isOwner();
+      allow create: if isOwner() && skipOk(id, request.resource.data);
+    }
     match /clients/{id} { allow read, write: if isOwner(); }
     match /ownerPrivate/{doc} { allow read, write: if isOwner(); }
     match /content/{doc} {
@@ -1256,6 +1271,19 @@ No Firestore rules change in E4 (`ownerPrivate` is already owner only). Rules te
 - **Honest limits:** weeks use the current week-start setting (no history); the verification line is on the page, not in the CSV; the By client table is not additive.
 - **Tests:** unit tests (`core-wtreport.test.mjs`, 22; 26 deliberate-bug checks all caught), browser test `qa_w4` (62 checks: totals, midnight, daylight saving, zones, corrections, filters, CSV content, read counts, cache, read-only, accessibility, sign-out).
 - **Not in W4:** PDF or print views, billing.
+
+## 4.5.0 - Phase B3: Billing due (periods worked out from each client's schedule)
+- **Where:** Owner panel > Business > **Billing due** (new page, with a count badge in the menu). Nothing else changes. Nothing is created, sent or emailed for you, and nothing runs while the panel is closed.
+- **What it shows:** for every active **hourly** client with a billing profile, the billing periods worked out from the profile's schedule: monthly (calendar month), twice a month (1st to 15th, 16th to month end), weekly (7 days from the chosen week start), or 1 to 4 custom days of the month (anchor 31 means the month's last day in a short month). A period is **due** on the day after its last day, at the profile's generation time, in the profile's time zone. The periods are never stored, so they cannot drift from the profile.
+- **Status of each period:** Waiting for hours, Hours draft, Submitted, Approved ready to invoice, Invoiced, Part invoiced, Too many entries (an invoice holds at most 2), Skipped, or Check hours (hours exist for dates that overlap but do not match). The least advanced entry decides.
+- **Where the list starts:** the day after the newest period that is finished (invoiced or skipped). A new client with no history asks for a date inside the first period to bill (only for this visit; the first hours entry or skip makes it permanent). Finished periods are not listed again; use Billable hours and Invoices for those. At most the newest 24 periods are shown.
+- **Buttons:** **Enter hours** opens Billable hours with the client and exact dates filled in; **Make invoice** opens Invoices with that period chosen; **Skip** needs a reason (3 to 200 characters), can't be undone, and is only offered while no hours exist. Those pages do the saving, as in B1 and B2.
+- **Monthly-arrangement clients** are listed with a note and no periods (a flat monthly invoice is not part of B3).
+- **Database rules changed - republish `firestore.rules.strict`** (and keep `firestore.rules` in step). One new collection: `periodSkips` (owner only, create-only, the record ID is `CLIENTID__YYYYMMDD__YYYYMMDD`, so a period is skipped once). It is in the backup list (export only) and in the tamper-evident log.
+- **Reads:** the menu badge reads five collections when you sign in (clients, profiles, hours, invoices, skips). That is a few hundred reads on a normal account, well inside the free quota.
+- **Honest limits:** period dates and due-ness are page calculations, the database rules do not check them against the schedule; "skipped" and "no hours exist" are enforced by the page only; a period with 3 or more approved entries can't be invoiced until you combine them with Replace; nothing alerts you outside the panel.
+- **Tests:** `core-schedule.test.mjs` (32; 89 of 93 deliberate bugs caught, the other 4 are harmless environment/loop-guard variants), rules attack section 8m (2361 checks in the whole suite, all passing), `mutations_b2.py` now also covers the skip rule, browser test `qa_b3` (40 checks), emulator tests `periods-b3.test.mjs` (written, awaiting your workflow run).
+- **Not in B3:** flat monthly invoices, automatic creation, email or push alerts, PDF, moving old client data (M3).
 
 ## 4.5.0 - Phase B2: Invoices, payments, credits, adjustments (no email, no PDF)
 - **Where:** Owner panel > Business > **Invoices** (new page). The old **Clients & invoices** page is not touched.

@@ -858,6 +858,21 @@ service cloud.firestore {
         && existsAfter(invDoc(request.resource.data.invoiceId))
         && getAfter(invDoc(request.resource.data.invoiceId)).data.lastKind == 'due' && getAfter(invDoc(request.resource.data.invoiceId)).data.lastRef == did;
     }
+    // B3 (4.5.0): the owner can skip a billing period (create-only; the period ID is the record ID, so a period can be skipped once). Nothing else about
+    // periods is stored: they are worked out from the billing profile. That no hours exist for the period is checked by the page, not the rules.
+    function skipOk(id, d) {
+      let bp = get(bpDoc(d.clientId)).data;
+      return d.keys().hasOnly(['clientId','periodStart','periodEnd','reason','actor','createdAt'])
+        && validClientId(d.clientId) && regActive(d.clientId) && bp.arrangement == 'hourly'
+        && d.periodStart.matches('^[0-9]{8}$') && d.periodEnd.matches('^[0-9]{8}$') && d.periodEnd >= d.periodStart
+        && id == d.clientId + '__' + d.periodStart + '__' + d.periodEnd
+        && d.reason is string && d.reason.size() >= 3 && d.reason.size() <= 200
+        && d.actor == request.auth.uid && d.createdAt == request.time;
+    }
+    match /periodSkips/{id} {
+      allow read: if isOwner();
+      allow create: if isOwner() && skipOk(id, request.resource.data);
+    }
     match /clients/{id} { allow read, write: if isOwner(); }
     match /ownerPrivate/{doc} { allow read, write: if isOwner(); }
     match /content/{doc} {

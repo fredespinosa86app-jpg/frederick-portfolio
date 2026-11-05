@@ -90,3 +90,8 @@ for coll,hdr in (('invoices','match /invoices/{id} {\n      allow read: if isOwn
     B2.append((f'B2 {coll} readable by everyone',hdr,hdr.replace('isOwner()','true')))
     B2.append((f'B2 {coll} may be deleted',hdr,hdr.replace('allow read','allow read, delete')))
     B2.append((f'B2 {coll} may be edited',hdr,hdr.replace('allow read','allow read, update')))
+
+# B3 (4.5.0): the skip record lives in the same text block; its access rules too
+B2.append(('B2 periodSkips readable by everyone','match /periodSkips/{id} {\n      allow read: if isOwner();','match /periodSkips/{id} {\n      allow read: if true;'))
+B2.append(('B2 periodSkips create open to everyone','allow create: if isOwner() && skipOk(id, request.resource.data);','allow create: if skipOk(id, request.resource.data);'))
+B2.append(('B2 periodSkips can be changed or deleted','allow create: if isOwner() && skipOk(id, request.resource.data);','allow create: if isOwner() && skipOk(id, request.resource.data);\n      allow update, delete: if isOwner();'))
