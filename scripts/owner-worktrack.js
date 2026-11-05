@@ -72,6 +72,7 @@
     S = { st, events, derived: core.derive(events, now()), sessionTz: tz, sessionDate: date, assign };
     const d = S.derived;
     if (d.valid && st.sid && (d.events.length !== st.n || (d.closed ? 'NOT_STARTED' : d.state) !== st.state)) { d.valid = false; d.problem = 'The saved records and the current position do not agree (' + d.events.length + ' records, position "' + st.state + '", counter ' + st.n + ').'; }
+    changed();
   }
 
   /* ---------------------------------------------------------------- one punch = one transaction */
@@ -122,7 +123,7 @@
       else if (m.startsWith('refused:')) { await safeLoad(); say('wtErr', m.slice(8)); }
       else if (e && e.code === 'permission-denied') { await safeLoad(); say('wtErr', errText(e) + ' If this ID changed in another tab, the page has just been refreshed.'); }
       else say('wtErr', errText(e));
-    } finally { busyPunch = false; draw(); tick(); }
+    } finally { busyPunch = false; draw(); tick(); changed(); }
   }
   async function safeLoad() { try { await load(); } catch (e) { say('wtErr', 'Could not read WorkTrack. ' + errText(e)); } }
 
@@ -269,8 +270,35 @@
       if (m.startsWith('refused:')) { await safeLoad(); say('wtCliErr', m.slice(8)); }
       else if (e && e.code === 'permission-denied') { await safeLoad(); say('wtCliErr', 'The database refused this change. It may have changed in another tab, or the Client ID is no longer active. The page has been refreshed.'); }
       else say('wtCliErr', errText(e));
-    } finally { busyPunch = false; draw(); }
+    } finally { busyPunch = false; draw(); changed(); }
   }
+
+  /* ---------------------------------------------------------------- W5a: read-only door for the floating clock (wt-float.js)
+     The clock never talks to the database itself: it asks this module, so every punch still goes through the ONE transaction above. */
+  const changed = () => { try { document.dispatchEvent(new CustomEvent('wt:changed')); } catch (e) { /* ignore */ } };
+  let lastSync = 0, syncBusy = false, ensureBusy = false;
+  async function ensure() {                                   // sign-in / page open: load the state once, even if the WorkTrack page was never opened
+    if (!signed || S.st || ensureBusy) return; ensureBusy = true;
+    try { syncClock(); await load(); } catch (e) { /* the clock simply stays hidden; the WorkTrack page shows the error */ } finally { ensureBusy = false; }
+    if (!signed && S.st) { S = { st: null, events: [], derived: null, sessionTz: TZ, sessionDate: '', assign: [] }; changed(); }   // signed out while loading: drop it
+  }
+  async function sync() {                                     // tab focus: at most one read of workState/main per minute; a full load only when its revision changed
+    if (!signed || busyPunch || syncBusy || ensureBusy) return;
+    if (!S.st) return ensure();
+    const t = Date.now(); if (t - lastSync < 60000) return; lastSync = t; syncBusy = true;
+    try { const snap = await own().fs.getDoc(stateRef()); if (signed && snap.exists() && snap.data().rev !== S.st.rev) { await load(); draw(); } }
+    catch (e) { /* keep what is shown; the next focus tries again */ } finally { syncBusy = false; }
+  }
+  async function apiPunch(type) {                             // same path as the page buttons; returns the outcome instead of only writing it on the page
+    if (!signed || !S.st) return { ok: false, error: 'Not ready.' };
+    say('wtErr', ''); await punch(type); const err = ($('wtErr') && $('wtErr').textContent) || '';
+    return { ok: !err, error: err };
+  }
+  window.wtApi = Object.freeze({
+    signedIn: () => signed, state: () => S.st ? Object.assign({}, S.st) : null,
+    derived: () => S.derived && S.derived.events ? core.derive(S.derived.events, now()) : null,
+    sessionTz: () => S.sessionTz, now, busy: () => busyPunch, punch: apiPunch, refresh: async () => { if (!signed) return; try { await load(); draw(); } catch (e) { /* ignore */ } }, sync, ensure
+  });
 
   function startTimer() { stopTimer(); timer = setInterval(() => { if (!document.hidden) tick(); }, 1000); }
   function stopTimer() { if (timer) clearInterval(timer); timer = 0; }
@@ -289,7 +317,7 @@
     window.addEventListener('offline', () => { if (S.st) draw(); });
     document.addEventListener('visibilitychange', () => { if (!document.hidden && S.st && timer) { syncClock(); tick(); } });
     document.addEventListener('dash:page', e => { if (e.detail === 'worktrack') show(); else stopTimer(); });
-    document.addEventListener('own:auth', e => { signed = !!(e.detail && e.detail.ok); S = { st: null, events: [], derived: null, sessionTz: TZ, sessionDate: '', assign: [] }; registry = []; stopTimer(); if (!signed) { $('wtBtns').replaceChildren(); $('wtList').replaceChildren(); $('wtChips').replaceChildren(); $('wtCliHist').replaceChildren(); $('wtCliAudit').replaceChildren(); say('wtState', ''); say('wtErr', ''); } });
+    document.addEventListener('own:auth', e => { signed = !!(e.detail && e.detail.ok); S = { st: null, events: [], derived: null, sessionTz: TZ, sessionDate: '', assign: [] }; registry = []; stopTimer(); if (!signed) { $('wtBtns').replaceChildren(); $('wtList').replaceChildren(); $('wtChips').replaceChildren(); $('wtCliHist').replaceChildren(); $('wtCliAudit').replaceChildren(); say('wtState', ''); say('wtErr', ''); } lastSync = 0; changed(); if (signed) ensure(); });
   }
   document.addEventListener('wt:settings', e => { if (e.detail && e.detail.tz) { TZ = e.detail.tz; if (S && S.st && !(S.derived && S.derived.events && S.derived.events.length)) S.sessionTz = TZ; if (S && S.st) draw(); } });
   window.__wt = { get state() { return S; } };     // read-only test hook

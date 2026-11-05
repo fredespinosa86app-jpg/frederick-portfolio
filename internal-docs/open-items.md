@@ -34,4 +34,18 @@
 ## Decision 2026-11-06: Phase D2 rejected (owner decision)
 - D2 (moving existing docs into the Owner documents portal and cleaning the public repo) will not be built. Reason: build history and documentation already live in `README.md`.
 - Existing docs stay where they are. The Owner documents page (D1) stays available for new private notes. Can be reopened later.
-- S1 (Sheets token rotation): documented in `S1-CHECKLIST.md`, awaiting the owner's run. Remaining after S1: custom domain move (optional). D2 rejected.
+- S1 (Sheets token rotation): DONE 2026-11-06 (token rotated, sync verified). Remaining after S1: custom domain move (optional). D2 rejected.
+
+## Update 2026-11-06: remaining security list (owner decision)
+- Done by the owner: two-step verification on Google (also covers Firebase) and GitHub.
+- TODO 1: turn on two-step verification on the Cloudflare account (owner action, no code).
+- TODO 2: add a Cloudflare rate-limit rule in front of the form Worker (`portfolio-forms`) as a harder backstop for its per-instance limits (free plan; owner action, checklist to be written).
+- TODO 3: tighten the page's Content Security Policy `connect-src` from `'self' https:` to only the addresses in use (Firebase, the form Worker, and any chat/Calendar/Sheets address in use); needs a code change and a live test.
+- Optional, not security: custom domain move.
+
+## Update 2026-11-06: WorkTrack W5 (owner approved Revision 2 of the QA layout)
+- QA review accepted: R1 to R10 (see the layout doc). Confirm-step audit done: no change needed (see `4.5.0-W5a-floating-clock.md`).
+- W5a floating clock: AUTOMATED_TESTED, awaiting the owner's live test (`W5a-CHECKLIST.md`). Then W5b (schedules, lateness flicker; includes R2 effective-from rule, R3, R4, R5, R6) and W5c (alarm; R7, R10), each stopping for approval.
+- Status labels from now on: DESIGNED, IMPLEMENTED, AUTOMATED_TESTED, MANUALLY_VERIFIED, PRODUCTION_APPROVED.
+- Other QA findings parked: retention policy for old meeting requests; streamed size limit in the chat Worker (chat is scripted only); module-dependency note for the docs.
+

@@ -245,3 +245,30 @@ button.libtile.pickable{cursor:pointer;min-height:44px}button.libtile.pickable:h
 /* D1: owner documents */
 .odpre{white-space:pre-wrap;word-break:break-word;background:var(--d-card);border:1px solid var(--d-line);border-radius:10px;padding:12px;max-height:60vh;overflow:auto;font:inherit;margin:8px 0}
 #odBody{width:100%;min-height:220px;font:inherit}
+
+/* W5a: floating WorkTrack clock (all classes start with wtfl- so nothing else is touched) */
+.wtfl{position:fixed;z-index:100;left:0;top:0;width:min(300px,calc(100vw - 16px));box-sizing:border-box;background:#1b2333;color:#fff;border:1px solid #3a4560;border-radius:14px;box-shadow:0 10px 30px rgba(7,12,24,.4);font:14px/1.4 system-ui,"DM Sans",sans-serif;color-scheme:dark}
+.wtfl[hidden]{display:none}
+.wtfl.wtfl-drag{box-shadow:0 14px 38px rgba(7,12,24,.55);opacity:.95}
+.wtfl-bar{display:flex;align-items:center;gap:6px;padding:4px 6px;touch-action:none;cursor:grab}
+.wtfl.wtfl-drag .wtfl-bar{cursor:grabbing}
+.wtfl-grip,.wtfl-min,.wtfl-btn{font:inherit;color:inherit;border:0;cursor:pointer}
+.wtfl-grip{background:transparent;min-width:36px;min-height:36px;font-size:20px;line-height:1;border-radius:8px;touch-action:none;cursor:inherit}
+.wtfl-status{flex:1;min-width:0;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wtfl[data-state="WORKING"] .wtfl-status{color:#8fe3ae}
+.wtfl[data-state="FIRST_BREAK"] .wtfl-status,.wtfl[data-state="LUNCH"] .wtfl-status,.wtfl[data-state="LAST_BREAK"] .wtfl-status{color:#ffd37a}
+.wtfl-min{background:transparent;min-height:36px;padding:0 10px;border-radius:8px;font-size:13px;color:#cfd6e6}
+.wtfl-body{padding:2px 12px 12px}
+.wtfl-time{font:650 28px/1.2 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.02em}
+.wtfl-net{font-size:13px;color:#cfd6e6;margin-bottom:8px;min-height:1.2em}
+.wtfl-btns{display:flex;flex-wrap:wrap;gap:8px}
+.wtfl-btn{min-height:40px;padding:0 14px;border-radius:10px;background:#2f4fb3;font-weight:600;flex:1 1 auto}
+.wtfl-btn.wtfl-out{background:#8a2a3a}
+.wtfl-btn:disabled{opacity:.55;cursor:not-allowed}
+.wtfl-err{margin:8px 0 0;color:#ffb4ab;font-size:13px}.wtfl-err:empty{display:none}
+.wtfl-grip:focus-visible,.wtfl-min:focus-visible,.wtfl-btn:focus-visible{outline:3px solid #ffd37a;outline-offset:2px}
+.wtfl.wtfl-min-on{width:auto;min-width:200px}
+.wtfl.wtfl-min-on .wtfl-body{display:none}
+@media (max-width:480px){.wtfl{width:calc(100vw - 16px)}.wtfl-time{font-size:24px}}
+@media (prefers-reduced-motion:reduce){.wtfl,.wtfl *{transition:none;animation:none}}
+@media (forced-colors:active){.wtfl{border:2px solid CanvasText;background:Canvas;color:CanvasText;forced-color-adjust:auto}.wtfl-btn{border:2px solid ButtonText;background:ButtonFace;color:ButtonText}.wtfl-grip:focus-visible,.wtfl-min:focus-visible,.wtfl-btn:focus-visible{outline:3px solid Highlight}}
