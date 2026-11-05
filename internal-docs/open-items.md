@@ -29,4 +29,9 @@
 
 - R1 (reads reduction) built: browser cache for visitors, awaiting live check. Approach B (Worker-served content) stays an option if traffic grows.
 - R2 (key API restriction): DONE 2026-11-06 (live test passed). Remaining after R2: rotate the Sheets token, custom domain move, D1/D2.
-- D1 (Owner documents) built, awaiting install and live test. Open: which existing public docs to move into the portal. D2 scope still to be defined.
+- D1 (Owner documents) DONE 2026-11-06 (live test passed, emulator 187/187). Open: which existing public docs to move into the portal. D2 scope still to be defined.
+
+## Decision 2026-11-06: Phase D2 rejected (owner decision)
+- D2 (moving existing docs into the Owner documents portal and cleaning the public repo) will not be built. Reason: build history and documentation already live in `README.md`.
+- Existing docs stay where they are. The Owner documents page (D1) stays available for new private notes. Can be reopened later.
+- S1 (Sheets token rotation): documented in `S1-CHECKLIST.md`, awaiting the owner's run. Remaining after S1: custom domain move (optional). D2 rejected.

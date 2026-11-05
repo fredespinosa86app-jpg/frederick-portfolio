@@ -1360,3 +1360,8 @@ No Firestore rules change in E4 (`ownerPrivate` is already owner only). Rules te
 - Text is shown as plain text only. Text that looks like a key, token, password or webhook address is refused.
 - Backup: new export-only checkbox "Owner documents (private notes)".
 - Nothing was moved out of the public repo yet: `internal-docs/` and the root checklists are still public. See `D1-CHECKLIST.md` and `internal-docs/4.5.0-D1-owner-documents.md`.
+
+## 4.5.0 - Phase S1: Google Sheets token rotation (checklist only)
+
+- No code, rules or Worker changes. Follow `S1-CHECKLIST.md`: new token in the Apps Script property `TOKEN` and in Owner Panel > Integrations > Google Sheets, then Test connection and one sync.
+- Token only; the `/exec` address is unchanged (it was never exposed).
