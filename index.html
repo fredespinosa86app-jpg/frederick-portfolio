@@ -40,7 +40,7 @@
 <script>try{if(localStorage.getItem('portfolio-dark')==='1')document.documentElement.setAttribute('data-theme','dark')}catch(e){}</script>
 <link rel="stylesheet" href="styles/main.css?v=b3">
 <link rel="stylesheet" href="styles/components.css?v=b3">
-<link rel="stylesheet" href="styles/owner.css?v=w5a">
+<link rel="stylesheet" href="styles/owner.css?v=w5b">
 <link rel="stylesheet" href="styles/themes.css?v=b3">
 <link rel="stylesheet" href="styles/responsive.css?v=b3">
 </head>
@@ -485,7 +485,7 @@
 <p class="dstate" id="wtState" role="status"></p>
 <div class="wtclock"><div class="wtstatus" id="wtStatus" role="status">Not clocked in</div>
 <div class="wtgrid"><div><span class="wtlab">Session time</span><strong class="wtbig" id="wtGross">00:00:00</strong></div><div><span class="wtlab">Working time</span><strong class="wtbig" id="wtNet">00:00:00</strong></div><div><span class="wtlab">Now (Manila)</span><strong class="wtbig" id="wtNow">--:--:--</strong></div></div>
-<p class="dhelp" id="wtNote"></p><p class="ferr" id="wtWarn" role="alert"></p><p class="ferr" id="wtBlock" role="alert"></p></div>
+<p class="dhelp" id="wtNote"></p><p class="wtbrk" id="wtBrk" data-kind="none"></p><p class="sr-only" id="wtBrkSr" role="status"></p><p class="ferr" id="wtWarn" role="alert"></p><p class="ferr" id="wtBlock" role="alert"></p></div>
 <div class="wtbtns" id="wtBtns"></div>
 <p class="ferr" id="wtErr" role="alert"></p>
 <div class="ab"><button type="button" class="dbtn" id="wtRefresh">Refresh</button><button type="button" class="dbtn" id="wtClose" hidden>Close as incomplete…</button></div></div>
@@ -495,6 +495,14 @@
 <div class="wtchips" id="wtChips"></div><div class="wtlist" id="wtCliHist"></div>
 <div class="ab"><button type="button" class="dbtn" id="wtCliHistBtn" hidden>Show changes to the clients</button></div><div class="wtlist" id="wtCliAudit"></div>
 <p class="dhelp">Only Client IDs are stored, never names. Manage the IDs on the Client IDs page.</p></div>
+<div class="dcard" id="wsCard"><h3>Break schedules</h3>
+<p class="dhelp">Allowed minutes for each break. <strong>0 = no limit, never late.</strong> When a break runs past its limit, the matching "in" button flickers and the clock says "late by". A change applies from your <strong>next</strong> break, never the one already running. The schedule used is the first client added to the session; if that client has none, the Default is used; if there is no Default, the built-in 15 / 60 / 15 minutes. This only reminds you: nothing is stored on your punches.</p>
+<p class="libmeta" id="wsForce" role="status"></p>
+<label class="chk"><input type="checkbox" id="wsFlick" checked> Flicker the button when a break is late (this device only)</label>
+<div class="ab"><label class="fld">Search Client ID<input type="search" id="wsSearch" maxlength="24" autocomplete="off" placeholder="Type to filter"></label></div>
+<div class="wsrows" id="wsRows"></div><p class="libmeta" id="wsCount" role="status"></p>
+<div class="ab"><button type="button" class="dbtn" id="wsMore" hidden>Show more</button><button type="button" class="dbtn" id="wsReload">Reload schedules</button></div>
+<p class="ferr" id="wsErr" role="alert"></p><p class="dstate" id="wsState" role="status"></p></div>
 <div class="dcard"><h3 id="wtListHead">No punches recorded yet.</h3><div class="wtlist" id="wtList"></div></div>
 <div class="dcard" id="wtHCard"><h3>History and reports</h3><p class="dhelp">Past sessions, read only. Pick a date range and press Load; filters and the CSV then use what is already loaded and cost no extra reads. Times are shown in the zone each session was recorded in. The CSV has the original and the corrected values side by side.</p>
 <div class="ab"><label class="fld">From<input type="date" id="wtHFrom"></label><label class="fld">To<input type="date" id="wtHTo"></label><button type="button" class="dbtn primary" id="wtHLoad">Load</button><button type="button" class="dbtn" id="wtHRefresh" hidden>Refresh</button></div>
@@ -1012,10 +1020,12 @@ function doPost(e) {
 <script src="scripts/owner-docs.js?v=d1"></script>
 <script src="scripts/core-time.js?v=b3"></script>
 <script src="scripts/core-worktrack.js?v=b3"></script>
+<script src="scripts/core-wtschedule.js?v=w5b"></script>
 <script src="scripts/core-wtfloat.js?v=w5a"></script>
 <script src="scripts/core-wtlog.js?v=b3"></script>
-<script src="scripts/owner-worktrack.js?v=w5a"></script>
-<script src="scripts/wt-float.js?v=w5a"></script>
+<script src="scripts/owner-worktrack.js?v=w5b"></script>
+<script src="scripts/owner-wtsched.js?v=w5b"></script>
+<script src="scripts/wt-float.js?v=w5b"></script>
 <script src="scripts/owner-wtlog.js?v=b3"></script>
 <script src="scripts/core-wtreport.js?v=b3"></script>
 <script src="scripts/owner-wtreport.js?v=b3"></script>

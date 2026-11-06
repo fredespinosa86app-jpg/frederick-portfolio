@@ -1,4 +1,4 @@
-import { b, base, check, errs, fresh, signIn, signOut, vis, results, srv } from './w5a-harness.mjs';
+import { b, base, check, errs, fresh, signIn, signOut, vis, results, srv } from './w5-harness.mjs';
 const { ctx, pg } = await fresh();
 check('hidden before sign-in', !(await vis(pg)));
 await signIn(pg); await pg.waitForTimeout(500);

@@ -11,3 +11,10 @@ Run (needs Node 20+ and Playwright with Chromium):
     node w5a-3-sync-a11y.mjs
 
 Each prints PASS/FAIL per check and "ALL PASSED" at the end. Not part of the GitHub Actions emulator run.
+
+W5b (schedules and flicker):
+
+    node w5b-1-schedules.mjs
+    node w5b-2-rules-of-choice.mjs
+
+Note: a line "fs.orderBy is not a function" can appear from unrelated owner-panel modules because the stand-in database is minimal; it is filtered out of the page-error check.

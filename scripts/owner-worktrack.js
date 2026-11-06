@@ -12,11 +12,11 @@
    ========================================================================== */
 (function () {
   'use strict';
-  const kit = window.dashKit, core = window.coreWork, ids = window.coreIds, tm = window.coreTime; if (!kit || !core || !ids || !tm) return;
+  const kit = window.dashKit, core = window.coreWork, ids = window.coreIds, tm = window.coreTime, sch = window.coreWtSched; if (!kit || !core || !ids || !tm || !sch) return;
   const { el, notify } = kit;
   const $ = id => document.getElementById(id), own = () => window.OWN;
   let TZ = 'Asia/Manila';                        // default; the Work settings card (W3) sets the zone used for NEW sessions
-  let S = { st: null, events: [], derived: null, sessionTz: TZ, sessionDate: '', assign: [] }, registry = [], pending = readPending(), signed = false, timer = 0, skew = 0, skewKnown = false, busyPunch = false, wasOnline = true;
+  let S = { st: null, events: [], derived: null, sessionTz: TZ, sessionDate: '', assign: [], sched: { docs: {}, err: '' } }, registry = [], pending = readPending(), signed = false, timer = 0, skew = 0, skewKnown = false, busyPunch = false, wasOnline = true;
   const say = (id, msg) => { const n = $(id); if (n) n.textContent = msg || ''; };
   const ms = t => !t ? 0 : typeof t.toMillis === 'function' ? t.toMillis() : t instanceof Date ? t.getTime() : Number(t) || 0;
   const now = () => Date.now() + skew;
@@ -69,7 +69,8 @@
       const qa = await f.getDocs(f.query(f.collection(o.db, 'workAssign'), f.where('sid', '==', st.sid)));
       assign = qa.docs.map(d => { const x = d.data(); return { clientId: x.clientId, status: x.status, rev: x.rev, addedAt: x.addedAt }; }).sort((a, b) => a.clientId < b.clientId ? -1 : 1);
     }
-    S = { st, events, derived: core.derive(events, now()), sessionTz: tz, sessionDate: date, assign };
+    const sched = st.sid && st.state !== 'NOT_STARTED' ? await loadSched(assign) : { docs: {}, err: '' };      // W5b: only while a session is open
+    S = { st, events, derived: core.derive(events, now()), sessionTz: tz, sessionDate: date, assign, sched };
     const d = S.derived;
     if (d.valid && st.sid && (d.events.length !== st.n || (d.closed ? 'NOT_STARTED' : d.state) !== st.state)) { d.valid = false; d.problem = 'The saved records and the current position do not agree (' + d.events.length + ' records, position "' + st.state + '", counter ' + st.n + ').'; }
     changed();
@@ -185,11 +186,12 @@
   function tick() {
     const d = S.st && S.derived, t = now();
     say('wtNow', timeFmt(t));
-    if (!d || !d.events.length) { say('wtGross', '00:00:00'); say('wtNet', '00:00:00'); say('wtNote', 'Press Clock in to start. Session time keeps running during breaks; working time pauses.'); return; }
+    if (!d || !d.events.length) { say('wtGross', '00:00:00'); say('wtNet', '00:00:00'); say('wtNote', 'Press Clock in to start. Session time keeps running during breaks; working time pauses.'); applyBreak(); return; }
     const live = core.derive(d.events, t); S.derived.grossMs = live.grossMs; S.derived.netMs = live.netMs; S.derived.breakMs = live.breakMs;
     say('wtGross', tm.formatDuration(live.grossMs));
     say('wtNet', live.netMs == null ? '—' : tm.formatDuration(live.netMs));
     say('wtNote', live.closed ? (live.incomplete ? 'Closed as incomplete: no working-time total is kept for this session.' : 'Finished. Breaks taken: ' + tm.formatDuration(live.breakMs) + '.') : 'Session time keeps running during breaks; working time pauses.');
+    applyBreak();
   }
   /* ---------------------------------------------------------------- clients on the session (W2) */
   const openSession = () => !!(S.st && S.st.state !== 'NOT_STARTED' && S.derived && S.derived.valid);
@@ -273,6 +275,39 @@
     } finally { busyPunch = false; draw(); changed(); }
   }
 
+  /* ---------------------------------------------------------------- W5b: break schedules (display only; nothing here writes a punch)
+     Read on every full load: the schedule client's document and 'default' (two reads at most), so another device's edit is seen at the next load. */
+  async function loadSched(assign) {
+    const o = own(), f = o.fs, cid = sch.scheduleClient(assign), want = cid ? [cid, 'default'] : ['default'], docs = {}; let err = '';
+    for (const id of want) {
+      try { const sn = await f.getDoc(f.doc(o.db, 'workSchedules', id)); if (sn.exists()) docs[id] = sn.data(); }
+      catch (e) { err = (e && e.code) || 'error'; }
+    }
+    return { docs, err };
+  }
+  const flickerOn = () => { try { return localStorage.getItem('wtFlicker:v1') !== '0'; } catch (e) { return true; } };
+  function breakInfo() {                       // what the page and the clock show about the break that is open right now
+    if (!S.st || !S.derived || !S.derived.valid) return { kind: 'none', text: '', src: '', inType: '' };
+    const p = sch.pick(S.assign, S.sched ? S.sched.docs : {}), st = sch.breakStatus(S.st.state, S.derived.events, now(), p);
+    return { kind: st.kind, inType: st.inType || '', text: sch.describe(st), src: sch.sourceText(st, p), name: st.name || '', limitMin: st.limitMin, deadlineMs: st.deadlineMs || 0, err: S.sched && S.sched.err ? S.sched.err : '' };
+  }
+  let lastKind = 'none';
+  function applyBreak() {                      // page: text, flicker class on the existing button (never rebuilt), one polite announcement when it turns late
+    const bi = breakInfo(), box = $('wtBtns');
+    say('wtBrk', bi.kind === 'none' ? '' : bi.text + (bi.src ? ' · ' + bi.src : ''));
+    const brk = $('wtBrk'); if (brk) brk.dataset.kind = bi.kind;
+    if (box) box.querySelectorAll('[data-punch]').forEach(b => b.classList.toggle('wtb-late', bi.kind === 'late' && flickerOn() && b.dataset.punch === bi.inType));
+    if (bi.kind === 'late' && lastKind !== 'late') say('wtBrkSr', bi.name + ' limit passed. ' + bi.text + '.');
+    if (bi.kind !== 'late') say('wtBrkSr', '');
+    lastKind = bi.kind;
+  }
+  async function reloadSched() {
+    if (!signed || !S.st || !S.st.sid || S.st.state === 'NOT_STARTED') return;
+    try { S.sched = await loadSched(S.assign); } catch (e) { /* keep what is shown */ }
+    changed(); applyBreak();
+  }
+  document.addEventListener('wt:schedchanged', reloadSched);
+
   /* ---------------------------------------------------------------- W5a: read-only door for the floating clock (wt-float.js)
      The clock never talks to the database itself: it asks this module, so every punch still goes through the ONE transaction above. */
   const changed = () => { try { document.dispatchEvent(new CustomEvent('wt:changed')); } catch (e) { /* ignore */ } };
@@ -280,7 +315,7 @@
   async function ensure() {                                   // sign-in / page open: load the state once, even if the WorkTrack page was never opened
     if (!signed || S.st || ensureBusy) return; ensureBusy = true;
     try { syncClock(); await load(); } catch (e) { /* the clock simply stays hidden; the WorkTrack page shows the error */ } finally { ensureBusy = false; }
-    if (!signed && S.st) { S = { st: null, events: [], derived: null, sessionTz: TZ, sessionDate: '', assign: [] }; changed(); }   // signed out while loading: drop it
+    if (!signed && S.st) { S = { st: null, events: [], derived: null, sessionTz: TZ, sessionDate: '', assign: [], sched: { docs: {}, err: '' } }; changed(); }   // signed out while loading: drop it
   }
   async function sync() {                                     // tab focus: at most one read of workState/main per minute; a full load only when its revision changed
     if (!signed || busyPunch || syncBusy || ensureBusy) return;
@@ -297,7 +332,7 @@
   window.wtApi = Object.freeze({
     signedIn: () => signed, state: () => S.st ? Object.assign({}, S.st) : null,
     derived: () => S.derived && S.derived.events ? core.derive(S.derived.events, now()) : null,
-    sessionTz: () => S.sessionTz, now, busy: () => busyPunch, punch: apiPunch, refresh: async () => { if (!signed) return; try { await load(); draw(); } catch (e) { /* ignore */ } }, sync, ensure
+    sessionTz: () => S.sessionTz, now, busy: () => busyPunch, breakInfo, flicker: flickerOn, registry: () => registry.slice(), assign: () => S.assign.slice(), schedDocs: () => Object.assign({}, S.sched ? S.sched.docs : {}), punch: apiPunch, refresh: async () => { if (!signed) return; try { await load(); draw(); } catch (e) { /* ignore */ } }, sync, ensure
   });
 
   function startTimer() { stopTimer(); timer = setInterval(() => { if (!document.hidden) tick(); }, 1000); }
@@ -306,7 +341,7 @@
   async function show() {
     if (!signed) return;
     say('wtErr', ''); say('wtState', 'Loading…');
-    try { syncClock(); await load(); try { await loadRegistry(); } catch (e) { /* the clients card shows what it has */ } say('wtState', ''); draw(); startTimer(); }
+    try { syncClock(); await load(); try { await loadRegistry(); } catch (e) { /* the clients card shows what it has */ } say('wtState', ''); draw(); startTimer(); changed(); }
     catch (e) { say('wtState', 'Could not load WorkTrack. ' + errText(e)); }
   }
   function init() {
@@ -317,7 +352,7 @@
     window.addEventListener('offline', () => { if (S.st) draw(); });
     document.addEventListener('visibilitychange', () => { if (!document.hidden && S.st && timer) { syncClock(); tick(); } });
     document.addEventListener('dash:page', e => { if (e.detail === 'worktrack') show(); else stopTimer(); });
-    document.addEventListener('own:auth', e => { signed = !!(e.detail && e.detail.ok); S = { st: null, events: [], derived: null, sessionTz: TZ, sessionDate: '', assign: [] }; registry = []; stopTimer(); if (!signed) { $('wtBtns').replaceChildren(); $('wtList').replaceChildren(); $('wtChips').replaceChildren(); $('wtCliHist').replaceChildren(); $('wtCliAudit').replaceChildren(); say('wtState', ''); say('wtErr', ''); } lastSync = 0; changed(); if (signed) ensure(); });
+    document.addEventListener('own:auth', e => { signed = !!(e.detail && e.detail.ok); S = { st: null, events: [], derived: null, sessionTz: TZ, sessionDate: '', assign: [], sched: { docs: {}, err: '' } }; registry = []; stopTimer(); if (!signed) { $('wtBtns').replaceChildren(); $('wtList').replaceChildren(); $('wtChips').replaceChildren(); $('wtCliHist').replaceChildren(); $('wtCliAudit').replaceChildren(); say('wtState', ''); say('wtErr', ''); } lastSync = 0; changed(); if (signed) ensure(); });
   }
   document.addEventListener('wt:settings', e => { if (e.detail && e.detail.tz) { TZ = e.detail.tz; if (S && S.st && !(S.derived && S.derived.events && S.derived.events.length)) S.sessionTz = TZ; if (S && S.st) draw(); } });
   window.__wt = { get state() { return S; } };     // read-only test hook

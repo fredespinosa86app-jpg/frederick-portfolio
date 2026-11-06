@@ -930,5 +930,24 @@ service cloud.firestore {
       allow update: if isOwner() && ownerDocOk(request.resource.data)
         && request.resource.data.createdAt == resource.data.createdAt && request.resource.data.updatedAt == request.time;
     }
+    // W5b (4.5.0): break schedules. Owner only. One document per Client ID (must exist in the registry) plus the one named 'default'.
+    // fb/lu/lb = allowed minutes now; pfb/plu/plb = the values they replaced, so a break that started before the last edit keeps its old limit.
+    // On every update the previous values must equal the values being replaced. 0 means no limit.
+    function wsInt(v) { return v is int && v >= 0 && v <= 240; }
+    function wsOk(d) {
+      return d.keys().hasOnly(['fb','lu','lb','pfb','plu','plb','rev','updatedAt'])
+        && d.keys().hasAll(['fb','lu','lb','pfb','plu','plb','rev','updatedAt'])
+        && wsInt(d.fb) && wsInt(d.lu) && wsInt(d.lb) && wsInt(d.pfb) && wsInt(d.plu) && wsInt(d.plb)
+        && d.rev is int && d.updatedAt is timestamp;
+    }
+    function wsId(id) { return id == 'default' || (validClientId(id) && exists(regDoc(id))); }
+    match /workSchedules/{id} {
+      allow read, delete: if isOwner();
+      allow create: if isOwner() && wsId(id) && wsOk(request.resource.data)
+        && request.resource.data.rev == 1 && request.resource.data.updatedAt == request.time;
+      allow update: if isOwner() && wsId(id) && wsOk(request.resource.data)
+        && request.resource.data.rev == resource.data.rev + 1 && request.resource.data.updatedAt == request.time
+        && request.resource.data.pfb == resource.data.fb && request.resource.data.plu == resource.data.lu && request.resource.data.plb == resource.data.lb;
+    }
   }
 }

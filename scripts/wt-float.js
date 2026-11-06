@@ -9,7 +9,7 @@
   'use strict';
   const fl = window.coreWtFloat, core = window.coreWork, tm = window.coreTime; if (!fl || !core || !tm) return;
   const $ = id => document.getElementById(id);
-  let root, bar, stat, timeEl, netEl, btnBox, errEl, minBtn, grip, prefs = { x: null, y: null, min: false }, timer = 0, shown = false, confirmType = '', confirmT = 0, busy = false, lastStatus = '';
+  let root, bar, stat, timeEl, netEl, brkEl, srEl, lastKind = 'none', btnBox, errEl, minBtn, grip, prefs = { x: null, y: null, min: false }, timer = 0, shown = false, confirmType = '', confirmT = 0, busy = false, lastStatus = '';
   const mk = (tag, cls, txt) => { const n = document.createElement(tag); if (cls) n.className = cls; if (txt != null) n.textContent = txt; return n; };
   const vp = () => ({ w: document.documentElement.clientWidth || window.innerWidth, h: document.documentElement.clientHeight || window.innerHeight });
   const size = () => { const r = root.getBoundingClientRect(); return { w: r.width, h: r.height }; };
@@ -28,9 +28,9 @@
     bar.append(grip, stat, minBtn);
     const body = mk('div', 'wtfl-body'); body.id = 'wtflBody';
     timeEl = mk('div', 'wtfl-time'); timeEl.setAttribute('role', 'timer'); timeEl.setAttribute('aria-label', 'Current time');
-    netEl = mk('div', 'wtfl-net');
+    netEl = mk('div', 'wtfl-net'); brkEl = mk('div', 'wtfl-brk'); srEl = mk('p', 'wtfl-sr'); srEl.setAttribute('role', 'status');
     btnBox = mk('div', 'wtfl-btns'); errEl = mk('p', 'wtfl-err'); errEl.setAttribute('role', 'alert');
-    body.append(timeEl, netEl, btnBox, errEl);
+    body.append(timeEl, netEl, brkEl, srEl, btnBox, errEl);
     root.append(bar, body); document.body.append(root);
     minBtn.setAttribute('aria-controls', 'wtflBody');
     minBtn.addEventListener('click', () => { prefs.min = !prefs.min; savePrefs(); applyMin(); place(); });
@@ -104,14 +104,24 @@
     const st = api.state(); if (!st || st.state === 'NOT_STARTED') return;
     timeEl.textContent = timeFmt(api.now(), api.sessionTz());
     const d = api.derived(); netEl.textContent = d && d.valid && d.netMs != null ? 'Working time ' + tm.formatDuration(d.netMs) : '';
+    breakLine();
+  }
+  /* W5b: how long is left on the open break, or how late; the matching button flickers (class toggled on the existing button, never rebuilt) */
+  function breakLine() {
+    const api = window.wtApi, bi = api.breakInfo ? api.breakInfo() : { kind: 'none' };
+    brkEl.textContent = bi.kind === 'none' ? '' : bi.text + (bi.src ? ' · ' + bi.src : ''); brkEl.dataset.kind = bi.kind; root.dataset.brk = bi.kind;
+    const late = bi.kind === 'late' && api.flicker();
+    btnBox.querySelectorAll('[data-punch]').forEach(b => b.classList.toggle('wtfl-late', late && b.dataset.punch === bi.inType));
+    if (bi.kind === 'late' && lastKind !== 'late') srEl.textContent = bi.name + ' limit passed. ' + bi.text + '.'; else if (bi.kind !== 'late') srEl.textContent = '';
+    lastKind = bi.kind;
   }
   function startTimer() { stopTimer(); timer = setInterval(() => { if (!document.hidden) tick(); }, 1000); }
   function stopTimer() { if (timer) clearInterval(timer); timer = 0; }
   /* sign-out or session closed: stop everything and clear what was shown (no timer, no private text left in the page) */
   function teardown() {
-    stopTimer(); clearTimeout(confirmT); confirmType = ''; busy = false; shown = false; lastStatus = '';
+    stopTimer(); clearTimeout(confirmT); confirmType = ''; busy = false; shown = false; lastStatus = ''; lastKind = 'none';
     if (!root) return;
-    root.hidden = true; stat.textContent = ''; timeEl.textContent = ''; netEl.textContent = ''; errEl.textContent = ''; btnBox.replaceChildren(); delete root.dataset.state;
+    root.hidden = true; stat.textContent = ''; timeEl.textContent = ''; netEl.textContent = ''; brkEl.textContent = ''; srEl.textContent = ''; errEl.textContent = ''; btnBox.replaceChildren(); delete root.dataset.state; delete root.dataset.brk;
     if (root.parentNode !== document.body) document.body.append(root);
   }
 

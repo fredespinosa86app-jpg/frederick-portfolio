@@ -49,3 +49,6 @@
 - Status labels from now on: DESIGNED, IMPLEMENTED, AUTOMATED_TESTED, MANUALLY_VERIFIED, PRODUCTION_APPROVED.
 - Other QA findings parked: retention policy for old meeting requests; streamed size limit in the chat Worker (chat is scripted only); module-dependency note for the docs.
 
+## Update 2026-11-06: W5a verified, W5b built
+- W5a: MANUALLY_VERIFIED (owner live test passed).
+- W5b (schedules, lateness, flicker; R2 to R6): AUTOMATED_TESTED, awaiting rules republish and the owner's live test (`W5b-CHECKLIST.md`). Next: W5c (alarm; R7, R10) after approval.

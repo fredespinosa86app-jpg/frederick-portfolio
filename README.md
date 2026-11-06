@@ -1372,3 +1372,12 @@ No Firestore rules change in E4 (`ownerPrivate` is already owner only). Rules te
 - Accessibility (QA review R1): while the aria-modal dashboard is open the clock lives inside it, so keyboard and screen-reader users can reach it.
 - No database or rules change; every punch still uses the one existing transaction. New files: `scripts/core-wtfloat.js` (+ tests), `scripts/wt-float.js`; browser tests in `rules-tests/browser/`.
 - Status: AUTOMATED_TESTED. Live test: `W5a-CHECKLIST.md`. Details and honest limits: `internal-docs/4.5.0-W5a-floating-clock.md`. W5b (schedules, flicker) and W5c (alarm) come next, each after approval.
+
+## 4.5.0 - Phase W5b: break schedules, lateness text and flicker
+
+- New card WorkTrack > Break schedules: allowed minutes per break (First break, Lunch, Last break; 0 = no limit) for a Default and each active Client ID, with search and "show more". The first client on the session decides; no schedule there means the Default; none at all means 15 / 60 / 15.
+- While a break is open, the page and the floating clock show time left or "late by", and the matching "in" button pulses (once per 1.2 s; steady outline with reduced motion; per-device switch). Deadline = database time of the break-out punch + minutes. Display only: nothing is stored on punches.
+- QA review items: a schedule edit applies from the next break (previous values kept and checked by the rules), schedules are re-read at every full load, only registry clients can have a schedule, no silent 50-client cap.
+- Rules change (collection `workSchedules`, owner only): republish `firestore.rules.strict`. New: `scripts/core-wtschedule.js`, `scripts/owner-wtsched.js`; tests in `rules-tests/`.
+- Status: AUTOMATED_TESTED. Live test: `W5b-CHECKLIST.md`. Details and limits: `internal-docs/4.5.0-W5b-break-schedules.md`. W5c (alarm) is next, after approval.
+
