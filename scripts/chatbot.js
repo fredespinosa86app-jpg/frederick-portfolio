@@ -53,6 +53,8 @@ function answer(q){lastFallback=false;const s=' '+q.toLowerCase()+' ';
 if(/\b(thanks|thank you)\b/.test(s))return `You’re welcome! ${hire()}`;
 let best=null,top=0;for(const e of KB.concat(window.__chatExtra||[])){let n=0;for(const k of e.k)if(s.includes(k))n+=k.length>=12?2:1;if(n>top){top=n;best=e}}
 lastFallback=!best;return best?best.a:FALLBACK}
+/* S2-C2: the connection rule lists the allowed hosts. A webhook host that is not on it would be blocked by the browser, so it is skipped quietly (scripted answers are used) */
+function hookAllowed(){return !!(window.coreCsp&&window.coreCsp.allowsConnect(window.chatHook))}
 const SID=Math.random().toString(36).slice(2),HIST=[];
 async function viaHook(q){const c=new AbortController(),t=setTimeout(()=>c.abort(),HOOK_TIMEOUT);
 try{const r=await fetch(window.chatHook,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:q.slice(0,300),sessionId:SID,history:HIST.filter(m=>m.role==='user').slice(-6).map(m=>({role:'user',content:String(m.content).slice(0,300)})),page:location.origin+location.pathname}),signal:c.signal});
@@ -82,7 +84,7 @@ let a=null,html=true,local=false;
 try{
 const m=E.matchKb(q,E.kb());                       // owner-approved and predefined answers come first
 if(m){a=m.item.a;html=false;local=true}
-else if(window.chatHook&&!E.injection(q)){try{a=await viaHook(q);html=false}catch(e){a=null}}   // instruction-override attempts never reach the AI webhook
+else if(window.chatHook&&hookAllowed()&&!E.injection(q)){try{a=await viaHook(q);html=false}catch(e){a=null}}   // instruction-override attempts never reach the AI webhook
 if(a==null){a=answer(q);html=true;local=true}
 const target=local?E.replyDelay(a.length):E.MIN_MS;   // controlled 2-8 s for stored answers; webhook answers show as soon as they arrive (after 2 s minimum)
 const rem=target-(Date.now()-t0);if(rem>0)await wait(rem);

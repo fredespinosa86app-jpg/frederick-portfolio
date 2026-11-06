@@ -1,5 +1,5 @@
 /* ==========================================================================
-   owner-s2.js - Security phase S2 (owner dashboard): S2-D monthly "m_ users" reminder and S2-C1 connection log.
+   owner-s2.js - Security phase S2 (owner dashboard): S2-D monthly "m_ users" reminder and the S2-C1/C2 connection log (connections, pictures/media, blocked by the rule).
    Nothing here deletes anything or sends anything anywhere. The reminder date lives in ownerPrivate/config (owner only, existing rule);
    the connection log lives in this browser's localStorage and records host names only.
    ========================================================================== */
@@ -36,32 +36,51 @@
     });
   }
 
-  /* ---------------- S2-C1: connection log (host names only, this device only) ---------------- */
-  let map = CL.parse((() => { try { return localStorage.getItem(CL.KEY) || ''; } catch (e) { return ''; } })()), obs = null, t = 0;
-  const persist = () => { clearTimeout(t); t = setTimeout(() => { try { localStorage.setItem(CL.KEY, JSON.stringify(map)); } catch (e) { /* log stays in memory */ } }, 1200); };
+  /* ---------------- S2-C1 / S2-C2: connection log (host names only, this device only) ---------------- */
+  const load = k => { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } };
+  let map = CL.parse(load(CL.KEY)), media = CL.parse(load(CL.MEDIA_KEY)), blocked = CL.parseBlocked(load(CL.BLOCKED_KEY)), obs = null, t = 0;
+  const persist = () => { clearTimeout(t); t = setTimeout(() => { try { localStorage.setItem(CL.KEY, JSON.stringify(map)); localStorage.setItem(CL.MEDIA_KEY, JSON.stringify(media)); localStorage.setItem(CL.BLOCKED_KEY, JSON.stringify(blocked)); } catch (e) { /* log stays in memory */ } }, 1200); };
   let gap = null;   // [signed-out time, signed-in-again time]: entries made in between are skipped when logging resumes
-  const sight = e => { if (!CL.isConnect(e.initiatorType)) return; if (gap && gap[1] && e.startTime >= gap[0] && e.startTime <= gap[1]) return; const o = CL.origin(e.name, location.origin); if (o) { map = CL.record(map, o, Date.now()); persist(); } };
+  const sight = e => {
+    const c = CL.isConnect(e.initiatorType), m = !c && CL.isMedia(e.initiatorType); if (!c && !m) return;
+    if (gap && gap[1] && e.startTime >= gap[0] && e.startTime <= gap[1]) return;
+    const o = CL.origin(e.name, location.origin); if (!o) return;
+    if (c) map = CL.record(map, o, Date.now()); else media = CL.record(media, o, Date.now());
+    persist();
+  };
+  /* blocked-by-the-rule events: collected in memory from page load (so the first seconds are not lost), kept on this device only while the owner is signed in */
+  let signedIn = false, pend = {};
+  document.addEventListener('securitypolicyviolation', ev => {
+    const k = CL.blockedKey(ev, location.origin); if (!k) return;
+    if (signedIn) { blocked = CL.recordBlocked(blocked, k, Date.now()); persist(); } else pend = CL.recordBlocked(pend, k, Date.now());
+  });
   function startLog() {
+    signedIn = true; Object.keys(pend).forEach(k => { for (let i = 0; i < pend[k].n; i++) blocked = CL.recordBlocked(blocked, k, pend[k].last); }); pend = {};
     if (obs || typeof PerformanceObserver === 'undefined') return;
     if (gap && !gap[1]) gap[1] = performance.now();
     try { performance.setResourceTimingBufferSize(1000); } catch (e) { /* default size */ }
     try { obs = new PerformanceObserver(l => { l.getEntries().forEach(sight); }); obs.observe({ type: 'resource', buffered: true }); } catch (e) { obs = null; }
   }
-  const stopLog = () => { if (obs) { obs.takeRecords().forEach(sight); obs.disconnect(); obs = null; gap = [performance.now(), 0]; } };
+  const stopLog = () => { signedIn = false; if (obs) { obs.takeRecords().forEach(sight); obs.disconnect(); obs = null; gap = [performance.now(), 0]; } };
+  const when = r => new Date(r.last).toLocaleString('en-US');
+  const rowEl = (mark, off, title, sub) => el('div', { class: 'mrow' + (off ? ' off' : '') }, el('span', { class: 'mthumb ph', 'aria-hidden': 'true' }, mark), el('div', { class: 'mmain' }, el('strong', {}, title), el('small', {}, sub)));
+  const times = r => 'seen ' + r.n + ' time' + (r.n === 1 ? '' : 's') + ', last ' + when(r);
   function renderLog() {
-    const list = $('clList'); if (!list) return;
+    const list = $('connList'); if (!list) return;
     if (obs) obs.takeRecords().forEach(sight);
-    const R = CL.rows(map), unknown = R.filter(r => !r.known).length;
-    list.replaceChildren(...(R.length ? R.map(r => el('div', { class: 'mrow' + (r.known ? '' : ' off') },
-      el('span', { class: 'mthumb ph', 'aria-hidden': 'true' }, r.known ? '✓' : '?'),
-      el('div', { class: 'mmain' }, el('strong', {}, r.host + (r.secure ? '' : '  (NOT https)')), el('small', {}, r.why + ' · seen ' + r.n + ' time' + (r.n === 1 ? '' : 's') + ', last ' + new Date(r.last).toLocaleString('en-US')))))
+    const R = CL.rows(map), unknown = R.filter(r => !r.known).length, B = CL.blockedRows(blocked), M = CL.mediaRows(media);
+    list.replaceChildren(...(R.length ? R.map(r => rowEl(r.known ? '✓' : '?', !r.known, r.host + (r.secure ? '' : '  (NOT https)'), r.why + ' · ' + times(r)))
       : [el('p', { class: 'dstate' }, 'Nothing recorded yet. Use the site while signed in, then press Refresh.')]));
-    $('clState').textContent = R.length ? R.length + ' host' + (R.length === 1 ? '' : 's') + ' recorded' + (unknown ? ', ' + unknown + ' not in the code scan (marked ?).' : ', all expected.') : '';
+    $('connState').textContent = R.length ? R.length + ' host' + (R.length === 1 ? '' : 's') + ' recorded' + (unknown ? ', ' + unknown + ' not in the code scan (marked ?).' : ', all expected.') : '';
+    $('connBlocked').replaceChildren(...(B.length ? B.map(r => rowEl('✕', true, r.dir + ' · ' + r.host, 'Blocked by the rule · ' + times(r) + '. Send me this list.'))
+      : [el('p', { class: 'dstate ok' }, 'Nothing blocked. Good.')]));
+    $('connMedia').replaceChildren(...(M.length ? M.map(r => rowEl('•', false, r.host + (r.secure ? '' : '  (NOT https)'), 'Picture or media host · ' + times(r))) : [el('p', { class: 'dstate' }, 'No outside picture or media hosts recorded yet.')]));
+    $('connMediaState').textContent = M.length ? M.length + ' picture/media host' + (M.length === 1 ? '' : 's') + ' recorded. Only recorded, not restricted yet.' : '';
   }
   if ($('clRefresh')) {
     $('clRefresh').addEventListener('click', renderLog);
-    $('clCopy').addEventListener('click', async () => { renderLog(); const txt = CL.asText(map); if (!txt) return notify('Nothing to copy yet.', 'info'); try { await navigator.clipboard.writeText(txt); notify('List copied. Paste it into the chat.', 'success'); } catch (e) { notify('Could not copy. Select the list on screen instead.', 'error'); } });
-    $('clClear').addEventListener('click', () => { map = {}; try { localStorage.removeItem(CL.KEY); } catch (e) { /* ignore */ } renderLog(); notify('Connection log cleared.'); });
+    $('clCopy').addEventListener('click', async () => { renderLog(); const txt = CL.asTextAll({ connect: map, media, blocked }); if (!Object.keys(map).length && !Object.keys(media).length && !Object.keys(blocked).length) return notify('Nothing to copy yet.', 'info'); try { await navigator.clipboard.writeText(txt); notify('List copied. Paste it into the chat.', 'success'); } catch (e) { notify('Could not copy. Select the list on screen instead.', 'error'); } });
+    $('clClear').addEventListener('click', () => { map = {}; media = {}; blocked = {}; try { [CL.KEY, CL.MEDIA_KEY, CL.BLOCKED_KEY].forEach(k => localStorage.removeItem(k)); } catch (e) { /* ignore */ } renderLog(); notify('Connection log cleared.'); });
   }
 
   document.addEventListener('dash:page', e => { const p = e.detail && e.detail.page ? e.detail.page : e.detail; if (p === 'security') { renderLog(); renderAuth(); } });

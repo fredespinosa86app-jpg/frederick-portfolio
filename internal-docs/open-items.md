@@ -40,7 +40,7 @@
 - Done by the owner: two-step verification on Google (also covers Firebase) and GitHub.
 - TODO 1: turn on two-step verification on the Cloudflare account (owner action, no code).
 - TODO 2: add a Cloudflare rate-limit rule in front of the form Worker (`portfolio-forms`) as a harder backstop for its per-instance limits (free plan; owner action, checklist to be written).
-- TODO 3: tighten the page's Content Security Policy `connect-src` from `'self' https:` to only the addresses in use (Firebase, the form Worker, and any chat/Calendar/Sheets address in use); needs a code change and a live test.
+- TODO 3 (DONE in S2-C2, live test pending; `img-src`/`media-src` follow-up S2-C3 open): tighten the page's Content Security Policy `connect-src` from `'self' https:` to only the addresses in use (Firebase, the form Worker, and any chat/Calendar/Sheets address in use); needs a code change and a live test.
 - Optional, not security: custom domain move.
 
 ## Update 2026-11-06: WorkTrack W5 (owner approved Revision 2 of the QA layout)
@@ -59,4 +59,9 @@
 ## Update 2026-11-06: W5c built
 - W5c (alarm; R7, R10, Corner and Reset-position buttons): AUTOMATED_TESTED, awaiting the owner's live test (`W5c-CHECKLIST.md`). No rules, CSP or database change. After it passes the W5 plan is complete.
 - Still open (unchanged): Cloudflare 2FA, Cloudflare rate-limit rule for `portfolio-forms`, tighter CSP `connect-src`, retention policy for old meeting requests, optional custom domain move.
+
+## Update 2026-11-06: W5c live result
+- Passed live: alarm card, sequence, stops, no replay, sounds, Corner and Reset position buttons.
+- Not yet seen live (owner): notifications (B10) and the title rule R7. Stay AUTOMATED_TESTED until tried. W5 plan is complete apart from these two checks.
+- 2026-11-06 follow-up: tab title confirmed live. Notifications: blocked by the browser for this site; owner can allow them in the browser's site settings and retry step B10, or leave them off (the alarm sound, title and pulse work without them).
 

@@ -210,7 +210,7 @@
     $('dmVerify').disabled = !d; $('dmRemove').disabled = !d; $('dmCname').disabled = !d; dmDnsRender(d);
     const st = $('dmStatus');
     if (!d) { st.textContent = 'No custom domain set. The site is served at its GitHub Pages address.'; st.className = 'dstate-line'; }
-    else if (cfg.domainStatus === 'verified') { st.textContent = d + ' is verified: DNS points to GitHub Pages and the site loads over HTTPS. Last checked ' + new Date(cfg.domainChecked).toLocaleString() + '.'; st.className = 'dstate-line ok'; }
+    else if (cfg.domainStatus === 'verified') { st.textContent = d + ' has DNS pointing to GitHub Pages. Open it in a new tab to confirm the lock icon. Last checked ' + new Date(cfg.domainChecked).toLocaleString() + '.'; st.className = 'dstate-line ok'; }
     else { st.textContent = d + ' is saved but NOT verified' + (cfg.domainChecked ? ' (last check ' + new Date(cfg.domainChecked).toLocaleString() + ')' : '') + '. Configure DNS, then press Verify.'; st.className = 'dstate-line warn'; }
   }
   async function dmVerify() {
@@ -228,16 +228,13 @@
         add(dnsOk, dnsOk ? 'DNS: CNAME points to ' + GH_HOST + '.' : c.length ? 'DNS: CNAME is ' + c.join(', ') + ', expected ' + GH_HOST + '.' : 'DNS: no CNAME record found yet (or the name is proxied).');
       }
     } catch (e) { add(false, 'DNS: the lookup service could not be reached. Try again later.'); }
-    let httpsOk = false, contentOk = false;
-    if (dnsOk) {
-      try { const r = await fetch('https://' + d + '/index.html', { cache: 'no-store' }); httpsOk = r.ok; const t = r.ok ? await r.text() : ''; contentOk = /Frederick Espinosa/.test(t) && /id="ownerLogin"/.test(t); }
-      catch (e) { httpsOk = false; }
-      add(httpsOk, httpsOk ? 'HTTPS: https://' + d + ' answers with a valid certificate.' : 'HTTPS: https://' + d + ' is not reachable with a valid certificate yet. After DNS is correct, GitHub can take up to 24 hours to issue it; then tick Enforce HTTPS in Pages settings.');
-      if (httpsOk) add(contentOk, contentOk ? 'Site: the domain serves this portfolio.' : 'Site: the domain answers, but not with this portfolio. Check the GitHub Pages custom domain setting.');
-    }
-    list.replaceChildren(...checks.map(([ok, t]) => el('li', { class: ok ? 'ok' : 'bad' }, el('span', { 'aria-hidden': 'true' }, ok ? '✓ ' : '✕ '), t)));
-    const verified = dnsOk && httpsOk && contentOk;
-    if (await savePriv({ domainStatus: verified ? 'verified' : 'pending', domainChecked: Date.now() })) notify(verified ? 'Domain verified.' : 'Domain is not fully configured yet.', verified ? 'success' : 'warning');
+    /* S2-C2: the page can no longer fetch an arbitrary address, so the HTTPS check is a link the owner opens in a new tab (never a fetch) */
+    if (dnsOk) checks.push([true, null]);
+    list.replaceChildren(...checks.map(([ok, t]) => t == null
+      ? el('li', {}, 'HTTPS: open ', el('a', { href: 'https://' + d + '/', target: '_blank', rel: 'noopener noreferrer' }, 'https://' + d + '/'), ' in a new tab. It should show this portfolio with a lock icon. If it does not yet, GitHub can take up to 24 hours after DNS is correct to issue the certificate; then tick Enforce HTTPS in Pages settings.')
+      : el('li', { class: ok ? 'ok' : 'bad' }, el('span', { 'aria-hidden': 'true' }, ok ? '✓ ' : '✕ '), t)));
+    const verified = dnsOk;
+    if (await savePriv({ domainStatus: verified ? 'verified' : 'pending', domainChecked: Date.now() })) notify(verified ? 'DNS is correct. Open the domain in a new tab to confirm HTTPS.' : 'Domain is not fully configured yet.', verified ? 'success' : 'warning');
     dmRender(); $('dmVerify').disabled = !cfg.domain;
   }
   $('dmSave').addEventListener('click', async () => {

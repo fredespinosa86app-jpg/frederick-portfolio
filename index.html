@@ -2,7 +2,7 @@
 <html lang="en" data-theme="gold-silver">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-fGX5IcsLgeneh8q3k50FD0Z3izvKrJM1aduFLTysApk=' https://www.gstatic.com https://apis.google.com https://accounts.google.com https://www.google.com/recaptcha/; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; font-src 'self'; img-src 'self' data: blob: https:; media-src 'self' blob: https:; connect-src 'self' https:; frame-src https://www.youtube-nocookie.com https://www.youtube.com https://www.loom.com https://www.google.com https://recaptcha.google.com https://accounts.google.com https://apis.google.com https://*.firebaseapp.com https://calendly.com https://*.leadconnectorhq.com https://leadconnectorhq.com https://*.msgsndr.com https://msgsndr.com https://*.gohighlevel.com https://gohighlevel.com https://*.cal.com https://cal.com https://tidycal.com https://*.acuityscheduling.com https://acuityscheduling.com https://*.as.me https://as.me https://savvycal.com https://calendar.google.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-fGX5IcsLgeneh8q3k50FD0Z3izvKrJM1aduFLTysApk=' https://www.gstatic.com https://apis.google.com https://accounts.google.com https://www.google.com/recaptcha/; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; font-src 'self'; img-src 'self' data: blob: https:; media-src 'self' blob: https:; connect-src 'self' https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://portfolio-forms.fredespinosa86-app.workers.dev https://www.googleapis.com https://script.google.com https://script.googleusercontent.com https://www.youtube.com https://dns.google; frame-src https://www.youtube-nocookie.com https://www.youtube.com https://www.loom.com https://www.google.com https://recaptcha.google.com https://accounts.google.com https://apis.google.com https://*.firebaseapp.com https://calendly.com https://*.leadconnectorhq.com https://leadconnectorhq.com https://*.msgsndr.com https://msgsndr.com https://*.gohighlevel.com https://gohighlevel.com https://*.cal.com https://cal.com https://tidycal.com https://*.acuityscheduling.com https://acuityscheduling.com https://*.as.me https://as.me https://savvycal.com https://calendar.google.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <script src="scripts/frame-guard.js?v=b3"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -991,9 +991,11 @@ function doPost(e) {
 <p class="dhelp"><strong>Never delete your own row</strong> (it shows your email and the Google icon). The database rules are tied to your sign-in ID: if it is deleted, signing in again creates a new ID and the panel locks you out.</p>
 <div class="dact-row"><button type="button" class="dbtn primary" id="authDone">I did the cleanup today</button></div></div>
 <div class="dcard" id="clCard"><h2>Connection log (this device only)</h2>
-<p class="dhelp">While you are signed in, this lists the websites the page contacted (host names only, never addresses, paths or content). It is kept on this device and sent nowhere. Use each feature once, then press <strong>Copy list</strong> and send it to me: it is the real list I need before tightening the connection rules.</p>
+<p class="dhelp">While you are signed in, this lists the websites the page contacted, the sites it loaded pictures and media from, and anything the connection rule <strong>blocked</strong> (host names only, never addresses, paths or content). It is kept on this device and sent nowhere. After the rule is tightened, use each feature once: the <strong>Blocked by the rule</strong> list below must stay empty. If it is not empty, press <strong>Copy list</strong> and send it to me.</p>
 <div class="dact-row"><button type="button" class="dbtn" id="clRefresh">Refresh</button><button type="button" class="dbtn primary" id="clCopy">Copy list</button><button type="button" class="dbtn danger" id="clClear">Clear log</button></div>
-<div class="mlist" id="clList"></div><p class="dhelp" id="clState" role="status"></p></div>
+<h3 class="dsub">Blocked by the rule</h3><div class="mlist" id="connBlocked"></div>
+<h3 class="dsub">Connections (fetch and similar)</h3><div class="mlist" id="connList"></div><p class="dhelp" id="connState" role="status"></p>
+<h3 class="dsub">Pictures and media</h3><div class="mlist" id="connMedia"></div><p class="dhelp" id="connMediaState" role="status"></p></div>
 </section>
 <section class="dpage" id="dp-general" hidden>
 <div class="dcard"><h2>Loading screen</h2><p class="dhelp">A screen with moving dots covers the page until your saved settings are applied, so visitors never see the default page first. It also appears briefly when a visitor clicks Hire Me. Changes reach a visitor on their <strong>next</strong> visit; a first-time visitor sees the standard values.</p>
@@ -1041,8 +1043,9 @@ function doPost(e) {
 <script src="scripts/section-bg.js?v=b3"></script>
 <script src="scripts/hero-photo.js?v=b3"></script>
 <script src="scripts/main.js?v=b3"></script>
+<script src="scripts/core-csp.js?v=s2c2"></script>
 <script src="scripts/chat-engine.js?v=c1"></script>
-<script src="scripts/chatbot.js?v=b3"></script>
+<script src="scripts/chatbot.js?v=s2c2"></script>
 <script src="scripts/video-section.js?v=b3"></script>
 <script src="scripts/theme-switcher.js?v=b3"></script>
 <script src="scripts/seo.js?v=b3"></script>
@@ -1061,12 +1064,12 @@ function doPost(e) {
 <script src="scripts/owner-phase1.js?v=t1"></script>
 <script src="scripts/owner-phase2.js?v=b3"></script>
 <script src="scripts/analytics.js?v=b3"></script>
-<script src="scripts/owner-phase3.js?v=b3"></script>
+<script src="scripts/owner-phase3.js?v=s2c2"></script>
 <script src="scripts/owner-phase5.js?v=c1"></script>
 <script src="scripts/owner-phase6.js?v=c1"></script>
 <script src="scripts/core-authcleanup.js?v=s2"></script>
-<script src="scripts/core-connlog.js?v=s2"></script>
-<script src="scripts/owner-s2.js?v=s2"></script>
+<script src="scripts/core-connlog.js?v=s2c2"></script>
+<script src="scripts/owner-s2.js?v=s2c2"></script>
 <script src="scripts/owner-phase7.js?v=b3"></script>
 <script src="scripts/owner-security.js?v=f6"></script>
 <script src="scripts/backup-core.js?v=c1"></script>
@@ -1102,6 +1105,6 @@ function doPost(e) {
 <script src="scripts/owner-entry.js?v=b3"></script>
 <script src="scripts/owner-seo.js?v=b3"></script>
 <script src="scripts/content-cache.js?v=r1"></script>
-<script type="module" src="scripts/owner-panel.js?v=r3"></script>
+<script type="module" src="scripts/owner-panel.js?v=s2c2"></script>
 </body>
 </html>

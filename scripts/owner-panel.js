@@ -31,7 +31,7 @@ const now=Date.now(),c=CC.read(k);
 if(CC.isFresh(c,now)){try{f(CC.snap(c.d))}finally{m()}return}
 getDoc(r).then(s=>{try{CC.write(k,s.exists()?s.data():null,Date.now())}catch(e){}try{f(s)}finally{m()}},()=>{if(CC.isUsableStale(c,now)){try{f(CC.snap(c.d))}finally{m()}}else m()})};
 const goLive=()=>{LIVE=true;REG.forEach(x=>{if(!x.on){x.on=true;try{x.live()}catch(e){}}})};
-watch('settings',ref,s=>{const d=s.exists()?s.data():{};const on=d.hireEnabled!==false;if(window.capacityApi)window.capacityApi.setHire(on);else hire.forEach(e=>e.hidden=!on);cb.checked=on;window.chatHook=d.chatAuto&&/^https:\/\//i.test(d.chatWebhook||'')?d.chatWebhook:'';hookUrl.value=d.chatWebhook||'';hookOn.checked=!!d.chatAuto;const iu=typeof d.introUrl==='string'?d.introUrl:window.DEF_INTRO,ie=d.introEnabled!==false;introOn.checked=ie;introUrl.value=iu;window.applySite(d)});
+watch('settings',ref,s=>{const d=s.exists()?s.data():{};const on=d.hireEnabled!==false;if(window.capacityApi)window.capacityApi.setHire(on);else hire.forEach(e=>e.hidden=!on);cb.checked=on;window.chatHook=d.chatAuto&&/^https:\/\//i.test(d.chatWebhook||'')&&window.coreCsp&&window.coreCsp.allowsConnect(d.chatWebhook)?d.chatWebhook:'';hookUrl.value=d.chatWebhook||'';hookOn.checked=!!d.chatAuto;const iu=typeof d.introUrl==='string'?d.introUrl:window.DEF_INTRO,ie=d.introEnabled!==false;introOn.checked=ie;introUrl.value=iu;window.applySite(d)});
 window.__ownerLoginReady=true;
 const authMsg=e=>{const c=(e&&e.code)||'';
 if(c==='auth/unauthorized-domain')return 'Sign-in is blocked because "'+location.hostname+'" is not an authorized domain. In Firebase open Authentication > Settings > Authorized domains and add it.';
@@ -58,6 +58,7 @@ $('introRemove').addEventListener('click',async()=>{if(!introUrl.value.trim()&&!
 $('introSave').addEventListener('click',()=>{const u=introUrl.value.trim();if(u&&!window.parseVideo(u)){notify('Please paste a valid YouTube or Loom link, starting with https://');return}
 setDoc(ref,{introUrl:u,introEnabled:introOn.checked,updatedAt:Date.now()},{merge:true}).then(()=>notify('Video settings saved.')).catch(()=>notify('Could not save. Please check your Firestore rules.'))});
 $('hookSave').addEventListener('click',()=>{const u=hookUrl.value.trim();if(u&&!u.startsWith('https://')){notify('The webhook URL must start with https://');return}
+if(u&&!(window.coreCsp&&window.coreCsp.allowsConnect(u))){notify('That address is not on the page\u2019s allowed connection list, so the browser would block it. Ask your developer to add this one host to the connection rule first, then save again.');return}
 setDoc(ref,{chatWebhook:u,chatAuto:hookOn.checked&&!!u,updatedAt:Date.now()},{merge:true}).then(()=>notify('Chatbot automation settings saved.')).catch(()=>notify('Could not save. Please check your Firestore rules.'))});
 const rdb=getFirestore(app);
 const hash=s=>{let x=5381;for(const c of s)x=((x<<5)+x+c.charCodeAt(0))>>>0;return x.toString(36)};

@@ -1,6 +1,6 @@
 import { b, check, errs, fresh, signIn, signOut, results, srv } from './w5-harness.mjs';
 const { ctx, pg } = await fresh();
-await ctx.route(/dns\.google|mystery-host\.test|after-signout\.test/, r => r.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: '{}' }));
+await ctx.route(/dns\.google|script\.googleusercontent\.com|www\.youtube\.com|mystery-host\.test|pic-host\.test/, r => r.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: '{}' }));
 const DAY = 864e5;
 // ---- visitors: nothing recorded
 await pg.waitForTimeout(500);
@@ -34,31 +34,40 @@ await pg.evaluate(() => { window.__store['ownerPrivate/config'].retBannerAt = 12
 await pg.click('.dnav [data-page=dashboard]'); await pg.waitForTimeout(200); await pg.click('#authLater'); await pg.waitForTimeout(300); p = await priv();
 check('saving keeps the other private settings (merge)', p.retBannerAt === 123 && p.authCleanupAt > 0 && p.authSnoozeAt > Date.now(), JSON.stringify(p));
 check('nothing is deleted anywhere by the reminder', await pg.evaluate(() => Object.keys(window.__store).every(k => !k.startsWith('users'))));
-// ---- S2-C1 connection log
-await pg.evaluate(async () => { await fetch('https://dns.google/resolve?name=secret.example&token=ABC123'); await fetch('https://mystery-host.test/path/x?token=SECRET'); await fetch(location.href, { method: 'HEAD' }); });
+// ---- S2-C1 / S2-C2 connection log
+const PX = 'data:image/gif;base64,R0lGODlhAQABAAAAACw=';
+await pg.evaluate(async () => { await fetch('https://dns.google/resolve?name=secret.example&token=ABC123'); await fetch(location.href, { method: 'HEAD' }); try { await fetch('https://mystery-host.test/path/x?token=SECRET'); } catch (e) { /* blocked by the page rule: expected */ } const i = new Image(); i.src = 'https://pic-host.test/a.png?token=PICSECRET'; document.body.append(i); await new Promise(r => setTimeout(r, 300)); });
 await pg.waitForTimeout(400);
 await pg.click('.dnav [data-page=security]'); await pg.waitForTimeout(500);
-const rows = await pg.$$eval('#clList .mrow', r => r.map(x => ({ t: x.textContent, off: x.classList.contains('off') })));
-check('log lists dns.google as expected and mystery-host.test as unknown (?)', rows.some(x => /dns\.google/.test(x.t) && !x.off && /Custom-domain/.test(x.t)) && rows.some(x => /mystery-host\.test/.test(x.t) && x.off && /Not in the code scan/.test(x.t)), JSON.stringify(rows.map(r => r.t.slice(0, 60))));
-const shown = await pg.textContent('#clList') + await pg.textContent('#clState');
-check('only host names are shown: no path, query, token or search term', !/token|SECRET|ABC123|resolve|secret\.example|path\/x/.test(shown), shown.slice(0, 300));
+const rows = await pg.$$eval('#connList .mrow', r => r.map(x => ({ t: x.textContent, off: x.classList.contains('off') })));
+check('connections: dns.google is listed as expected', rows.some(x => /dns\.google/.test(x.t) && !x.off && /Custom-domain/.test(x.t)), JSON.stringify(rows.map(r => r.t.slice(0, 60))));
+check('the host the rule blocks never reaches the connections list', !rows.some(x => /mystery-host/.test(x.t)));
+const blk = await pg.$$eval('#connBlocked .mrow', r => r.map(x => x.textContent));
+check('Blocked by the rule lists connect-src + mystery-host.test', blk.length === 1 && /connect-src/.test(blk[0]) && /mystery-host\.test/.test(blk[0]), JSON.stringify(blk));
+const med = await pg.$$eval('#connMedia .mrow', r => r.map(x => x.textContent));
+check('Pictures and media lists pic-host.test (allowed by img-src for now)', med.some(x => /pic-host\.test/.test(x) && /Picture or media host/.test(x)), JSON.stringify(med));
+const shown = await pg.textContent('#clCard');
+check('only host names are shown: no path, query, token or search term', !/token|SECRET|ABC123|PICSECRET|resolve|secret\.example|path\/x|a\.png/.test(shown), shown.slice(0, 400));
 check('same-origin requests and page resources are not listed', !/127\.0\.0\.1|localhost/.test(shown));
-check('summary line counts unknown hosts', /not in the code scan \(marked \?\)/.test(await pg.textContent('#clState')), await pg.textContent('#clState'));
+check('the Clients page list was not touched by the log (ids are unique)', await pg.evaluate(() => document.querySelectorAll('#clList').length === 1 && document.querySelector('#dp-clients #clList') && !document.querySelector('#dp-clients #clList').textContent.includes('dns.google')));
+check('summary line says all connections are expected', /all expected/.test(await pg.textContent('#connState')), await pg.textContent('#connState'));
 await pg.waitForTimeout(1500);
-const stored = await pg.evaluate(() => localStorage.getItem('connLog:v1'));
-check('stored on this device as host + counts only', !!stored && !/token|SECRET|ABC123|path|resolve/.test(stored) && Object.keys(JSON.parse(stored)).every(k => /^https?:\/\/[^/?#\s]+$/.test(k)), stored);
+const keys = ['connLog:v1', 'connMedia:v1', 'connBlocked:v1'];
+const stored = await pg.evaluate(k => k.map(x => localStorage.getItem(x)), keys);
+check('stored on this device as hosts + counts only', stored.every(s => !!s && !/token|SECRET|ABC123|PICSECRET|path|resolve|a\.png/.test(s)) && Object.keys(JSON.parse(stored[0])).every(k => /^https?:\/\/[^/?#\s]+$/.test(k)) && Object.keys(JSON.parse(stored[2])).every(k => /^[a-z-]+ (https?:\/\/[^/?#\s]+|[a-z]+)$/.test(k)), stored.join(' | '));
 await pg.click('#clCopy'); await pg.waitForTimeout(300);
-const txt = await pg.evaluate(() => window.coreConnLog.asText(window.coreConnLog.parse(localStorage.getItem('connLog:v1'))));
-check('copy text is hosts, counts and unknown marks only', /mystery-host\.test {2}x\d+ {2}\(unknown\)/.test(txt) && !/https?:|\?/.test(txt), txt);
+const txt = await pg.evaluate(() => { const C = window.coreConnLog, g = k => localStorage.getItem(k); return C.asTextAll({ connect: C.parse(g('connLog:v1')), media: C.parse(g('connMedia:v1')), blocked: C.parseBlocked(g('connBlocked:v1')) }); });
+check('copy text has three sections, hosts and counts only', /CONNECTIONS\n/.test(txt) && /PICTURES AND MEDIA\n.*pic-host\.test/s.test(txt) && /BLOCKED BY THE RULE\nconnect-src {2}mystery-host\.test {2}x1/.test(txt) && !/https?:|\?|token/i.test(txt), txt);
 // signed out: nothing is recorded while signed out, and not replayed on the next sign-in
 await signOut(pg); await pg.waitForTimeout(300);
-await pg.evaluate(async () => { await fetch('https://after-signout.test/x'); }); await pg.waitForTimeout(300);
+await pg.evaluate(async () => { await fetch('https://script.googleusercontent.com/x'); try { await fetch('https://blocked-while-out.test/x'); } catch (e) { /* blocked */ } }); await pg.waitForTimeout(300);
 await sign(); await pg.click('#dashOpen').catch(() => {}); await pg.waitForTimeout(200); await pg.click('.dnav [data-page=security]'); await pg.waitForTimeout(400); await pg.click('#clRefresh');
-check('requests made while signed out are not logged, even after signing in again', !/after-signout/.test(await pg.textContent('#clList')), await pg.textContent('#clList'));
-await pg.evaluate(async () => { await fetch('https://after-signout.test/y'); }); await pg.waitForTimeout(300); await pg.click('#clRefresh');
-check('requests made while signed in again are logged', /after-signout\.test/.test(await pg.textContent('#clList')));
+check('requests made while signed out are not logged, even after signing in again', !/script\.googleusercontent/.test(await pg.textContent('#connList')), await pg.textContent('#connList'));
+check('rule blocks seen while signed out are kept for the owner once signed in (they are rule hits, not browsing)', /blocked-while-out\.test/.test(await pg.textContent('#connBlocked')), await pg.textContent('#connBlocked'));
+await pg.evaluate(async () => { await fetch('https://script.googleusercontent.com/y'); }); await pg.waitForTimeout(300); await pg.click('#clRefresh');
+check('requests made while signed in again are logged', /script\.googleusercontent\.com/.test(await pg.textContent('#connList')));
 await pg.click('#clClear'); await pg.waitForTimeout(200);
-check('Clear log empties the list and the stored copy', /Nothing recorded yet/.test(await pg.textContent('#clList')) && await pg.evaluate(() => localStorage.getItem('connLog:v1') === null));
+check('Clear log empties all three lists and the stored copies', /Nothing recorded yet/.test(await pg.textContent('#connList')) && /Nothing blocked/.test(await pg.textContent('#connBlocked')) && /No outside picture/.test(await pg.textContent('#connMedia')) && await pg.evaluate(k => k.every(x => localStorage.getItem(x) === null), keys));
 check('page errors: ' + JSON.stringify(errs), errs.length === 0);
 const bad = results.filter(r => !r[1]).length; console.log(bad ? 'SOME FAILED' : 'ALL PASSED');
 await b.close(); srv.close();
