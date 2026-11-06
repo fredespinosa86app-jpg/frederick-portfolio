@@ -51,7 +51,7 @@ test('the response alone, or the flip alone, is refused', async () => {
 test('an expired, revoked or already-submitted invite cannot be answered', async () => {
   for (const o of [{ expiresAt: new Date(Date.now() - 1000) }, { status: 'revoked' }, { status: 'submitted' }]) { await env.clearFirestore(); await seedInvite(K, o); await assertFails(submit(pub())); }
 });
-test('a key without an invite cannot be answered', async () => { const b = writeBatch(pub()); b.set(doc(pub(), 'surveyResponses', K2), resp()); await assertFails(b.commit()); });
+test('a key without an invite cannot be answered', async () => { const db = pub(); const b = writeBatch(db); b.set(doc(db, 'surveyResponses', K2), resp()); await assertFails(b.commit()); });
 test('the flip cannot change the name, company, owner name, version or dates', async () => {
   for (const f of [{ employerName: 'Hacker' }, { company: 'X' }, { ownerName: 'Y' }, { surveyVersion: 'x' }, { expiresAt: new Date(Date.now() + 90 * DAY) }, { status: 'approved' }, { status: 'sent' }, { extra: 1 }]) { await env.clearFirestore(); await seedInvite(); await assertFails(submit(pub(), resp(), K, f)); }
 });
