@@ -44,3 +44,14 @@ test('broad: flags schemes, wildcards and anything that is not one named https h
   assert.deepEqual(C.broad(['https:', 'http:', '*', 'wss:', 'data:', 'https://*.a.test', 'a.test', 'http://a.test', 'https://a.test/path/*']).length, 9);
 });
 test('allowsConnect without a page is closed (fails safe)', () => { assert.equal(C.allowsConnect('https://firestore.googleapis.com'), false); });
+test('allowsImg without a page: data: and blob: pictures are fine, everything else is closed (fails safe)', () => {
+  assert.equal(C.allowsImg('data:image/png;base64,AAAA'), true); assert.equal(C.allowsImg('blob:https://x.test/abc'), true);
+  for (const u of ['https://i.ytimg.com/vi/x/hqdefault.jpg', 'assets/images/a.png', '', null, undefined]) assert.equal(C.allowsImg(u), false, String(u));
+});
+test('img-src / media-src style policy: named hosts, none, data and blob', () => {
+  const P = "default-src 'self'; img-src 'self' data: blob: https://i.ytimg.com https://cdn.loom.com; media-src 'none'";
+  const img = u => C.allows(P, 'img-src', u, PAGE);
+  assert.equal(img('https://i.ytimg.com/vi/abc/hqdefault.jpg'), true); assert.equal(img('https://cdn.loom.com/sessions/thumbnails/x-with-play.gif'), true); assert.equal(img(PAGE + '/assets/a.webp'), true);
+  for (const u of ['https://evil.example/x.png?d=secret', 'https://i.ytimg.com.evil.example/x.png', 'https://img.ytimg.com/x.png', 'http://i.ytimg.com/x.png', 'https://cdn.loom.com:444/x.gif']) assert.equal(img(u), false, u);
+  assert.equal(C.allows(P, 'media-src', PAGE + '/a.mp3', PAGE), false); assert.equal(C.allows(P, 'media-src', 'https://i.ytimg.com/a.mp4', PAGE), false);
+});

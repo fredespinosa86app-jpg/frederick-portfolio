@@ -79,3 +79,32 @@ test('index.html has no duplicate element ids (a repeated id made the S2-C1 log 
   const ids = [...html.matchAll(/\sid="([^"]+)"/g)].map(m => m[1]); const dup = [...new Set(ids.filter((x, i) => ids.indexOf(x) !== i))];
   assert.deepEqual(dup, []);
 });
+
+/* ---- S2-C3: pictures and media ---- */
+const IMG = policy['img-src'] || [], MEDIA = policy['media-src'] || [];
+const strip = s => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+test("img-src is 'self', data:, blob: and exactly the two thumbnail hosts: no https:, *, wildcards", () => {
+  assert.deepEqual(IMG, ["'self'", 'data:', 'blob:', 'https://i.ytimg.com', 'https://cdn.loom.com']);
+  assert.deepEqual(CSP.broad(IMG.filter(s => !['data:', 'blob:'].includes(s))), []);
+});
+test("media-src is 'none' (the site has no audio or video files)", () => { assert.deepEqual(MEDIA, ["'none'"]); });
+test('no <video>, <audio>, <source>, <track> or Audio element is created by the code or the page', () => {
+  assert.ok(!/<(video|audio|source|track)\b/i.test(html), 'page markup');
+  for (const [f, src] of files) { const code = strip(src); assert.ok(!/<(video|audio|source|track)\b|new Audio\(|createElement\(\s*['"](video|audio|source|track)['"]/i.test(code), f + ' creates a media element'); }
+});
+test('every picture address written in the code or the page is allowed by img-src', () => {
+  let n = 0; const chk = (where, u) => { n++; assert.ok(CSP.allows(policy, 'img-src', u, 'https://page.test'), where + ' loads ' + u + ' which img-src blocks'); };
+  for (const [f, src] of files) { const code = strip(src);
+    for (const m of code.matchAll(/thumb:\s*(['"`])(https:\/\/[^'"`/]+)/g)) chk(f, m[2] + '/x');
+    for (const m of code.matchAll(/(?:\bi|img|im|probe)\.src\s*=\s*(['"`])(https:\/\/[^'"`/]+)/g)) chk(f, m[2] + '/x'); }
+  for (const m of html.matchAll(/<img\b[^>]*\ssrc="(https?:\/\/[^"]+)"/g)) chk('index.html', m[1]);
+  for (const f of fs.readdirSync(path.join(root, 'styles')).filter(x => x.endsWith('.css'))) for (const m of fs.readFileSync(path.join(root, 'styles', f), 'utf8').matchAll(/url\(\s*['"]?(https?:\/\/[^'")\s]+)/g)) chk(f, m[1]);
+  assert.ok(n >= 2, 'expected the YouTube and Loom thumbnail addresses');
+  const v = fs.readFileSync(path.join(dir, 'videos.js'), 'utf8'); assert.ok(v.includes('https://i.ytimg.com/vi/') && v.includes('https://cdn.loom.com/sessions/thumbnails/'));
+});
+test('every img-src host is really used by the code (no unused host left in the rule)', () => {
+  const all = files.map(x => x[1]).join('\n'); for (const h of IMG.filter(s => s.startsWith('https://'))) assert.ok(all.includes(h), h + ' is in img-src but not used');
+});
+test('owner pictures are only accepted as data: or assets/ (an outside address can never become a stored picture)', () => {
+  for (const [f, re] of [['content.js', /const img = v => [^\n]*data:image/], ['hero-photo.js', /const ok = v => [^\n]*data:image/], ['testimonials.js', /const img = v => [^\n]*data:image/], ['chat-engine.js', /av = [^\n]*data:image/]]) assert.match(fs.readFileSync(path.join(dir, f), 'utf8'), re, f);
+});

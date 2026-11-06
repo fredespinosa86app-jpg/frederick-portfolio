@@ -2,7 +2,7 @@
 <html lang="en" data-theme="gold-silver">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-fGX5IcsLgeneh8q3k50FD0Z3izvKrJM1aduFLTysApk=' https://www.gstatic.com https://apis.google.com https://accounts.google.com https://www.google.com/recaptcha/; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; font-src 'self'; img-src 'self' data: blob: https:; media-src 'self' blob: https:; connect-src 'self' https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://portfolio-forms.fredespinosa86-app.workers.dev https://www.googleapis.com https://script.google.com https://script.googleusercontent.com https://www.youtube.com https://dns.google; frame-src https://www.youtube-nocookie.com https://www.youtube.com https://www.loom.com https://www.google.com https://recaptcha.google.com https://accounts.google.com https://apis.google.com https://*.firebaseapp.com https://calendly.com https://*.leadconnectorhq.com https://leadconnectorhq.com https://*.msgsndr.com https://msgsndr.com https://*.gohighlevel.com https://gohighlevel.com https://*.cal.com https://cal.com https://tidycal.com https://*.acuityscheduling.com https://acuityscheduling.com https://*.as.me https://as.me https://savvycal.com https://calendar.google.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-fGX5IcsLgeneh8q3k50FD0Z3izvKrJM1aduFLTysApk=' https://www.gstatic.com https://apis.google.com https://accounts.google.com https://www.google.com/recaptcha/; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; font-src 'self'; img-src 'self' data: blob: https://i.ytimg.com https://cdn.loom.com; media-src 'none'; connect-src 'self' https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://portfolio-forms.fredespinosa86-app.workers.dev https://www.googleapis.com https://script.google.com https://script.googleusercontent.com https://www.youtube.com https://dns.google; frame-src https://www.youtube-nocookie.com https://www.youtube.com https://www.loom.com https://www.google.com https://recaptcha.google.com https://accounts.google.com https://apis.google.com https://*.firebaseapp.com https://calendly.com https://*.leadconnectorhq.com https://leadconnectorhq.com https://*.msgsndr.com https://msgsndr.com https://*.gohighlevel.com https://gohighlevel.com https://*.cal.com https://cal.com https://tidycal.com https://*.acuityscheduling.com https://acuityscheduling.com https://*.as.me https://as.me https://savvycal.com https://calendar.google.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <script src="scripts/frame-guard.js?v=b3"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -905,7 +905,7 @@ function doPost(e) {
 <strong class="ah">Google search result</strong>
 <div class="seo-g" aria-label="Search result preview"><span class="seo-gu" id="pvGu"></span><span class="seo-gt" id="pvGt"></span><span class="seo-gd" id="pvGd"></span></div>
 <strong class="ah">Social share card</strong>
-<div class="seo-s" aria-label="Social share preview"><div class="seo-si"><img id="pvSi" loading="lazy" alt="Social sharing image preview" width="1200" height="630"></div><div class="seo-sb"><span class="seo-sh" id="pvSh"></span><span class="seo-st" id="pvSt"></span><span class="seo-sd" id="pvSd"></span></div></div></div>
+<div class="seo-s" aria-label="Social share preview"><div class="seo-si"><img id="pvSi" loading="lazy" alt="Social sharing image preview" width="1200" height="630"><p class="seo-sn" id="pvSiNote" role="status" hidden>Preview isn’t available for outside image links (a security rule of this page). The link is still saved and used by social sites.</p></div><div class="seo-sb"><span class="seo-sh" id="pvSh"></span><span class="seo-st" id="pvSt"></span><span class="seo-sd" id="pvSd"></span></div></div></div>
 <div class="dcard"><h2>Share previews on social sites</h2><p class="dhelp">Facebook, LinkedIn and X read index.html directly and do not run JavaScript. To make a change show in shared links, copy these tags and replace the matching lines in the head of index.html, then upload the project again.</p><div class="ab">
 <textarea id="seoCode" rows="9" readonly aria-label="Head tags for index.html" spellcheck="false"></textarea>
 <button type="button" class="dbtn" id="seoCopy">Copy tags</button></div></div>
@@ -984,7 +984,7 @@ function doPost(e) {
 <p class="dhelp" id="authLast" role="status"></p>
 <ol class="seclist">
 <li>Firebase Console > your project > <strong>Authentication</strong> > <strong>Users</strong>.</li>
-<li>Type <strong>m_</strong> in the search box. If the list does not filter by ID, sort by <strong>Created</strong> and look at rows whose identifier column is empty.</li>
+<li>The search box does <strong>not</strong> filter by ID prefix (confirmed). Instead, click the <strong>Created</strong> column to sort, and look at the rows whose identifier column is empty (no email, no Google icon).</li>
 <li>Check every row you are about to delete: it must have <strong>no email and no Google icon</strong>. Keep users from the last 24 hours (a visitor may be mid-form).</li>
 <li>Select the <strong>m_</strong> rows (one page at a time), choose Delete, repeat until none older than a day remain.</li>
 <li>Come back and press the button below.</li></ol>
@@ -1043,7 +1043,7 @@ function doPost(e) {
 <script src="scripts/section-bg.js?v=b3"></script>
 <script src="scripts/hero-photo.js?v=b3"></script>
 <script src="scripts/main.js?v=b3"></script>
-<script src="scripts/core-csp.js?v=s2c2"></script>
+<script src="scripts/core-csp.js?v=s2c3"></script>
 <script src="scripts/chat-engine.js?v=c1"></script>
 <script src="scripts/chatbot.js?v=s2c2"></script>
 <script src="scripts/video-section.js?v=b3"></script>
@@ -1103,7 +1103,7 @@ function doPost(e) {
 <script src="scripts/owner-google.js?v=b3"></script>
 <script src="scripts/privacy-notice.js?v=r3"></script>
 <script src="scripts/owner-entry.js?v=b3"></script>
-<script src="scripts/owner-seo.js?v=b3"></script>
+<script src="scripts/owner-seo.js?v=s2c3"></script>
 <script src="scripts/content-cache.js?v=r1"></script>
 <script type="module" src="scripts/owner-panel.js?v=s2c2"></script>
 </body>

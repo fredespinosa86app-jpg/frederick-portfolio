@@ -36,7 +36,10 @@
     $('pvGt').textContent = cut(v.title, LIM.titleMax);
     $('pvGd').textContent = cut(v.description, LIM.descMax);
     const img = v.image && !/^https:/i.test(v.image) ? v.image : A.absImage(v.image, v.canonical);
-    if ($('pvSi').getAttribute('src') !== img) $('pvSi').src = img;
+    /* S2-C3: the page may only load pictures from hosts on its img-src rule, so an outside link cannot be previewed (the saved link and the share tags are not affected) */
+    const okImg = !!(window.coreCsp && window.coreCsp.allowsImg(img));
+    $('pvSiNote').hidden = okImg; $('pvSi').hidden = !okImg;
+    if (okImg) { if ($('pvSi').getAttribute('src') !== img) $('pvSi').src = img; } else if ($('pvSi').hasAttribute('src')) $('pvSi').removeAttribute('src');
     $('pvSh').textContent = host(v.canonical);
     $('pvSt').textContent = cut(v.title, 70);
     $('pvSd').textContent = cut(v.description, 125);

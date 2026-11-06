@@ -12,7 +12,7 @@ const tryFetch = u => pg.evaluate(async u => { try { const r = await fetch(u); r
 const pol = await pg.evaluate(() => window.coreCsp.parse(window.coreCsp.metaText()));
 const conn = pol['connect-src'];
 check('connect-src in the page is self + 9 named hosts, no https:', conn[0] === "'self'" && conn.length === 10 && !conn.includes('https:') && !conn.includes('*'), conn.join(' '));
-check('the other directives are unchanged (img-src and media-src still https: for the later step)', pol['img-src'].includes('https:') && pol['media-src'].includes('https:') && pol['object-src'][0] === "'none'" && pol['default-src'][0] === "'self'");
+check('the other directives are unchanged by this phase (img-src and media-src are tightened and tested in s2c3-1)', pol['object-src'][0] === "'none'" && pol['default-src'][0] === "'self'" && pol['form-action'][0] === "'self'");
 
 // ---- 2. allowed hosts work, others are blocked by the browser itself
 const allowed = ['https://firestore.googleapis.com/v1/x', 'https://identitytoolkit.googleapis.com/v1/x', 'https://securetoken.googleapis.com/v1/x', 'https://portfolio-forms.fredespinosa86-app.workers.dev/status',

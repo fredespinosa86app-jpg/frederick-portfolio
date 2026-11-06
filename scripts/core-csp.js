@@ -54,6 +54,8 @@
     const m = d.querySelector('meta[http-equiv="Content-Security-Policy" i]'); return m ? (m.getAttribute('content') || '') : '';
   }
   function allowsConnect(url) { const t = metaText(); if (!t) return false; return allows(t, 'connect-src', url, typeof location !== 'undefined' ? location.origin : ''); }
-  const api = { parse, match, allows, broad, metaText, allowsConnect };
+  /* may the page load this picture address? (data: and blob: pictures are always fine; they cannot reach another site) */
+  function allowsImg(url) { const s = String(url == null ? '' : url); if (/^(data|blob):/i.test(s)) return true; const t = metaText(); if (!t) return false; return allows(t, 'img-src', new URL(s, typeof location !== 'undefined' ? location.href : 'https://x.invalid/').href, typeof location !== 'undefined' ? location.origin : ''); }
+  const api = { parse, match, allows, broad, metaText, allowsConnect, allowsImg };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.coreCsp = api;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -1,6 +1,6 @@
 import { b, check, errs, fresh, signIn, signOut, results, srv } from './w5-harness.mjs';
 const { ctx, pg } = await fresh();
-await ctx.route(/dns\.google|script\.googleusercontent\.com|www\.youtube\.com|mystery-host\.test|pic-host\.test/, r => r.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: '{}' }));
+await ctx.route(/dns\.google|script\.googleusercontent\.com|www\.youtube\.com|mystery-host\.test|i\.ytimg\.com/, r => r.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: '{}' }));
 const DAY = 864e5;
 // ---- visitors: nothing recorded
 await pg.waitForTimeout(500);
@@ -36,7 +36,7 @@ check('saving keeps the other private settings (merge)', p.retBannerAt === 123 &
 check('nothing is deleted anywhere by the reminder', await pg.evaluate(() => Object.keys(window.__store).every(k => !k.startsWith('users'))));
 // ---- S2-C1 / S2-C2 connection log
 const PX = 'data:image/gif;base64,R0lGODlhAQABAAAAACw=';
-await pg.evaluate(async () => { await fetch('https://dns.google/resolve?name=secret.example&token=ABC123'); await fetch(location.href, { method: 'HEAD' }); try { await fetch('https://mystery-host.test/path/x?token=SECRET'); } catch (e) { /* blocked by the page rule: expected */ } const i = new Image(); i.src = 'https://pic-host.test/a.png?token=PICSECRET'; document.body.append(i); await new Promise(r => setTimeout(r, 300)); });
+await pg.evaluate(async () => { await fetch('https://dns.google/resolve?name=secret.example&token=ABC123'); await fetch(location.href, { method: 'HEAD' }); try { await fetch('https://mystery-host.test/path/x?token=SECRET'); } catch (e) { /* blocked by the page rule: expected */ } const i = new Image(); i.src = 'https://i.ytimg.com/vi/abc/hqdefault.jpg?token=PICSECRET'; document.body.append(i); await new Promise(r => setTimeout(r, 300)); });
 await pg.waitForTimeout(400);
 await pg.click('.dnav [data-page=security]'); await pg.waitForTimeout(500);
 const rows = await pg.$$eval('#connList .mrow', r => r.map(x => ({ t: x.textContent, off: x.classList.contains('off') })));
@@ -45,19 +45,19 @@ check('the host the rule blocks never reaches the connections list', !rows.some(
 const blk = await pg.$$eval('#connBlocked .mrow', r => r.map(x => x.textContent));
 check('Blocked by the rule lists connect-src + mystery-host.test', blk.length === 1 && /connect-src/.test(blk[0]) && /mystery-host\.test/.test(blk[0]), JSON.stringify(blk));
 const med = await pg.$$eval('#connMedia .mrow', r => r.map(x => x.textContent));
-check('Pictures and media lists pic-host.test (allowed by img-src for now)', med.some(x => /pic-host\.test/.test(x) && /Picture or media host/.test(x)), JSON.stringify(med));
+check('Pictures and media lists i.ytimg.com (an allowed picture host)', med.some(x => /i\.ytimg\.com/.test(x) && /Picture or media host/.test(x)), JSON.stringify(med));
 const shown = await pg.textContent('#clCard');
-check('only host names are shown: no path, query, token or search term', !/token|SECRET|ABC123|PICSECRET|resolve|secret\.example|path\/x|a\.png/.test(shown), shown.slice(0, 400));
+check('only host names are shown: no path, query, token or search term', !/token|SECRET|ABC123|PICSECRET|resolve|secret\.example|path\/x|hqdefault/.test(shown), shown.slice(0, 400));
 check('same-origin requests and page resources are not listed', !/127\.0\.0\.1|localhost/.test(shown));
 check('the Clients page list was not touched by the log (ids are unique)', await pg.evaluate(() => document.querySelectorAll('#clList').length === 1 && document.querySelector('#dp-clients #clList') && !document.querySelector('#dp-clients #clList').textContent.includes('dns.google')));
 check('summary line says all connections are expected', /all expected/.test(await pg.textContent('#connState')), await pg.textContent('#connState'));
 await pg.waitForTimeout(1500);
 const keys = ['connLog:v1', 'connMedia:v1', 'connBlocked:v1'];
 const stored = await pg.evaluate(k => k.map(x => localStorage.getItem(x)), keys);
-check('stored on this device as hosts + counts only', stored.every(s => !!s && !/token|SECRET|ABC123|PICSECRET|path|resolve|a\.png/.test(s)) && Object.keys(JSON.parse(stored[0])).every(k => /^https?:\/\/[^/?#\s]+$/.test(k)) && Object.keys(JSON.parse(stored[2])).every(k => /^[a-z-]+ (https?:\/\/[^/?#\s]+|[a-z]+)$/.test(k)), stored.join(' | '));
+check('stored on this device as hosts + counts only', stored.every(s => !!s && !/token|SECRET|ABC123|PICSECRET|path|resolve|hqdefault/.test(s)) && Object.keys(JSON.parse(stored[0])).every(k => /^https?:\/\/[^/?#\s]+$/.test(k)) && Object.keys(JSON.parse(stored[2])).every(k => /^[a-z-]+ (https?:\/\/[^/?#\s]+|[a-z]+)$/.test(k)), stored.join(' | '));
 await pg.click('#clCopy'); await pg.waitForTimeout(300);
 const txt = await pg.evaluate(() => { const C = window.coreConnLog, g = k => localStorage.getItem(k); return C.asTextAll({ connect: C.parse(g('connLog:v1')), media: C.parse(g('connMedia:v1')), blocked: C.parseBlocked(g('connBlocked:v1')) }); });
-check('copy text has three sections, hosts and counts only', /CONNECTIONS\n/.test(txt) && /PICTURES AND MEDIA\n.*pic-host\.test/s.test(txt) && /BLOCKED BY THE RULE\nconnect-src {2}mystery-host\.test {2}x1/.test(txt) && !/https?:|\?|token/i.test(txt), txt);
+check('copy text has three sections, hosts and counts only', /CONNECTIONS\n/.test(txt) && /PICTURES AND MEDIA\n.*i\.ytimg\.com/s.test(txt) && /BLOCKED BY THE RULE\nconnect-src {2}mystery-host\.test {2}x1/.test(txt) && !/https?:|\?|token/i.test(txt), txt);
 // signed out: nothing is recorded while signed out, and not replayed on the next sign-in
 await signOut(pg); await pg.waitForTimeout(300);
 await pg.evaluate(async () => { await fetch('https://script.googleusercontent.com/x'); try { await fetch('https://blocked-while-out.test/x'); } catch (e) { /* blocked */ } }); await pg.waitForTimeout(300);

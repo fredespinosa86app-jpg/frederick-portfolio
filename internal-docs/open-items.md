@@ -40,7 +40,7 @@
 - Done by the owner: two-step verification on Google (also covers Firebase) and GitHub.
 - TODO 1: turn on two-step verification on the Cloudflare account (owner action, no code).
 - TODO 2: add a Cloudflare rate-limit rule in front of the form Worker (`portfolio-forms`) as a harder backstop for its per-instance limits (free plan; owner action, checklist to be written).
-- TODO 3 (DONE in S2-C2, live test pending; `img-src`/`media-src` follow-up S2-C3 open): tighten the page's Content Security Policy `connect-src` from `'self' https:` to only the addresses in use (Firebase, the form Worker, and any chat/Calendar/Sheets address in use); needs a code change and a live test.
+- TODO 3 (DONE in S2-C2, live-verified; S2-C3 `img-src`/`media-src` DONE, live test pending): tighten the page's Content Security Policy `connect-src` from `'self' https:` to only the addresses in use (Firebase, the form Worker, and any chat/Calendar/Sheets address in use); needs a code change and a live test.
 - Optional, not security: custom domain move.
 
 ## Update 2026-11-06: WorkTrack W5 (owner approved Revision 2 of the QA layout)

@@ -9,7 +9,7 @@ No rules change and no Worker change. Upload the changed files, wait for GitHub 
 
 ## B. The cleanup itself (do it once now)
 4. Firebase Console > your project > **Authentication** > **Users**. Note how many users there are in total and how many start with `m_`: ____ / ____ (this is the baseline I use to judge whether automation is ever worth it).
-5. Type `m_` in the search box. **Does the list filter by ID prefix?** yes / no (if no, sort by Created and look at rows with an empty identifier). Answer: ____
+5. Type `m_` in the search box. **Does the list filter by ID prefix?** yes / no (if no, sort by Created and look at rows with an empty identifier). Answer: no (confirmed by the owner; use the Created sort and the empty identifier column)
 6. **Your own row** shows your email and the Google icon: do not select it. Delete the `m_` rows older than one day (select a page at a time, then Delete). Done: yes / no
 7. Sign in to the portfolio again in another tab to confirm you are still the owner (Owner Panel opens normally). Pass: yes / no
 8. Press **I did the cleanup today**. The card shows "Last cleanup: today" and "Next reminder in 30 days"; the banner is gone. Pass: yes / no

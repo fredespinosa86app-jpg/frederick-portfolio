@@ -311,3 +311,6 @@ button.libtile.pickable{cursor:pointer;min-height:44px}button.libtile.pickable:h
 
 /* S2-C2: small headings inside the Connection log card */
 .dsub{margin:16px 0 6px;font-size:.95rem;font-weight:600}
+
+/* S2-C3: note shown instead of a preview for outside image links */
+.seo-si{position:relative}.seo-sn{position:absolute;inset:0;margin:0;display:flex;align-items:center;justify-content:center;padding:12px;text-align:center;font-size:.85rem;color:#4b5563}
