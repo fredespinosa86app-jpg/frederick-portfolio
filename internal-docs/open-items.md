@@ -88,3 +88,10 @@ Five items recorded in `4.5.0-security-enhancement-review.md`, each needing the 
 - SV2b (custom surveys): built and AUTOMATED_TESTED, awaiting `SV2B-CHECKLIST.md`. Decisions: extra questions only; templates export-only in backups; limits 10 surveys / 6 questions.
 - Known limits: the 10-survey cap is page-enforced; each sent link keeps its own question copy (editing a template never changes it); extra answers are never published and are not part of the testimonial.
 - Still open: retention period for rejected answers (kept until the owner deletes them), security enhancements E1-E5 (order E3, E1, E5, E4, E2), optional "Build" footer label.
+
+## Update 2026-11-07: SV2 complete
+- SV2b: MANUALLY_VERIFIED (all 15 steps). The whole survey feature (SV1, SV2a, SV2b) is live-tested.
+- Still open (none approved to build): retention period for rejected answers (kept until the owner deletes them), security enhancements E1-E5 (recommended order E3, E1, E5, E4, E2), optional "Build" footer label, a rules-side cap on the number of surveys (needs a counter document).
+
+## Update 2026-11-07: security enhancement E6 added (status DESIGNED, nothing built)
+**E6** Cloudflare Turnstile for the forms Worker, plus a two-level chatbot (AI first, scripted fallback when any limit is reached; the fallback idea is the owner's). Recorded in `4.5.0-security-enhancement-review.md`. Naming: call them SE-E1 to SE-E6 (the README has older finished "Enhancement E1 to E4"). Recommended order now: E3, E6, E1, E5, E4, E2. Prompt for a new session: `SE-prompt.md`. Part B (chatbot) only if an AI chatbot is added.
