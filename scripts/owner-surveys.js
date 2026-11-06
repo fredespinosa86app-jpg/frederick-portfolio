@@ -66,17 +66,29 @@
     const link = linkOf(key), m = SV.messageFor(link, ownerName, name), box = $('svOut'); box.hidden = false;
     const inp = el('input', { type: 'text', readonly: true, value: link, 'aria-label': 'Personal survey link for ' + name, class: 'svlink' });
     box.replaceChildren(el('h2', {}, 'Link ready for ' + name),
-      el('p', { class: 'dhelp' }, 'This link belongs to ' + name + ' only and works once. It expires in ' + SV.EXPIRY_DAYS + ' days. Send it now: it opens your own e-mail program with the message ready.'),
+      el('p', { class: 'dhelp' }, 'This link belongs to ' + name + ' only and works once. It expires in ' + SV.EXPIRY_DAYS + ' days. Send it now: choose your mail program, Gmail or Outlook, or copy the message.'),
       inp,
       el('div', { class: 'dact-row' },
-        kit.iconBtn('inbox', 'Open e-mail', name, () => openMail(email, link, ownerName, name), { primary: true, text: 'Open e-mail' }),
+        kit.iconBtn('inbox', 'Send e-mail', name, () => openMail(email, link, ownerName, name), { primary: true, text: 'Send e-mail' }),
         kit.iconBtn('link', 'Copy link', name, () => copy(link, 'Link'), { text: 'Copy link' }),
         kit.iconBtn('copy', 'Copy message', name, () => copy(m.subject + '\n\n' + m.body, 'Message'), { text: 'Copy message' }),
         kit.iconBtn('close', 'Hide', name, () => { box.hidden = true; box.replaceChildren(); }, { text: 'Hide' })));
     inp.addEventListener('focus', () => inp.select()); box.scrollIntoView({ block: 'nearest' });
   }
+  /* One small chooser, so it works whether or not this computer has a mail program: mail program, Gmail, Outlook (web), or copy the message. */
   function openMail(email, link, ownerName, name) {
-    const a = el('a', { href: SV.mailtoFor(email, link, ownerName, name), hidden: true }); document.body.append(a); a.click(); a.remove();
+    const d = el('dialog', { class: 'dmodal', 'aria-labelledby': 'svSendT' }), m = SV.messageFor(link, ownerName, name), w = SV.webmailUrls(email, link, ownerName, name);
+    const done = fn => () => { fn(); d.close(); };
+    const web = url => done(() => { window.open(url, '_blank', 'noopener,noreferrer'); });
+    d.append(el('div', {}, el('h2', { id: 'svSendT' }, 'Send the survey to ' + name),
+      el('p', { class: 'dhelp' }, 'Choose how to send it. Each choice only prepares the message: you press Send yourself. If a choice does nothing, your computer probably has no mail program set up; use Gmail, Outlook or Copy message.'),
+      el('div', { class: 'dact-row svchoose' },
+        el('button', { type: 'button', class: 'dbtn primary', onclick: done(() => { const a = el('a', { href: SV.mailtoFor(email, link, ownerName, name), hidden: true }); document.body.append(a); a.click(); a.remove(); }) }, 'Mail program'),
+        el('button', { type: 'button', class: 'dbtn', onclick: web(w.gmail) }, 'Gmail (new tab)'),
+        el('button', { type: 'button', class: 'dbtn', onclick: web(w.outlook) }, 'Outlook (new tab)'),
+        el('button', { type: 'button', class: 'dbtn', onclick: done(() => copy(m.subject + '\n\n' + m.body, 'Message')) }, 'Copy message')),
+      el('div', { class: 'dact-row' }, el('button', { type: 'button', class: 'dbtn', onclick: () => d.close() }, 'Close'))));
+    d.addEventListener('close', () => d.remove()); document.body.append(d); d.showModal();
   }
 
   /* ---------------------------------------------------------------- invite actions */
@@ -127,11 +139,10 @@
     say('svState', invites.length + ' invite' + (invites.length === 1 ? '' : 's') + ', ' + Object.keys(resps).length + ' answer' + (Object.keys(resps).length === 1 ? '' : 's') + '.');
     $('svInvList').replaceChildren(...(invites.length ? invites.map(inv => {
       const st = SV.stateOf(inv, resps[inv.key], now), p = priv[inv.key] || {};
-      return el('div', { class: 'cidrow' },
-        el('div', { class: 'cidmain' }, el('strong', {}, inv.employerName), chip(st), el('span', { class: 'libmeta' }, [inv.company, p.clientId ? 'Client ID ' + p.clientId : '', 'Created ' + fmt(inv.createdAt), st === 'sent' ? 'Expires ' + fmt(inv.expiresAt) : '', 'Ref ' + inv.key.slice(0, 8)].filter(Boolean).join(' · '))),
-        p.employerEmail ? el('div', { class: 'dhelp cidnote' }, p.employerEmail) : null,
-        el('div', { class: 'dact-row' },
-          st === 'sent' ? kit.iconBtn('inbox', 'Open e-mail', inv.employerName, () => openMail(p.employerEmail || '', linkOf(inv.key), inv.ownerName, inv.employerName), { disabled: !p.employerEmail }) : null,
+      return el('div', { class: 'cidrow svrow' },
+        el('div', { class: 'cidmain' }, el('strong', {}, inv.employerName), chip(st), el('span', { class: 'libmeta' }, [inv.company, p.clientId ? 'Client ID ' + p.clientId : '', 'Created ' + fmt(inv.createdAt), st === 'sent' ? 'Expires ' + fmt(inv.expiresAt) : '', 'Ref ' + inv.key.slice(0, 8)].filter(Boolean).join(' \u00B7 '))),
+        el('div', { class: 'svact' },
+          st === 'sent' ? kit.iconBtn('inbox', 'Send e-mail', inv.employerName, () => openMail(p.employerEmail || '', linkOf(inv.key), inv.ownerName, inv.employerName), { disabled: !p.employerEmail }) : null,
           st === 'sent' ? kit.iconBtn('link', 'Copy link', inv.employerName, () => copy(linkOf(inv.key), 'Link')) : null,
           st === 'sent' ? kit.iconBtn('close', 'Revoke link', inv.employerName, () => revoke(inv), { danger: true }) : null,
           (st === 'revoked' || st === 'expired') ? kit.iconBtn('trash', 'Delete', inv.employerName, () => removeInvite(inv), { danger: true }) : null));

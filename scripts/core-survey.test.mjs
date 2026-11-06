@@ -121,3 +121,9 @@ test('messageFor: names the owner and employer, holds the link once, states the 
   const k = S.newKey(), l = S.linkFor('https://x.io/p/', k), m = S.messageFor(l, 'Frederick', 'Ana');
   assert.match(m.subject, /Frederick/); assert.ok(m.body.startsWith('Hello Ana,')); assert.equal(m.body.split(l).length, 2); assert.match(m.body, /60 days/);
 });
+test('webmailUrls: fixed https hosts, address and text encoded, link inside, no raw spaces or line breaks', () => {
+  const k = S.newKey(), l = S.linkFor('https://x.io/p/', k), u = S.webmailUrls('boss+1@acme.com', l, 'Frederick', 'Ana');
+  assert.ok(u.gmail.startsWith('https://mail.google.com/mail/?view=cm&fs=1&to=boss%2B1%40acme.com&su=')); assert.ok(u.outlook.startsWith('https://outlook.live.com/mail/0/deeplink/compose?to=boss%2B1%40acme.com&subject='));
+  for (const x of [u.gmail, u.outlook]) { assert.ok(!/[ \n]/.test(x)); assert.ok(decodeURIComponent(x).includes(l)); assert.equal(new URL(x).protocol, 'https:'); }
+  const e = S.webmailUrls('a@b.co&bcc=evil@x.com', l, 'F', 'A'); assert.ok(!new URL(e.gmail).searchParams.has('bcc')); assert.ok(!new URL(e.outlook).searchParams.has('bcc'));
+});

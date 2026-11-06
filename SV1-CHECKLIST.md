@@ -6,7 +6,7 @@ Use a second e-mail address of your own as the "employer" for this test. Use a p
 
 1. Owner Panel menu, Business group: **Employer surveys** is there. Pass: yes / no
 2. Open it. Fill employer name, your second e-mail, a company, your name, pick a Client ID (or None). Press **Create link**. A "Link ready" box appears with a link that looks like `.../survey.html#k=` and a long code. Pass: yes / no
-3. Press **Open e-mail**: your mail program opens with the address, a short message and the link. (Do not send yet, or send it to yourself.) Pass: yes / no
+3. Press **Send e-mail**: a small window offers Mail program, Gmail, Outlook and Copy message. Try **Gmail (new tab)** or **Outlook (new tab)**: a new tab opens with the address, a short message and the link already filled in. (Do not send yet, or send it to yourself.) If your computer has no mail program, "Mail program" may do nothing; that is a computer setting, not a fault. Pass: yes / no
 4. Press **Copy link**, open it in the private window. The survey opens, greets the employer by name and shows your name. Pass: yes / no
 5. In the private window, change one character of the code in the address and press Enter; then remove everything after `survey.html`. Both show "This survey link is not valid". Pass: yes / no
 6. Back on the real link, press **Send my feedback** with nothing filled in: red messages explain what is missing and nothing is sent. Pass: yes / no

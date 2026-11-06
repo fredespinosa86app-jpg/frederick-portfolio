@@ -322,3 +322,7 @@ button.libtile.pickable{cursor:pointer;min-height:44px}button.libtile.pickable:h
 .svstars{color:#c58a00;font-size:1.15rem;letter-spacing:2px}
 .svquote{margin:4px 0;white-space:pre-wrap;overflow-wrap:anywhere}
 .svresp .dhelp{overflow-wrap:anywhere}
+.cidrow.svrow{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px}
+.svrow .cidmain{flex:1 1 280px;min-width:0}
+.svact{display:flex;gap:8px;margin-left:auto;flex:none}
+.svchoose .dbtn{flex:1 1 auto}

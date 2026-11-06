@@ -1475,3 +1475,8 @@ No Firestore rules change in E4 (`ownerPrivate` is already owner only). Rules te
 - **Tests:** `scripts/core-survey.test.mjs` (23), `scripts/survey-guard.test.mjs` (13), attack suite section 8m (2527 checks in total), `mutations_sv1.py` (65 weakenings, all caught) and `mutations_sv1_gen.py` (150 generated weakenings: 134 caught, 16 listed as repeated guards in `sv1_equiv.py`), `sv1_replay.py` (the real page's writes against the real rules), `rules-tests/browser/sv1-1-survey.mjs` (94), `rules-tests/emulator/survey-sv1.test.mjs` (written, not yet executed).
 - **Not yet (SV2):** custom surveys, the 3-month reminder from a Client ID start date, automatic cleanup of old invites, survey data in the backup export, a privacy-notice line.
 - **Docs:** `SV1-CHECKLIST.md`, `internal-docs/4.5.0-SV1-employer-survey.md`.
+
+
+### SV1 follow-up (live-test feedback)
+- Survey links list: one line per row, no e-mail text under the name, icon actions on the right.
+- "Send e-mail" now opens a small chooser: Mail program, Gmail (new tab), Outlook (new tab), Copy message. Works on computers with no default mail program. Web compose pages open with `noopener`; nothing is sent until the owner presses Send there.

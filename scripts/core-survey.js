@@ -121,9 +121,14 @@
     const m = messageFor(link, ownerName, employerName);
     return 'mailto:' + encodeURIComponent(address).replace(/%40/g, '@') + '?subject=' + encodeURIComponent(m.subject) + '&body=' + encodeURIComponent(m.body);
   }
+  /* Web mail compose pages for people whose computer has no mail program set up. https only, fixed hosts, the text is encoded. */
+  function webmailUrls(address, link, ownerName, employerName) {
+    const m = messageFor(link, ownerName, employerName), to = encodeURIComponent(address), su = encodeURIComponent(m.subject), bd = encodeURIComponent(m.body);
+    return { gmail: 'https://mail.google.com/mail/?view=cm&fs=1&to=' + to + '&su=' + su + '&body=' + bd, outlook: 'https://outlook.live.com/mail/0/deeplink/compose?to=' + to + '&subject=' + su + '&body=' + bd };
+  }
   const validEmail = e => typeof e === 'string' && e.length > 4 && e.length <= 120 && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e);
 
   const DEFAULT_SURVEY = { version: 'default-1', title: 'Share your experience' };
-  const api = { KEY_RE, EXPIRY_DAYS, LIM, newKey, validKey, keyFromHash, linkFor, cleanText, parseVideoLink, validateResponse, inviteUsable, expiryFrom, stateOf, testimonialFromResponse, messageFor, mailtoFor, validEmail, DEFAULT_SURVEY };
+  const api = { KEY_RE, EXPIRY_DAYS, LIM, newKey, validKey, keyFromHash, linkFor, cleanText, parseVideoLink, validateResponse, inviteUsable, expiryFrom, stateOf, testimonialFromResponse, messageFor, mailtoFor, webmailUrls, validEmail, DEFAULT_SURVEY };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.coreSurvey = api;
 })(typeof window !== 'undefined' ? window : globalThis);
