@@ -19,6 +19,8 @@ Use a second e-mail address of your own as the "employer" for this test. Use a p
 13. On your phone: open a fresh link. Stars and buttons are easy to tap, nothing runs off the screen, the keyboard does not hide the Send button. Pass: yes / no / not tried
 14. In the Firebase console (Firestore): the invite document under `surveyInvites` has NO e-mail; the e-mail is only in `surveyInvitesPrivate`. Pass: yes / no / not tried
 15. Owner Panel > Security > connection log still shows no blocked connections. Pass: yes / no
+16. Testimonials > Add testimonial: the form has "Google Drive video link (optional)". Paste a YouTube link: it is refused. Paste a Google Drive link, Publish, switch the item on: the public card shows **Watch Testimonial Video**, which opens the video in a new tab. Pass: yes / no
+17. Approve a survey answer that has a Google Drive video link: the new hidden testimonial already holds that link. (A YouTube or Loom link is not copied; it stays in the survey list.) Pass: yes / no
 
 If anything looks wrong, tell me the step number and what you saw. If the survey page says "not valid" for a brand-new link, the rules in step 1 were probably not published yet.
 

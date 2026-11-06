@@ -58,6 +58,8 @@
 .tcard blockquote{margin:0;font-family:var(--serif);font-size:19px;line-height:1.55;color:var(--navy)}
 .tcard blockquote::before{content:"“";display:block;font-size:48px;line-height:.6;color:var(--gold);margin-bottom:8px}
 .tcard figcaption{color:var(--muted);font-size:15px;border-top:1px solid var(--line);padding-top:14px}
+.tcard .tvideo{align-self:flex-start;color:var(--navy);font-weight:600;font-size:15px;text-decoration:underline;text-underline-offset:3px}
+.tcard .tvideo:hover{color:var(--gold)}
 .tcard figcaption strong{color:var(--navy)}
 .sched{max-width:760px}
 #schedule section{padding:56px 0 96px}

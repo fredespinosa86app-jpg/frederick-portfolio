@@ -102,11 +102,13 @@
     return inviteUsable(inv, nowMs) ? 'sent' : 'expired';
   }
 
-  /* An approved response becomes a testimonial that is OFF until the owner switches it on. */
+  /* An approved response becomes a testimonial that is OFF until the owner switches it on. A Google Drive video link, if any, comes along. */
   function testimonialFromResponse(resp, id) {
     const r = resp || {};
     const role = [cleanText(r.displayRole, 80), cleanText(r.displayCompany, 100)].filter(Boolean).join(', ').slice(0, 100);
-    return { id: String(id).slice(0, 40), name: cleanText(r.displayName, 80), role, quote: cleanText(r.comment, 700, true), rating: Number(r.rating) || 0, photo: '', enabled: false };
+    const vd = parseVideoLink(r.videoUrl), t = { id: String(id).slice(0, 40), name: cleanText(r.displayName, 80), role, quote: cleanText(r.comment, 700, true), rating: Number(r.rating) || 0, photo: '', enabled: false };
+    if (vd.ok && vd.kind === 'drive') t.video = vd.url;   // only a Google Drive link is carried over; YouTube and Loom stay in the survey list
+    return t;
   }
 
   /* The e-mail the owner sends from their own mail program. No tracking, no secrets. */

@@ -10,6 +10,8 @@
   const $ = id => document.getElementById(id);
   const str = (v, max) => typeof v === 'string' ? v.trim().slice(0, max) : '';
   const img = v => typeof v === 'string' && v.length <= 60000 && /^data:image\/(webp|png|jpeg);base64,[A-Za-z0-9+/=]+$/.test(v) ? v : '';
+  /* Google Drive link only (https, exact host, no user name or port, no spaces); anything else is dropped. Same rule as core-survey.js parseVideoLink 'drive'. */
+  const drive = v => { if (typeof v !== 'string' || v.length > 300 || /\s/.test(v)) return ''; try { const u = new URL(v); return u.protocol === 'https:' && u.hostname === 'drive.google.com' && !u.username && !u.password && !u.port && u.pathname.length > 1 ? u.href : ''; } catch (e) { return ''; } };
   const rating = v => { const n = Number(v); return Number.isInteger(n) && n >= 1 && n <= 5 ? n : 0; };   // 0 = no rating (never defaults to 5)
 
   function clean(raw) {
@@ -19,7 +21,7 @@
       view: ['grid', 'carousel', 'list'].includes(o.view) ? o.view : 'grid',
       items: (Array.isArray(o.items) ? o.items : []).slice(0, MAX_ITEMS).map(t => ({
         id: str(t && t.id, 40), name: str(t && t.name, 80), role: str(t && t.role, 100), quote: str(t && t.quote, 700),
-        rating: rating(t && t.rating), photo: img(t && t.photo), enabled: !t || t.enabled !== false
+        rating: rating(t && t.rating), photo: img(t && t.photo), video: drive(t && t.video), enabled: !t || t.enabled !== false
       })).filter(t => t.id && t.name && t.quote)
     };
   }
@@ -52,6 +54,7 @@
     else { const s = node('span', 'tav', initials(t.name)); s.setAttribute('aria-hidden', 'true'); a.appendChild(s); }
     const who = node('div'); who.appendChild(node('strong', '', t.name)); if (t.role) who.appendChild(node('small', '', t.role));
     a.appendChild(who); f.appendChild(a);
+    if (t.video) { const l = node('a', 'tvideo', 'Watch Testimonial Video'); l.href = t.video; l.target = '_blank'; l.rel = 'noopener noreferrer'; f.appendChild(l); }
     return f;
   }
 
@@ -99,7 +102,7 @@
   const save = () => { try { if (state.doc) localStorage.setItem(CACHE, JSON.stringify(state.doc)); else localStorage.removeItem(CACHE); } catch (e) { /* ignore */ } };
 
   window.testiApi = {
-    get: effective, render, initials,
+    get: effective, render, initials, driveUrl: drive,
     setDoc: raw => { state.doc = raw ? clean(raw) : null; save(); render(effective()); },
     setLegacy: l => { state.legacy = l; render(effective()); }
   };

@@ -127,3 +127,9 @@ test('webmailUrls: fixed https hosts, address and text encoded, link inside, no 
   for (const x of [u.gmail, u.outlook]) { assert.ok(!/[ \n]/.test(x)); assert.ok(decodeURIComponent(x).includes(l)); assert.equal(new URL(x).protocol, 'https:'); }
   const e = S.webmailUrls('a@b.co&bcc=evil@x.com', l, 'F', 'A'); assert.ok(!new URL(e.gmail).searchParams.has('bcc')); assert.ok(!new URL(e.outlook).searchParams.has('bcc'));
 });
+test('testimonialFromResponse: only a Google Drive video link is carried over (YouTube, Loom, junk are not)', () => {
+  const d = 'https://drive.google.com/file/d/abc123/view?usp=sharing';
+  assert.equal(S.testimonialFromResponse(good({ videoUrl: d }), 'i').video, d);
+  for (const v of ['', 'https://youtu.be/dQw4w9WgXcQ', 'https://www.loom.com/share/abcdef1234567890', 'javascript:alert(1)', 'http://drive.google.com/x', 'https://evil.com/drive.google.com/x'])
+    assert.ok(!('video' in S.testimonialFromResponse(good({ videoUrl: v }), 'i')), v);
+});

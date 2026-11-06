@@ -208,6 +208,28 @@ const D1 = { [`surveyInvites/${KEY}`]: inviteOk() };
   check('F approve: testimonials keeps its on/off switch and view, old item untouched, new item added HIDDEN with the right text', T && T.enabled === true && T.view === 'carousel' && T.items.length === 2 && T.items[0].id === 'm0' && T.items[1].id === 'sv_' + KE.slice(0, 12) && T.items[1].enabled === false && T.items[1].name === 'Pete' && T.items[1].rating === 3 && T.items[1].photo === '' && T.items[1].quote.startsWith('Reliable'), JSON.stringify(T));
   check('F approve: response marked approved with decision time and testimonial id; nothing else changed', S['surveyResponses/' + KE].ownerStatus === 'approved' && S['surveyResponses/' + KE].testimonialId === 'sv_' + KE.slice(0, 12) && !!S['surveyResponses/' + KE].decidedAt && S['surveyResponses/' + KE].comment === 'Reliable and fast. Would hire again.');
   check('F badge drops to 1 and the approved row has no Approve button any more', await pg.evaluate(() => document.getElementById('surveyBadge').textContent === '1') && !(await pg.$(peteBtn)));
+  check('F approve: an answer without a Drive video gets no video field', !('video' in T.items[1]));
+  // public card: Drive link -> "Watch Testimonial Video" (new tab, noopener); YouTube, Loom, javascript:, http, other hosts -> no link
+  const vids = await pg.evaluate(() => {
+    const it = (id, v) => ({ id, name: 'N' + id, role: '', quote: 'Great work indeed.', rating: 5, enabled: true, video: v });
+    window.testiApi.setDoc({ enabled: true, view: 'grid', items: [it('a', 'https://drive.google.com/file/d/abc/view'), it('b', 'https://youtu.be/dQw4w9WgXcQ'), it('c', 'https://www.loom.com/share/abcdef1234567890'), it('d', 'javascript:alert(1)'), it('e', 'http://drive.google.com/x'), it('f', 'https://drive.google.com.evil.com/x'), it('g', 'https://u:p@drive.google.com/x')] });
+    return [...document.querySelectorAll('#tGrid .tcard')].map(c => { const a = c.querySelector('a.tvideo'); return a ? [a.textContent, a.href, a.target, a.rel] : null; });
+  });
+  check('F public card: only the Drive link shows "Watch Testimonial Video" (new tab, noopener noreferrer)', vids.length === 7 && vids[0] && vids[0][0] === 'Watch Testimonial Video' && vids[0][1] === 'https://drive.google.com/file/d/abc/view' && vids[0][2] === '_blank' && vids[0][3] === 'noopener noreferrer' && vids.slice(1).every(x => x === null), JSON.stringify(vids));
+  await pg.evaluate(() => window.testiApi.setDoc(null));
+  // owner editor: Add testimonial has the Drive video field; bad hosts are refused; a Drive link is kept
+  await pg.evaluate(() => document.querySelector('.dnav [data-page=testimonials]').click()); await pg.waitForTimeout(300);
+  await pg.click('#tmAdd'); await pg.waitForTimeout(200);
+  check('F editor: Add testimonial has an optional "Google Drive video link" field with a hint', await pg.evaluate(() => { const l = document.querySelector('label[for=df-video]'); return !!l && /Google Drive video link \(optional\)/.test(l.textContent) && /Anyone with the link/.test(l.parentElement.textContent); }));
+  const fillEd = async v => { await pg.fill('#df-name', 'Vera'); await pg.fill('#df-quote', 'Excellent assistant, very reliable.'); await pg.fill('#df-video', v); await pg.click('#dfOk'); await pg.waitForTimeout(250); };
+  await fillEd('https://youtu.be/dQw4w9WgXcQ');
+  check('F editor: a YouTube link is refused with a clear message and the dialog stays open', await pg.evaluate(() => !!document.querySelector('dialog[open]') && /Google Drive link/.test(document.getElementById('dfErr').textContent)));
+  await pg.fill('#df-video', 'https://drive.google.com/file/d/xyz/view'); await pg.click('#dfOk'); await pg.waitForTimeout(300);
+  check('F editor: a Drive link is accepted and stored on the new item', await pg.evaluate(() => { const d = window.testiApi; return !document.querySelector('dialog[open]') && document.querySelectorAll('#tmList .mrow').length > 0; }));
+  await pg.click('#tmPublish'); await pg.waitForTimeout(400); { const dl = await pg.evaluate(() => !!document.querySelector('dialog[open]')); if (dl) await dlg('publish|ok|yes'); }
+  const pubd = (await store())['content/testimonials'];
+  check('F editor: after Publish the new item holds the Drive link (and the approved survey item has none)', !!pubd && pubd.items.some(t => t.name === 'Vera' && t.video === 'https://drive.google.com/file/d/xyz/view'), JSON.stringify(pubd && pubd.items.map(t => [t.name, t.video])));
+  await pg.evaluate(() => document.querySelector('.dnav [data-page=surveys]').click()); await pg.waitForTimeout(200);
   // approve again must not duplicate (simulate a half-finished earlier try: item exists, response pending)
   await pg.evaluate(k => { window.__store['surveyResponses/' + k].ownerStatus = 'pending'; delete window.__store['surveyResponses/' + k].testimonialId; delete window.__store['surveyResponses/' + k].decidedAt; }, KE); await pg.click('#svRefresh'); await pg.waitForTimeout(400);
   await pg.click(peteBtn); await dlg('add to testimonials'); S = await store();

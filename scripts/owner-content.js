@@ -228,7 +228,9 @@
       { key: 'role', label: 'Position, company or designation', max: 100 },
       { key: 'quote', label: 'Testimonial', type: 'textarea', required: true, max: 700 },
       { key: 'rating', label: 'Star rating', type: 'select', options: [{ value: '', label: 'No rating' }].concat([1, 2, 3, 4, 5].map(n => ({ value: String(n), label: n + (n === 1 ? ' star' : ' stars') }))) },
+      { key: 'video', label: 'Google Drive video link', max: 300, help: 'Optional. Shows a "Watch Testimonial Video" link that opens in a new tab. Only a drive.google.com link; set sharing to "Anyone with the link".' },
       { key: 'photo', label: 'Profile photo', type: 'image', cover: true, help: 'Cropped to a circle. Without a photo, the initials of the name are shown.' }];
+    const videoBad = r => r.video && !tapi.driveUrl(r.video) ? 'The video link must be a Google Drive link starting with https://drive.google.com/' : '';
     const tm = makeStore({
       get: () => tapi.get(), preview: d => tapi.render(d), pub: 'tmPublish', disc: 'tmDiscard', state: 'tmState', doc: 'testimonials', label: 'Testimonials',
       payload: d => ({ enabled: d.enabled, view: d.view, items: d.items }),
@@ -246,8 +248,8 @@
         el('div', { class: 'mctl' }, toggle(t.name, t.enabled !== false, v => { t.enabled = v; tm.touch(); }),
           ctl('Move up', t.name, () => { move(D.items, i, -1); tm.touch(); }, i === 0), ctl('Move down', t.name, () => { move(D.items, i, 1); tm.touch(); }, i === D.items.length - 1),
           ctl('Edit', t.name, async () => {
-            const r = await editDialog('Edit testimonial', TM_FIELDS(), Object.assign({}, t, { rating: String(t.rating || '') }));
-            if (r) { Object.assign(t, { name: r.name, role: r.role || '', quote: r.quote, rating: Number(r.rating) || 0, photo: r.photo || '' }); tm.touch(); } }),
+            const r = await editDialog('Edit testimonial', TM_FIELDS(), Object.assign({}, t, { rating: String(t.rating || '') }), videoBad);
+            if (r) { Object.assign(t, { name: r.name, role: r.role || '', quote: r.quote, rating: Number(r.rating) || 0, photo: r.photo || '', video: tapi.driveUrl(r.video || '') }); tm.touch(); } }),
           kit.iconBtn('trash', 'Delete', t.name, async () => {
             if (await confirmBox('Delete this testimonial?', 'The testimonial from “' + t.name + '” will be removed once you publish.')) { D.items.splice(i, 1); tm.touch(); } }, { danger: true }))))
         : [el('p', { class: 'dstate' }, 'No testimonials yet. Add one, then switch the section on.')]));
@@ -257,8 +259,8 @@
     $('tmView').addEventListener('change', e => { tm.draft.view = e.target.value; tm.touch(); });
     $('tmAdd').addEventListener('click', async () => {
       if (tm.draft.items.length >= 20) return notify('Please keep 20 testimonials or fewer.', 'error');
-      const r = await editDialog('Add testimonial', TM_FIELDS(), { name: '', role: '', quote: '', rating: '', photo: '' });
-      if (r) { tm.draft.items.push({ id: uid('m'), name: r.name, role: r.role || '', quote: r.quote, rating: Number(r.rating) || 0, photo: r.photo || '', enabled: true }); tm.touch(); }
+      const r = await editDialog('Add testimonial', TM_FIELDS(), { name: '', role: '', quote: '', rating: '', photo: '', video: '' }, videoBad);
+      if (r) { tm.draft.items.push({ id: uid('m'), name: r.name, role: r.role || '', quote: r.quote, rating: Number(r.rating) || 0, photo: r.photo || '', video: tapi.driveUrl(r.video || ''), enabled: true }); tm.touch(); }
     });
     document.addEventListener('dash:page', e => { if (e.detail === 'testimonials') { tm.reset(); renderTm(); } });
     document.addEventListener('dash:closed', () => tapi.render(tapi.get()));

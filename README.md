@@ -1480,3 +1480,4 @@ No Firestore rules change in E4 (`ownerPrivate` is already owner only). Rules te
 ### SV1 follow-up (live-test feedback)
 - Survey links list: one line per row, no e-mail text under the name, icon actions on the right.
 - "Send e-mail" now opens a small chooser: Mail program, Gmail (new tab), Outlook (new tab), Copy message. Works on computers with no default mail program. Web compose pages open with `noopener`; nothing is sent until the owner presses Send there.
+- Testimonials: optional **Google Drive video link** per testimonial. The public card shows a "Watch Testimonial Video" link (new tab, `noopener noreferrer`); only `https://drive.google.com/...` is accepted (public `clean()` drops anything else). Approving a survey answer copies a Drive link over; YouTube and Loom links stay in the survey list only (owner decision). No rules or CSP change.
