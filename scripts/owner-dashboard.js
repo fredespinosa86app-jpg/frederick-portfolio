@@ -70,7 +70,21 @@
     }).then(v => { confirming = Math.max(0, confirming - 1); syncLock(); return v; });
   }
 
-  window.dashKit = { el, notify, confirmBox };   // shared with owner-content.js
+  /* T1: icon button. action = what it does ("Delete"), name = what it acts on; the accessible name is "Delete: Name", the tooltip is "Delete".
+     opts: danger, primary, disabled, text (visible label next to the icon; without it the button is icon-only) */
+  const SVGNS = 'http://www.w3.org/2000/svg';
+  function iconBtn(icon, action, name, onClick, opts) {
+    opts = opts || {};
+    const b = el('button', { type: 'button', class: 'dbtn sm ibtn' + (opts.danger ? ' danger' : '') + (opts.primary ? ' primary' : '') + (opts.text ? '' : ' icon-only'), title: action, 'aria-label': name ? action + ': ' + name : action });
+    const svg = document.createElementNS(SVGNS, 'svg'), use = document.createElementNS(SVGNS, 'use');
+    svg.setAttribute('aria-hidden', 'true'); svg.setAttribute('focusable', 'false'); use.setAttribute('href', '#ic-' + icon); svg.append(use); b.append(svg);
+    if (opts.text) b.append(el('span', {}, opts.text));
+    if (opts.disabled) b.disabled = true;
+    b.addEventListener('click', onClick);
+    return b;
+  }
+
+  window.dashKit = { el, notify, confirmBox, iconBtn };   // shared with owner-content.js
 
   /* ---------- navigation ---------- */
   /* Security S6: the panel only works for a verified owner sign-in. If someone forces the panel visible (developer tools) it is hidden again

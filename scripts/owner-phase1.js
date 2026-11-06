@@ -8,8 +8,9 @@
 (function () {
   'use strict';
   const kit = window.dashKit, K = window.ownKit;
-  if (!kit || !K) return;
-  const { el, notify, confirmBox } = kit;
+  if (!kit || !K || !window.coreTrainingCats) return;
+  const { el, notify, confirmBox, iconBtn } = kit;
+  const CT = window.coreTrainingCats;
   const { makeStore, editDialog, toPhoto, thumb, ctl, toggle, uid, clone, move } = K;
   const $ = id => document.getElementById(id);
   const own = () => window.OWN;
@@ -97,7 +98,7 @@
         const title = el('input', { type: 'text', id: 'vdl-title', maxlength: '120', autocomplete: 'off' });
         const desc = el('textarea', { id: 'vdl-desc', rows: '2', maxlength: '300' });
         const cat = el('select', { id: 'vdl-cat' }, ...trainingOptions().map(o => el('option', { value: o.value }, o.label)));
-        url.value = init.url || ''; title.value = init.title || ''; desc.value = init.description || ''; cat.value = init.category || '';
+        url.value = init.url || ''; title.value = init.title || ''; desc.value = init.description || ''; cat.value = CT.knownOrGeneral(init.category, window.trainingApi ? window.trainingApi.get() : []);
         const prev = el('div', { class: 'vd-prev' }), status = el('small', { class: 'cnt', role: 'status' }), err = el('p', { class: 'ferr', role: 'alert' });
         let timer = 0, token = 0, found = '';
         const say = (m, k) => { status.textContent = m; status.className = 'cnt ' + (k || ''); };
@@ -186,7 +187,7 @@
           el('small', {}, [f.category ? catName(f.category) : 'General', f.kb ? 'In chatbot knowledge' : 'Not in chatbot'].join(' · '))),
         el('div', { class: 'mctl' }, toggle(f.q, f.enabled !== false, on => { f.enabled = on; fq.touch(); }),
           ctl('Move up', f.q, () => { move(L, i, -1); fq.touch(); }, i === 0), ctl('Move down', f.q, () => { move(L, i, 1); fq.touch(); }, i === L.length - 1),
-          ctl('Edit', f.q, async () => { const r = await editDialog('Edit question', fields(), { q: f.q, a: f.a, category: f.category || '', kb: f.kb ? 'yes' : 'no' }); if (r) { Object.assign(f, toRec(r)); fq.touch(); } }),
+          ctl('Edit', f.q, async () => { const r = await editDialog('Edit question', fields(), { q: f.q, a: f.a, category: CT.knownOrGeneral(f.category, window.trainingApi ? window.trainingApi.get() : []), kb: f.kb ? 'yes' : 'no' }); if (r) { Object.assign(f, toRec(r)); fq.touch(); } }),
           del(f.q, 'question', () => { L.splice(i, 1); fq.touch(); }))))
         : [el('p', { class: 'dstate' }, 'No questions yet. Add one to show the FAQ section.')]));
       fq.sync();
@@ -206,7 +207,7 @@
     const tr = makeStore({
       get: () => ta.get(), preview: l => ta.preview(l), pub: 'trPublish', disc: 'trDiscard', state: 'trState', doc: 'training', label: 'Training categories',
       payload: l => ({ items: l }),
-      validate: l => l.some(t => !t.title.trim()) ? 'Every category needs a title.' : (JSON.stringify(l).length > 900000 ? 'The training content is too large (usually images). Remove or shrink a few images.' : ''),
+      validate: l => l.length > CT.MAX ? 'Please keep ' + CT.MAX + ' categories or fewer.' : new Set(l.map(t => t.id)).size !== l.length ? 'Two categories share the same id. Delete the extra one.' : l.some(t => !t.title.trim()) ? 'Every category needs a title.' : (CT.sizeOf(l) > CT.LIMIT ? 'The training content is too large (usually images). Remove or shrink a few images.' : ''),
       render: () => renderTraining() });
     let editing = null;   // id of the category being edited
     const edited = () => { tr.dirty = true; tr.sync(); };   // keeps the editor open (no re-render) while typing
@@ -237,16 +238,16 @@
         tools.replaceChildren(...(t.tools.length ? t.tools.map((x, i) => el('div', { class: 'mrow' },
           x.images[0] ? el('img', { class: 'mthumb', src: x.images[0].src, alt: '', width: '40', height: '40' }) : thumb('', x.name),
           el('div', { class: 'mmain' }, el('strong', {}, x.name), el('small', {}, x.purpose || 'No short description')),
-          el('div', { class: 'mctl' }, ctl('Move up', x.name, () => { move(t.tools, i, -1); edited(); drawTools(); }, i === 0), ctl('Move down', x.name, () => { move(t.tools, i, 1); edited(); drawTools(); }, i === t.tools.length - 1),
-            ctl('Edit', x.name, async () => { const r = await editDialog('Edit tool', TOOL_FIELDS, toolVals(x)); if (r) { applyTool(x, r); edited(); drawTools(); } }),
-            del(x.name, 'tool', () => { t.tools.splice(i, 1); edited(); drawTools(); }))))
+          el('div', { class: 'mctl' }, iconBtn('up', 'Move up', x.name, () => { move(t.tools, i, -1); edited(); drawTools(); }, { disabled: i === 0 }), iconBtn('down', 'Move down', x.name, () => { move(t.tools, i, 1); edited(); drawTools(); }, { disabled: i === t.tools.length - 1 }),
+            iconBtn('pencil', 'Edit', x.name, async () => { const r = await editDialog('Edit tool', TOOL_FIELDS, toolVals(x)); if (r) { applyTool(x, r); edited(); drawTools(); } }),
+            iconBtn('trash', 'Delete', x.name, async () => { if (await confirmBox('Delete this tool?', '“' + x.name + '” will be removed once you publish.')) { t.tools.splice(i, 1); edited(); drawTools(); } }, { danger: true }))))
           : [el('p', { class: 'dhelp' }, 'No tools added to this category.')]));
       };
       drawTools();
-      const addTool = el('button', { type: 'button', class: 'dbtn sm primary', onclick: async () => {
+      const addTool = iconBtn('plus', 'Add tool', '', async () => {
         if (t.tools.length >= 12) return notify('You can add up to 12 tools per category.', 'error');
         const r = await editDialog('Add tool', TOOL_FIELDS, { name: '', purpose: '', description: '', tags: '', note: '', img1: '', img2: '' });
-        if (r) { const x = { id: uid('tl'), images: [] }; applyTool(x, r); t.tools.push(x); edited(); drawTools(); } } }, 'Add tool');
+        if (r) { const x = { id: uid('tl'), images: [] }; applyTool(x, r); t.tools.push(x); edited(); drawTools(); } }, { primary: true, text: 'Add tool' });
       /* hands-on image */
       const hImg = el('img', { class: 'mthumb', alt: '', width: '40', height: '40' });
       const showImg = () => { hImg.hidden = !t.handsOn.image; if (t.handsOn.image) hImg.src = t.handsOn.image.src; };
@@ -256,7 +257,7 @@
       const hAlt = bind('tre-halt', { v: t.handsOn.image ? t.handsOn.image.alt : '' }, 'v', 'input', 200);
       hAlt.addEventListener('input', () => { if (t.handsOn.image) { t.handsOn.image.alt = hAlt.value; edited(); } });
       showImg();
-      box.replaceChildren(el('div', { class: 'dact-row' }, el('button', { type: 'button', class: 'dbtn', onclick: () => { editing = null; renderTraining(); } }, '← Back to all categories')),
+      box.replaceChildren(el('div', { class: 'dact-row' }, iconBtn('back', 'Back to all categories', '', () => { editing = null; renderTraining(); }, { text: 'Back to all categories' })),
         el('h3', {}, 'Editing: ' + t.title),
         el('div', { class: 'ab' },
           fld('Category title', bind('tre-title', t, 'title', 'input', 80)),
@@ -275,18 +276,61 @@
       box.querySelector('#tre-title').addEventListener('input', () => { box.querySelector('h3').textContent = 'Editing: ' + t.title; });
     }
 
+
+    /* ---- add / copy / delete / restore: draft changes, nothing is live until Publish ---- */
+    function addCat() {
+      const r = CT.add(tr.draft); if (!r.ok) return notify(r.error, 'error');
+      tr.draft.splice(0, tr.draft.length, ...r.list); editing = r.added.id; tr.touch();
+      notify('New category added. It stays hidden until you switch it on.', 'success');
+    }
+    async function copyCat(x) {
+      if (CT.room(tr.draft) <= 0) return notify('You can have up to ' + CT.MAX + ' categories. Delete one first.', 'error');
+      const fit = CT.copyFits(tr.draft, x.id); let noImages = false;
+      if (!fit.full) {
+        if (!fit.light) return notify('Even without images the copy would make the training content too large to publish. Remove some content first.', 'error');
+        if (!await confirmBox('Copy without images?', 'A full copy would make the training content too large to publish. The copy can be made without images (text and tool names are kept).', 'Copy without images')) return;
+        noImages = true;
+      }
+      const r = CT.copy(tr.draft, x.id, { noImages }); if (!r.ok) return notify(r.error, 'error');
+      tr.draft.splice(0, tr.draft.length, ...r.list); tr.touch();
+      notify('Copied' + (r.imagesDropped ? ' without images' : '') + '. The copy is hidden until you switch it on.', 'success');
+    }
+    async function deleteCat(x, videos, faqs) {
+      const n = CT.impact(x, videos, faqs), parts = [n.tools + ' tool' + (n.tools === 1 ? '' : 's'), n.images + ' image' + (n.images === 1 ? '' : 's')];
+      const links = (n.videos || n.faqs) ? ' ' + n.videos + ' video' + (n.videos === 1 ? '' : 's') + ' and ' + n.faqs + ' FAQ' + (n.faqs === 1 ? '' : 's') + ' are linked to it: they are not deleted, they only stop appearing inside this category.' : '';
+      if (!await confirmBox('Delete this category?', '“' + x.title + '” and its content (' + parts.join(', ') + ') will be removed once you publish.' + links + ' Discard changes brings it back until then.')) return;
+      tr.draft.splice(0, tr.draft.length, ...CT.remove(tr.draft, x.id)); tr.touch();
+    }
+    function restoreCats() {
+      const r = CT.restore(tr.draft, ta.defaults()); if (!r.added) return notify('Nothing to restore.', 'info');
+      tr.draft.splice(0, tr.draft.length, ...r.list); tr.touch(); notify(r.added + ' original categor' + (r.added === 1 ? 'y' : 'ies') + ' restored.' + (r.skipped ? ' ' + r.skipped + ' more did not fit (limit ' + CT.MAX + ').' : ''), 'success');
+    }
+
     function renderTraining() {
       const L = tr.draft, t = editing && L.find(x => x.id === editing);
       $('trList').hidden = !!t; $('trEdit').hidden = !t;
       if (t) { editor(t); tr.sync(); return; }
       editing = null;
       const has = x => ['Overview ' + (x.overview ? '✓' : '–'), 'Hands-on ' + (x.handsOn.text || x.handsOn.image ? '✓' : '–'), 'Tools ' + x.tools.length, 'Toolkit ' + (x.toolkit ? '✓' : '–'), 'How I work ' + (x.howIWork ? '✓' : '–')].join(' · ');
-      $('trList').replaceChildren(...L.map((x, i) => el('div', { class: 'mrow' + (x.enabled === false ? ' off' : '') },
+      const videos = window.videosApi ? window.videosApi.get().items : [], faqs = window.faqApi ? window.faqApi.get() : [];
+      $('trList').replaceChildren(...(L.length ? L.map((x, i) => el('div', { class: 'mrow' + (x.enabled === false ? ' off' : '') },
         el('span', { class: 'mthumb ph', 'aria-hidden': 'true' }, String(i + 1)),
         el('div', { class: 'mmain' }, el('strong', {}, x.title), el('small', {}, has(x)), x.enabled === false ? el('small', {}, 'Hidden from the site') : ''),
         el('div', { class: 'mctl' }, toggle(x.title, x.enabled !== false, on => { x.enabled = on; tr.touch(); }),
-          ctl('Move up', x.title, () => { move(L, i, -1); tr.touch(); }, i === 0), ctl('Move down', x.title, () => { move(L, i, 1); tr.touch(); }, i === L.length - 1),
-          el('button', { type: 'button', class: 'dbtn sm primary', 'aria-label': 'Edit: ' + x.title, onclick: () => { editing = x.id; renderTraining(); } }, 'Edit')))));
+          iconBtn('up', 'Move up', x.title, () => { move(L, i, -1); tr.touch(); }, { disabled: i === 0 }), iconBtn('down', 'Move down', x.title, () => { move(L, i, 1); tr.touch(); }, { disabled: i === L.length - 1 }),
+          iconBtn('copy', 'Copy', x.title, () => copyCat(x), { disabled: CT.room(L) <= 0 }),
+          iconBtn('pencil', 'Edit', x.title, () => { editing = x.id; renderTraining(); }, { primary: true }),
+          iconBtn('trash', 'Delete', x.title, () => deleteCat(x, videos, faqs), { danger: true }))))
+        : [el('p', { class: 'dstate' }, 'No categories. The Training section is hidden from the site. Add one, or restore the originals.')]));
+      /* toolbar + size meter */
+      const full = CT.room(L) <= 0, miss = CT.missingOriginals(L, ta.defaults());
+      $('trBar').replaceChildren(
+        iconBtn('plus', 'Add category', '', addCat, { primary: true, text: 'Add category', disabled: full }),
+        iconBtn('restore', 'Restore original categories', '', restoreCats, { text: 'Restore original categories', disabled: !miss.length || full }),
+        el('span', { class: 'dhelp' }, L.length + ' of ' + CT.MAX + ' categories' + (full ? '. Delete one to add another.' : '')));
+      const kb = Math.round(CT.sizeOf(L) / 1000), lim = Math.round(CT.LIMIT / 1000), m = $('trMeter');
+      m.className = 'dhelp' + (kb > lim * 0.85 ? ' warn' : '');
+      m.replaceChildren(el('meter', { min: '0', max: String(lim), value: String(Math.min(kb, lim)), 'aria-label': 'Training content size' }), el('br'), 'Training content size: ' + kb + ' KB of ' + lim + ' KB' + (kb > lim * 0.85 ? '. Almost full: remove or shrink images.' : '.'));
       tr.sync();
     }
     document.addEventListener('dash:page', e => { if (e.detail === 'training') { tr.reset(); editing = null; renderTraining(); } });

@@ -315,6 +315,14 @@
 <symbol id="ic-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></symbol>
 <symbol id="ic-menu" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></symbol>
 <symbol id="ic-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+<symbol id="ic-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></symbol>
+<symbol id="ic-pencil" viewBox="0 0 24 24"><path d="M4 20l1-4L16.5 4.5a2.1 2.1 0 0 1 3 3L8 19zM14 7l3 3"/></symbol>
+<symbol id="ic-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h8"/></symbol>
+<symbol id="ic-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="ic-up" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
+<symbol id="ic-down" viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></symbol>
+<symbol id="ic-back" viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></symbol>
+<symbol id="ic-restore" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.5-5.8M4 4v5h5"/></symbol>
 <symbol id="ic-side" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></symbol>
 </svg>
 <dialog class="dmodal" id="dForm" aria-labelledby="dfTitle"><form id="dfForm" novalidate><div><h2 id="dfTitle"></h2><div class="ab" id="dfFields"></div><p class="ferr" id="dfErr" role="alert"></p><div class="dact-row"><button type="submit" class="dbtn primary" id="dfOk">Save</button><button type="button" class="dbtn" id="dfCancel">Cancel</button></div></div></form></dialog>
@@ -683,8 +691,10 @@
 <div class="dact-row"><button type="button" class="dbtn primary" id="socialSave">Save changes</button><button type="button" class="dbtn" id="socialDiscard">Cancel</button></div></div></section>
 
 <section class="dpage" id="dp-training" hidden><div class="dcard"><h2>Training categories</h2>
-<p class="dhelp">Seven training areas shown in a grid on the site. Each holds its own overview, hands-on training, tools, toolkit and how-I-work steps. Videos and FAQs join a category when you pick it in their own pages. Categories without content stay hidden until you switch them on.</p>
+<p class="dhelp">Up to seven training areas shown in a grid on the site. Add, copy or delete categories; changes go live when you publish. Each holds its own overview, hands-on training, tools, toolkit and how-I-work steps. Videos and FAQs join a category when you pick it in their own pages. Categories without content stay hidden until you switch them on. If no category is switched on, the whole Training section is hidden from the site.</p>
+<div class="dact-row" id="trBar"></div>
 <div class="mlist" id="trList"></div>
+<p class="dhelp" id="trMeter"></p>
 <div id="trEdit" hidden></div>
 <p class="dhelp" id="trState" role="status"></p>
 <div class="dact-row"><button type="button" class="dbtn primary" id="trPublish" disabled>Publish changes</button><button type="button" class="dbtn" id="trDiscard" disabled>Discard changes</button></div></div></section>
@@ -1009,7 +1019,8 @@ function doPost(e) {
 <script src="scripts/testimonials.js?v=b3"></script>
 <script src="scripts/faq.js?v=c1"></script>
 <script src="scripts/videos.js?v=b3"></script>
-<script src="scripts/training.js?v=b3"></script>
+<script src="scripts/core-trainingcats.js?v=t1"></script>
+<script src="scripts/training.js?v=t1"></script>
 <script src="scripts/experience.js?v=b3"></script>
 <script src="scripts/section-bg.js?v=b3"></script>
 <script src="scripts/hero-photo.js?v=b3"></script>
@@ -1029,9 +1040,9 @@ function doPost(e) {
 <script src="scripts/meeting-form.js?v=c1"></script>
 <script src="scripts/booking-embed.js?v=c1"></script>
 <script src="scripts/owner-ui.js?v=b3"></script>
-<script src="scripts/owner-dashboard.js?v=c1"></script>
+<script src="scripts/owner-dashboard.js?v=t1"></script>
 <script src="scripts/owner-content.js?v=b3"></script>
-<script src="scripts/owner-phase1.js?v=c1"></script>
+<script src="scripts/owner-phase1.js?v=t1"></script>
 <script src="scripts/owner-phase2.js?v=b3"></script>
 <script src="scripts/analytics.js?v=b3"></script>
 <script src="scripts/owner-phase3.js?v=b3"></script>

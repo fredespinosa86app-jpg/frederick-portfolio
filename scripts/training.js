@@ -7,7 +7,7 @@
    ========================================================================== */
 (function () {
   'use strict';
-  const CACHE = 'trainCfg', MAX = 7;
+  const CACHE = 'trainCfg', MAX = 7;   // seven is the owner-approved limit (T1)
   const DEFAULT_TRAINING = [
   {
     "id": "tr1",
@@ -272,6 +272,8 @@
     const sec = document.getElementById('training'), box = document.getElementById('tcatGrid');
     if (!sec || !box) return;
     const cats = clean(items).filter(t => t.enabled);
+    /* no visible category: the section is hidden at the end of render(); hide its links too */
+    document.querySelectorAll('a[href="#training"]').forEach(a => { (a.closest('li') || a).hidden = !cats.length; });
     if (!cats.some(t => t.id === openId)) openId = null;
     box.textContent = ''; box.className = 'tcat-grid';
     cats.forEach(t => {
