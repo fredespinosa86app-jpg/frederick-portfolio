@@ -95,3 +95,6 @@ Five items recorded in `4.5.0-security-enhancement-review.md`, each needing the 
 
 ## Update 2026-11-07: security enhancement E6 added (status DESIGNED, nothing built)
 **E6** Cloudflare Turnstile for the forms Worker, plus a two-level chatbot (AI first, scripted fallback when any limit is reached; the fallback idea is the owner's). Recorded in `4.5.0-security-enhancement-review.md`. Naming: call them SE-E1 to SE-E6 (the README has older finished "Enhancement E1 to E4"). Recommended order now: E3, E6, E1, E5, E4, E2. Prompt for a new session: `SE-prompt.md`. Part B (chatbot) only if an AI chatbot is added.
+
+## Update 2026-11-07: SE-E1 stage A built (App Check monitoring), awaiting live test
+`SE-E1-CHECKLIST.md`. Next for E1: after 7 days of clean numbers the owner decides on enforcement (console only, separate step). Remaining security items: E3, E6, E5, E4, E2 (recommended order E3, E6, E5, E4, E2; each needs approval first).

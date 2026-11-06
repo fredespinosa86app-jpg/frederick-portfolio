@@ -74,7 +74,8 @@
     if (G.handle) return G.handle;
     const F = await sdk(); const cfg = G.cfg || (root.portfolioSettings && root.portfolioSettings.firebase);
     if (!cfg) throw Object.assign(new Error('no config'), { code: 'config' });
-    const app = F.initializeApp(cfg, 'visitor'); const auth = F.initializeAuth(app, { persistence: F.inMemoryPersistence });
+    const app = F.initializeApp(cfg, 'visitor'); if (root.coreAppCheck) await root.coreAppCheck.start(SDK, app, root.portfolioSettings);   /* SE-E1: before any other service */
+    const auth = F.initializeAuth(app, { persistence: F.inMemoryPersistence });
     G.handle = { F, app, auth, db: F.getFirestore(app) }; return G.handle;
   }
 

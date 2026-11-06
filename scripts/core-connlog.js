@@ -15,7 +15,7 @@
     ['portfolio-forms.fredespinosa86-app.workers.dev', 'Form verification (visitors)'],
     ['www.googleapis.com', 'Google Calendar / sign-in (owner)'], ['script.google.com', 'Google Sheets (owner)'], ['script.googleusercontent.com', 'Google Sheets reply (owner)'],
     ['www.youtube.com', 'Video title lookup (owner)'], ['dns.google', 'Custom-domain check (owner)'],
-    ['www.google.com', 'App Check, only if enabled'], ['recaptchaenterprise.googleapis.com', 'App Check, only if enabled']];
+    ['www.google.com', 'App Check (everyone)'], ['recaptchaenterprise.googleapis.com', 'App Check (everyone)'], ['content-firebaseappcheck.googleapis.com', 'App Check (everyone)']];
   const CONNECT = new Set(['fetch', 'xmlhttprequest', 'beacon', 'other']);
   const DIRECTIVES = new Set(['default-src', 'script-src', 'script-src-elem', 'script-src-attr', 'style-src', 'style-src-elem', 'style-src-attr', 'font-src', 'img-src', 'media-src', 'connect-src', 'frame-src', 'child-src', 'worker-src', 'object-src', 'base-uri', 'form-action', 'manifest-src', 'frame-ancestors']);
   const isConnect = t => CONNECT.has(t);

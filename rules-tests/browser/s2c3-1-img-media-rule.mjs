@@ -12,7 +12,7 @@ const img = u => pg.evaluate(u => new Promise(res => { const i = new Image(); i.
 const pol = await pg.evaluate(() => window.coreCsp.parse(window.coreCsp.metaText()));
 check("img-src is self, data:, blob: and the two thumbnail hosts; no https:, no *", JSON.stringify(pol['img-src']) === JSON.stringify(["'self'", 'data:', 'blob:', 'https://i.ytimg.com', 'https://cdn.loom.com']), pol['img-src'].join(' '));
 check("media-src is 'none'", JSON.stringify(pol['media-src']) === JSON.stringify(["'none'"]));
-check('connect-src is unchanged (still 9 hosts + self)', pol['connect-src'].length === 10 && !pol['connect-src'].includes('https:'));
+check('connect-src is unchanged by this phase (12 hosts + self; the 3 App Check hosts came with SE-E1)', pol['connect-src'].length === 13 && !pol['connect-src'].includes('https:'));
 
 // ---- 2. pictures: allowed kinds load, everything else is stopped by the browser itself
 const PNG = 'data:image/gif;base64,' + GIF.toString('base64');

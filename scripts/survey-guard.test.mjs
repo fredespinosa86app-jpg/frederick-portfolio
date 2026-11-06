@@ -18,9 +18,9 @@ const P = CSP.parse(cspText);
 test('survey.html has exactly one CSP and it is as strict as designed', () => {
   assert.equal((page.match(/Content-Security-Policy/g) || []).length, 1);
   assert.deepEqual(P['default-src'], ["'none'"]);
-  assert.deepEqual(P['script-src'], ["'self'", 'https://www.gstatic.com']);
-  assert.deepEqual(P['connect-src'], ['https://firestore.googleapis.com']);
-  assert.deepEqual(P['frame-src'], ["'none'"]); assert.deepEqual(P['form-action'], ["'none'"]); assert.deepEqual(P['base-uri'], ["'none'"]); assert.deepEqual(P['object-src'], ["'none'"]);
+  assert.deepEqual(P['script-src'], ["'self'", 'https://www.gstatic.com', 'https://www.google.com/recaptcha/']);   // SE-E1: App Check (reCAPTCHA) script
+  assert.deepEqual(P['connect-src'], ['https://firestore.googleapis.com', 'https://www.google.com', 'https://recaptchaenterprise.googleapis.com', 'https://content-firebaseappcheck.googleapis.com']);   // SE-E1
+  assert.deepEqual(P['frame-src'], ['https://www.google.com/recaptcha/', 'https://recaptcha.google.com/recaptcha/']); assert.deepEqual(P['form-action'], ["'none'"]); assert.deepEqual(P['base-uri'], ["'none'"]); assert.deepEqual(P['object-src'], ["'none'"]);
   assert.deepEqual(P['style-src'], ["'self'"]); assert.deepEqual(P['img-src'], ["'self'", 'data:']); assert.deepEqual(P['font-src'], ["'self'"]);
   assert.ok(!/unsafe-inline|unsafe-eval|\*|https:(?!\/)/.test(cspText.replace(/https:\/\//g, '')), 'no unsafe-inline, unsafe-eval, wildcard or bare https:');
 });

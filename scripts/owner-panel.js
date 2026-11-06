@@ -11,8 +11,8 @@ const {initializeApp}=await import(B+'firebase-app.js');
 const {getAuth,GoogleAuthProvider,signInWithPopup,signOut,onAuthStateChanged,setPersistence,browserSessionPersistence,browserLocalPersistence}=await import(B+'firebase-auth.js');
 const {getFirestore,doc,onSnapshot,setDoc,collection,addDoc,serverTimestamp,query,orderBy,limit,updateDoc,deleteDoc,where,getDocs,getDoc,startAfter,getCountFromServer,writeBatch,runTransaction}=await import(B+'firebase-firestore.js');
 const app=initializeApp(FIREBASE_CONFIG);
-/* Security S2: App Check (reCAPTCHA Fraud Defense Essentials, free, no billing; or classic v3 if appCheckProvider is 'v3'). Active only when settings.js holds a site key; a failure never blocks the site. */
-if(S.appCheckSiteKey){try{const AC=await import(B+'firebase-app-check.js');const Prov=S.appCheckProvider==='v3'?AC.ReCaptchaV3Provider:AC.ReCaptchaEnterpriseProvider;AC.initializeAppCheck(app,{provider:new Prov(S.appCheckSiteKey),isTokenAutoRefreshEnabled:true})}catch(e){console.warn('App Check could not start',e)}}
+/* Security S2 / SE-E1: App Check (reCAPTCHA Enterprise score key, free up to 10,000 assessments a month; or classic v3 if appCheckProvider is 'v3'). Active only when settings.js holds a site key; a failure never blocks the site. */
+if(window.coreAppCheck)await window.coreAppCheck.start(B,app,S);   /* SE-E1: shared helper, same for all three Firebase clients; never throws */
 const auth=getAuth(app),ref=doc(getFirestore(app),'settings','site');
 /* Security S1: by default the owner session ends when the browser is closed; "keep me signed in" is an explicit per-device choice (Owner panel > Security). */
 let keepIn=false;try{keepIn=localStorage.getItem('ownerKeep')==='1'}catch(e){}

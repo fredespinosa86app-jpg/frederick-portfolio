@@ -16,7 +16,7 @@
     ['domains', 'Authorised domains are only your own', 'Authentication > Settings > Authorised domains: keep localhost only while testing; remove anything you do not own.'],
     ['apikey', 'Web API key is restricted to your site', 'Google Cloud console > APIs & Services > Credentials > your browser key > Websites: add only your site address and the firebaseapp.com address.'],
     ['rules', 'Published rules match the file in this project', 'Firestore Database > Rules: the published text equals firestore.rules (Security S1 version), then press Publish.'],
-    ['appcheck', 'App Check is registered and in monitoring mode', 'Firebase console > App Check > Apps: register this site with reCAPTCHA v3, paste the SITE key into scripts/settings.js (appCheckSiteKey), watch the Firestore request graph for a few days.'],
+    ['appcheck', 'App Check is registered and in monitoring mode', 'Firebase console > App Check > Apps: register this site with the reCAPTCHA Enterprise provider and the PUBLIC site key (the key is already in scripts/settings.js), watch the Firestore request graph for 7 days. Check that visits from the main page, the form and the survey page show as verified.'],
     ['enforce', 'App Check is enforced for Cloud Firestore', 'App Check > APIs > Cloud Firestore > Enforce, only after the graph shows your own visits as verified.'],
     ['budget', 'Budget alert is set', 'Google Cloud console > Billing > Budgets & alerts: a low alert (for example 1 USD) so any surprise charge is noticed. The project stays on the free plan.']
   ];
