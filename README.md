@@ -1456,3 +1456,12 @@ No Firestore rules change in E4 (`ownerPrivate` is already owner only). Rules te
 - **Not covered:** navigation away (links, redirects) and the approved calendar iframe addresses cannot be fully blocked by a page rule.
 - **Docs:** `S2C3-CHECKLIST.md`, `internal-docs/4.5.0-S2-security.md`.
 
+## 4.5.0 - Phase T2: icon buttons on the other dashboard pages
+- **What it does:** the row actions on the owner dashboard are icon buttons (same look as the Training page, T1): arrows to move, pencil to edit or rename, trash (red) to delete, copy, clock (history), archive and restore on Client IDs, eye to open a document. The 13 **Add ...** buttons keep their text and gain a plus icon. Names for screen readers stay "Action: Name"; hover shows the action; 44 px touch targets on phones.
+- **Pages:** Services, Toolkit (categories and tools), Testimonials, Chatbot knowledge, Videos, FAQ, Experience, Clients and blocked periods, Service forms (options, forms, questions), Client IDs, Documents, Library, Billing profiles, and the Inbox question delete. 11 files; most of the buttons come from three shared helpers (`ctl`, and `del` in `owner-phase1.js` and `owner-phase2.js`), so behavior is unchanged.
+- **Stays text:** state-dependent labels (Mark ready, Submit, Replace, Confirm remove, Reviewed, Addressed, Archive on question history, Preview / Hide preview, Save, Cancel, dialog buttons) and the Delete button in the library picture dialog.
+- **New icons:** `archive`, `eye` (the rest already existed).
+- **Not changed:** data, rules, the security rules of the page, the Worker. No new "Duplicate" action on other pages (T1 added Copy for Training categories only).
+- **Tests:** `scripts/icon-buttons.test.mjs` (8: every icon defined once and used icons exist; no row-action text button left; helpers; Client IDs; Add buttons; text kept where intended; accessible name), `rules-tests/browser/t2-1-icon-buttons.mjs` (88 checks over 12 list pages: icon-only, names, tooltips, danger style, disabled ends, move up/down, edit dialog, keyboard delete with confirmation, Client IDs copy/note/history/archive, documents, Add buttons, phone width 44 px, no horizontal scroll, controls named; with the old code it fails 16 checks). No automated accessibility scanner (axe) was available in this workspace, so accessibility is checked by name/role tests only. All earlier suites and the 2459 rules checks pass.
+- **Docs:** `T2-CHECKLIST.md`, `internal-docs/4.5.0-T2-icon-buttons.md`.
+

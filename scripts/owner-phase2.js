@@ -8,13 +8,13 @@
   'use strict';
   const kit = window.dashKit, K = window.ownKit, av = window.availApi, ex = window.experienceApi;
   if (!kit || !K || !av) return;
-  const { el, notify, confirmBox } = kit;
+  const { el, notify, confirmBox, iconBtn } = kit;
   const { makeStore, editDialog, thumb, ctl, toggle, uid, move } = K;
   const $ = id => document.getElementById(id);
   const own = () => window.OWN;
   let ownerOk = false;
   const fmtErr = e => (e && e.code === 'permission-denied') ? 'Permission denied. Publish the updated Firestore rules from the README first.' : 'Please try again.';
-  const del = (name, what, fn) => el('button', { type: 'button', class: 'dbtn sm danger', 'aria-label': 'Delete: ' + name, onclick: async () => { if (await confirmBox('Delete this ' + what + '?', '“' + name + '” will be permanently removed.')) fn(); } }, 'Delete');
+  const del = (name, what, fn) => iconBtn('trash', 'Delete', name, async () => { if (await confirmBox('Delete this ' + what + '?', '“' + name + '” will be permanently removed.')) fn(); }, { danger: true });
 
   /* ---------------------------------------------------------------- Experience */
   if (ex) {

@@ -71,7 +71,7 @@
         ctl(open.has(it.id) ? 'Hide preview' : 'Preview', it.q, () => { open.has(it.id) ? open.delete(it.id) : open.add(it.id); renderKb(); }),
         ctl('Move up', it.q, () => { move(L, i, -1); kb.touch(); }, i === 0), ctl('Move down', it.q, () => { move(L, i, 1); kb.touch(); }, i === L.length - 1),
         ctl('Edit', it.q, async () => { const r = await editDialog('Edit question', fields(), { q: it.q, a: it.a, alts: (it.alts || []).join('\n'), category: it.category || '' }); if (r) { Object.assign(it, toRec(r)); kb.touch(); } }),
-        el('button', { type: 'button', class: 'dbtn sm danger', 'aria-label': 'Delete: ' + it.q, onclick: async () => { if (await confirmBox('Delete this entry?', '“' + it.q + '” will be removed once you publish.')) { L.splice(i, 1); kb.touch(); } } }, 'Delete'))))
+        kit.iconBtn('trash', 'Delete', it.q, async () => { if (await confirmBox('Delete this entry?', '“' + it.q + '” will be removed once you publish.')) { L.splice(i, 1); kb.touch(); } }, { danger: true }))))
       : [el('p', { class: 'dstate' }, L.length ? 'No entries match your search.' : 'No entries yet. Add one or restore the predefined answers.')]));
     kb.sync();
   }

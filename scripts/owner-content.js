@@ -126,7 +126,11 @@
     return s;
   }
   const thumb = (src, label) => src ? el('img', { class: 'mthumb', src, alt: '', width: '40', height: '40' }) : el('span', { class: 'mthumb ph', 'aria-hidden': 'true' }, (label || '?').trim().charAt(0).toUpperCase());
-  const ctl = (label, name, fn, disabled) => el('button', { type: 'button', class: 'dbtn sm', 'aria-label': label + ': ' + name, disabled: !!disabled, onclick: fn }, label);
+  /* T2: row actions are icon buttons (same names for screen readers: "Edit: Name"); other labels keep the text button */
+  const CTL_ICON = { 'Move up': 'up', 'Move down': 'down', 'Edit': 'pencil', 'Rename': 'pencil' };
+  const ctl = (label, name, fn, disabled) => CTL_ICON[label]
+    ? kit.iconBtn(CTL_ICON[label], label, name, fn, { disabled: !!disabled })
+    : el('button', { type: 'button', class: 'dbtn sm', 'aria-label': label + ': ' + name, disabled: !!disabled, onclick: fn }, label);
   const toggle = (name, on, fn) => el('label', { class: 'tog' }, el('input', { type: 'checkbox', checked: on, 'aria-label': 'Show ' + name + ' on the site', onchange: e => fn(e.target.checked) }), 'Show');
 
   /* ---------- SERVICES ---------- */
@@ -147,8 +151,8 @@
       el('div', { class: 'mctl' }, toggle(s.title, s.enabled !== false, v => { s.enabled = v; svc.touch(); }),
         ctl('Move up', s.title, () => { move(L, i, -1); svc.touch(); }, i === 0), ctl('Move down', s.title, () => { move(L, i, 1); svc.touch(); }, i === L.length - 1),
         ctl('Edit', s.title, async () => { const r = await editDialog('Edit service', SVC_FIELDS, s); if (r) { Object.assign(s, r); svc.touch(); } }),
-        el('button', { type: 'button', class: 'dbtn sm danger', 'aria-label': 'Delete: ' + s.title, onclick: async () => {
-          if (await confirmBox('Delete this service?', '“' + s.title + '” will be permanently removed from the Services section once you publish.')) { L.splice(i, 1); svc.touch(); } } }, 'Delete'))))
+        kit.iconBtn('trash', 'Delete', s.title, async () => {
+          if (await confirmBox('Delete this service?', '“' + s.title + '” will be permanently removed from the Services section once you publish.')) { L.splice(i, 1); svc.touch(); } }, { danger: true }))))
       : [el('p', { class: 'dstate' }, 'No services yet. Add one to show the Services section.')]));
     svc.sync();
   }
@@ -185,8 +189,8 @@
             const r = await toolDialog('Add tool', {}, c.id); if (!r) return;
             const target = L.find(x => x.id === r.category) || c;
             target.tools.push({ id: uid('t'), name: r.name, description: r.description || '', logo: r.logo || '', enabled: true }); tk.touch(); } }, 'Add tool'),
-          el('button', { type: 'button', class: 'dbtn sm danger', 'aria-label': 'Delete category: ' + c.name, onclick: async () => {
-            if (await confirmBox('Delete this category?', '“' + c.name + '”' + (c.tools.length ? ' and its ' + c.tools.length + ' tool(s)' : '') + ' will be removed once you publish.')) { L.splice(ci, 1); tk.touch(); } } }, 'Delete'))),
+          kit.iconBtn('trash', 'Delete category', c.name, async () => {
+            if (await confirmBox('Delete this category?', '“' + c.name + '”' + (c.tools.length ? ' and its ' + c.tools.length + ' tool(s)' : '') + ' will be removed once you publish.')) { L.splice(ci, 1); tk.touch(); } }, { danger: true }))),
       el('div', { class: 'mlist' }, ...(c.tools.length ? c.tools.map((t, ti) => el('div', { class: 'mrow' + (t.enabled === false ? ' off' : '') },
         thumb(t.logo, t.name),
         el('div', { class: 'mmain' }, el('strong', {}, t.name), el('small', {}, t.description || 'No description')),
@@ -197,8 +201,8 @@
             Object.assign(t, { name: r.name, description: r.description || '', logo: r.logo || '' });
             if (r.category !== c.id) { const to = L.find(x => x.id === r.category); if (to) { c.tools.splice(ti, 1); to.tools.push(t); } }
             tk.touch(); }),
-          el('button', { type: 'button', class: 'dbtn sm danger', 'aria-label': 'Delete tool: ' + t.name, onclick: async () => {
-            if (await confirmBox('Delete this tool?', '“' + t.name + '” will be removed once you publish.')) { c.tools.splice(ti, 1); tk.touch(); } } }, 'Delete')))) : [el('p', { class: 'dhelp' }, 'No tools in this category yet.')]))))
+          kit.iconBtn('trash', 'Delete tool', t.name, async () => {
+            if (await confirmBox('Delete this tool?', '“' + t.name + '” will be removed once you publish.')) { c.tools.splice(ti, 1); tk.touch(); } }, { danger: true })))) : [el('p', { class: 'dhelp' }, 'No tools in this category yet.')]))))
       : [el('p', { class: 'dstate' }, 'No categories yet. Add a category to start.')]));
     tk.sync();
   }
@@ -244,8 +248,8 @@
           ctl('Edit', t.name, async () => {
             const r = await editDialog('Edit testimonial', TM_FIELDS(), Object.assign({}, t, { rating: String(t.rating || '') }));
             if (r) { Object.assign(t, { name: r.name, role: r.role || '', quote: r.quote, rating: Number(r.rating) || 0, photo: r.photo || '' }); tm.touch(); } }),
-          el('button', { type: 'button', class: 'dbtn sm danger', 'aria-label': 'Delete: ' + t.name, onclick: async () => {
-            if (await confirmBox('Delete this testimonial?', 'The testimonial from “' + t.name + '” will be removed once you publish.')) { D.items.splice(i, 1); tm.touch(); } } }, 'Delete'))))
+          kit.iconBtn('trash', 'Delete', t.name, async () => {
+            if (await confirmBox('Delete this testimonial?', 'The testimonial from “' + t.name + '” will be removed once you publish.')) { D.items.splice(i, 1); tm.touch(); } }, { danger: true }))))
         : [el('p', { class: 'dstate' }, 'No testimonials yet. Add one, then switch the section on.')]));
       tm.sync();
     }

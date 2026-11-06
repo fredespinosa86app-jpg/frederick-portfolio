@@ -40,7 +40,7 @@
 - Done by the owner: two-step verification on Google (also covers Firebase) and GitHub.
 - TODO 1: turn on two-step verification on the Cloudflare account (owner action, no code).
 - TODO 2: add a Cloudflare rate-limit rule in front of the form Worker (`portfolio-forms`) as a harder backstop for its per-instance limits (free plan; owner action, checklist to be written).
-- TODO 3 (DONE in S2-C2, live-verified; S2-C3 `img-src`/`media-src` DONE, live test pending): tighten the page's Content Security Policy `connect-src` from `'self' https:` to only the addresses in use (Firebase, the form Worker, and any chat/Calendar/Sheets address in use); needs a code change and a live test.
+- TODO 3 (DONE in S2-C2, live-verified; S2-C3 `img-src`/`media-src` DONE, live-verified): tighten the page's Content Security Policy `connect-src` from `'self' https:` to only the addresses in use (Firebase, the form Worker, and any chat/Calendar/Sheets address in use); needs a code change and a live test.
 - Optional, not security: custom domain move.
 
 ## Update 2026-11-06: WorkTrack W5 (owner approved Revision 2 of the QA layout)
@@ -64,4 +64,10 @@
 - Passed live: alarm card, sequence, stops, no replay, sounds, Corner and Reset position buttons.
 - Not yet seen live (owner): notifications (B10) and the title rule R7. Stay AUTOMATED_TESTED until tried. W5 plan is complete apart from these two checks.
 - 2026-11-06 follow-up: tab title confirmed live. Notifications: blocked by the browser for this site; owner can allow them in the browser's site settings and retry step B10, or leave them off (the alarm sound, title and pulse work without them).
+
+## Update 2026-11-06: security enhancement review list (owner request, status DESIGNED)
+Five items recorded in `4.5.0-security-enhancement-review.md`, each needing the owner's approval before a build: **E1** App Check enforcement (monitor first), **E2** real security headers (needs a Cloudflare domain move; optional), **E3** pin or self-host the Firebase SDK (recommended first), **E4** navigation and calendar-frame residual risk (trim `frame-src` to the provider in use), **E5** independent review (prepare a review pack; the review itself needs another person). Recommended order: E3, E1, E5, E4, E2.
+
+## Update 2026-11-06: T2 icon buttons built
+- T2 (icon buttons on the other dashboard pages): AUTOMATED_TESTED, awaiting the owner's live test (`T2-CHECKLIST.md`). No rules, CSP or database change. Remaining approved items: security enhancement review E1 to E5 (recommended order E3, E1, E5, E4, E2).
 

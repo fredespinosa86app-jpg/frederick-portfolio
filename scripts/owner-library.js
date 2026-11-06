@@ -138,7 +138,7 @@
       const cb = el('input', { type: 'checkbox', 'aria-label': 'Select ' + it.name }); cb.checked = sel.has(it.id);
       cb.addEventListener('change', () => { cb.checked ? sel.add(it.id) : sel.delete(it.id); bulk(); });
       const t = tile(it); t.prepend(cb);
-      t.append(el('button', { type: 'button', class: 'dbtn sm', onclick: () => edit(it) }, 'Edit'));
+      t.append(kit.iconBtn('pencil', 'Edit', it.name, () => edit(it)));
       return t;
     }) : [el('p', { class: 'dstate' }, items.length ? 'No images match your search.' : 'No images yet. Upload your first picture above.')]));
     bulk();

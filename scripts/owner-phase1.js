@@ -78,7 +78,7 @@
 
   const trainingOptions = () => [{ value: '', label: 'General (not tied to a category)' }].concat((window.trainingApi ? window.trainingApi.get() : []).map(t => ({ value: t.id, label: t.title })));
   const catName = id => (trainingOptions().find(o => o.value === id) || {}).label || '';
-  const del = (name, what, after) => el('button', { type: 'button', class: 'dbtn sm danger', 'aria-label': 'Delete: ' + name, onclick: async () => { if (await confirmBox('Delete this ' + what + '?', '“' + name + '” will be removed once you publish.')) after(); } }, 'Delete');
+  const del = (name, what, after) => iconBtn('trash', 'Delete', name, async () => { if (await confirmBox('Delete this ' + what + '?', '“' + name + '” will be removed once you publish.')) after(); }, { danger: true });
 
   /* ---------------------------------------------------------------- How I Work videos */
   const va = window.videosApi;

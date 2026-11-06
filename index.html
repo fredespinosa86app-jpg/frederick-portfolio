@@ -322,6 +322,8 @@
 <symbol id="ic-up" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
 <symbol id="ic-down" viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></symbol>
 <symbol id="ic-back" viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></symbol>
+<symbol id="ic-archive" viewBox="0 0 24 24"><path d="M3 4h18v4H3zM5 8v12h14V8M10 12h4"/></symbol>
+<symbol id="ic-eye" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
 <symbol id="ic-restore" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.5-5.8M4 4v5h5"/></symbol>
 <symbol id="ic-side" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></symbol>
 </svg>
@@ -423,14 +425,14 @@
 <section class="dpage" id="dp-services" hidden><div class="dcard"><h2>Services</h2>
 <p class="dhelp">Add, edit, reorder or hide the cards in the public Services section. Edits preview on the site behind this panel and go live when you publish.</p>
 <div class="dfilters"><label class="fld">View format<select id="svcView"><option value="list">List view (default)</option><option value="grid">Grid view</option><option value="compact">Compact view</option></select></label></div>
-<div class="dact-row"><button type="button" class="dbtn primary" id="svcAdd">Add service</button></div>
+<div class="dact-row"><button type="button" class="dbtn primary ibtn" id="svcAdd"><svg aria-hidden="true" focusable="false"><use href="#ic-plus"/></svg><span>Add service</span></button></div>
 <div class="mlist" id="svcList"></div>
 <p class="dhelp" id="svcState" role="status"></p>
 <div class="dact-row"><button type="button" class="dbtn primary" id="svcPublish" disabled>Publish changes</button><button type="button" class="dbtn" id="svcDiscard" disabled>Discard changes</button></div></div></section>
 <section class="dpage" id="dp-toolkit" hidden><div class="dcard"><h2>Toolkit</h2>
 <p class="dhelp">Organise tools into categories, reorder them, add logos or hide individual tools. Edits preview on the site and go live when you publish.</p>
 <div class="dfilters"><label class="fld">View format<select id="tkView"><option value="list">List view (default)</option><option value="grid">Grid view</option><option value="compact">Compact view</option></select></label></div>
-<div class="dact-row"><button type="button" class="dbtn primary" id="tkAddCat">Add category</button></div>
+<div class="dact-row"><button type="button" class="dbtn primary ibtn" id="tkAddCat"><svg aria-hidden="true" focusable="false"><use href="#ic-plus"/></svg><span>Add category</span></button></div>
 <div class="mlist" id="tkList"></div>
 <p class="dhelp" id="tkState" role="status"></p>
 <div class="dact-row"><button type="button" class="dbtn primary" id="tkPublish" disabled>Publish changes</button><button type="button" class="dbtn" id="tkDiscard" disabled>Discard changes</button></div></div></section>
@@ -454,7 +456,7 @@
 <section class="dpage" id="dp-chatkb" hidden><div class="dcard"><h2>Chatbot knowledge base</h2>
 <p class="dhelp">Answers you approve here are used first when a visitor’s question matches the question or any of its alternative phrasings. Without a reliable match the chatbot never invents an answer: it uses its built-in knowledge, your webhook (if on) or a polite fallback. Changes go live when you publish.</p>
 <div class="dfilters"><label class="fld">Search<input type="search" id="kbSearch" autocomplete="off" placeholder="Question, answer or category"></label></div>
-<div class="dact-row"><button type="button" class="dbtn primary" id="kbAdd">Add question</button><button type="button" class="dbtn" id="kbDefaults">Restore predefined answers</button><span class="dhelp" id="kbCount"></span></div>
+<div class="dact-row"><button type="button" class="dbtn primary ibtn" id="kbAdd"><svg aria-hidden="true" focusable="false"><use href="#ic-plus"/></svg><span>Add question</span></button><button type="button" class="dbtn" id="kbDefaults">Restore predefined answers</button><span class="dhelp" id="kbCount"></span></div>
 <div class="mlist" id="kbList"></div>
 <p class="dhelp" id="kbState" role="status"></p>
 <div class="dact-row"><button type="button" class="dbtn primary" id="kbPublish" disabled>Publish changes</button><button type="button" class="dbtn" id="kbDiscard" disabled>Discard changes</button></div></div>
@@ -464,7 +466,7 @@
 <p class="dhelp">Edits preview on the site behind this panel and go live when you publish. The section appears only when it is switched on and at least one testimonial is shown.</p>
 <div class="dfilters"><label class="tog"><input type="checkbox" id="tmEnabled"> Show testimonials section</label>
 <label class="fld">View format<select id="tmView"><option value="grid">Grid view</option><option value="carousel">Carousel view</option><option value="list">List view</option></select></label></div>
-<div class="dact-row"><button type="button" class="dbtn primary" id="tmAdd">Add testimonial</button></div>
+<div class="dact-row"><button type="button" class="dbtn primary ibtn" id="tmAdd"><svg aria-hidden="true" focusable="false"><use href="#ic-plus"/></svg><span>Add testimonial</span></button></div>
 <div class="mlist" id="tmList"></div>
 <p class="dhelp" id="tmState" role="status"></p>
 <div class="dact-row"><button type="button" class="dbtn primary" id="tmPublish" disabled>Publish changes</button><button type="button" class="dbtn" id="tmDiscard" disabled>Discard changes</button></div></div></section>
@@ -502,7 +504,7 @@
 <p class="ferr" id="wtErr" role="alert"></p>
 <div class="ab"><button type="button" class="dbtn" id="wtRefresh">Refresh</button><button type="button" class="dbtn" id="wtClose" hidden>Close as incomplete…</button></div></div>
 <div class="dcard"><h3>Clients</h3><p class="dhelp" id="wtCliHelp"></p>
-<div class="ab"><label class="fld">Client ID<select id="wtCliSel"><option value="">Choose a Client ID…</option></select></label><button type="button" class="dbtn primary" id="wtCliAdd" disabled>Add</button></div>
+<div class="ab"><label class="fld">Client ID<select id="wtCliSel"><option value="">Choose a Client ID…</option></select></label><button type="button" class="dbtn primary ibtn" id="wtCliAdd" disabled><svg aria-hidden="true" focusable="false"><use href="#ic-plus"/></svg><span>Add</span></button></div>
 <p class="ferr" id="wtCliErr" role="alert"></p><p class="libmeta" id="wtCliFull" role="status"></p>
 <div class="wtchips" id="wtChips"></div><div class="wtlist" id="wtCliHist"></div>
 <div class="ab"><button type="button" class="dbtn" id="wtCliHistBtn" hidden>Show changes to the clients</button></div><div class="wtlist" id="wtCliAudit"></div>
@@ -575,9 +577,9 @@
 <p class="dstate" id="cidPreview" role="status"></p></div>
 <div class="dcard"><h2>Add a client ID</h2>
 <div class="ab"><label class="fld">Private note (optional, no personal details)<input type="text" id="cidNote" maxlength="500" autocomplete="off"></label>
-<button type="button" class="dbtn primary" id="cidAddNext">Add next ID</button></div>
+<button type="button" class="dbtn primary ibtn" id="cidAddNext"><svg aria-hidden="true" focusable="false"><use href="#ic-plus"/></svg><span>Add next ID</span></button></div>
 <div class="ab"><label class="fld">Or type your own ID<input type="text" id="cidCustom" maxlength="24" placeholder="for example OA-UK-001" autocomplete="off" spellcheck="false"></label>
-<button type="button" class="dbtn" id="cidAddCustom">Add this ID</button></div>
+<button type="button" class="dbtn ibtn" id="cidAddCustom"><svg aria-hidden="true" focusable="false"><use href="#ic-plus"/></svg><span>Add this ID</span></button></div>
 <p class="dhelp">IDs use letters A to Z, numbers and hyphens, 3 to 24 characters, starting with a letter. Lower case is changed to capitals.</p>
 <p class="ferr" id="cidErr" role="alert"></p></div>
 <div class="dcard"><h2>Your client IDs</h2>
@@ -702,20 +704,20 @@
 <section class="dpage" id="dp-videos" hidden><div class="dcard"><h2>How I Work videos</h2>
 <p class="dhelp">Add up to 20 YouTube or Loom videos. Shown under “How I Work” and, when you assign a category, inside that training category. Edits preview on the site and go live when you publish.</p>
 <div class="dfilters"><label class="fld">View format<select id="vdView"><option value="youtube">YouTube style (default)</option><option value="grid">Grid view</option><option value="list">List view</option><option value="compact">Compact view</option></select></label></div>
-<div class="dact-row"><button type="button" class="dbtn primary" id="vdAdd">Add video</button><span class="dhelp" id="vdCount"></span></div>
+<div class="dact-row"><button type="button" class="dbtn primary ibtn" id="vdAdd"><svg aria-hidden="true" focusable="false"><use href="#ic-plus"/></svg><span>Add video</span></button><span class="dhelp" id="vdCount"></span></div>
 <div class="mlist" id="vdList"></div>
 <p class="dhelp" id="vdState" role="status"></p>
 <div class="dact-row"><button type="button" class="dbtn primary" id="vdPublish" disabled>Publish changes</button><button type="button" class="dbtn" id="vdDiscard" disabled>Discard changes</button></div></div></section>
 <section class="dpage" id="dp-faq" hidden><div class="dcard"><h2>FAQ</h2>
 <p class="dhelp">Add, edit, reorder or delete questions. A question can belong to a training category. Nothing is added to the chatbot unless you tick the option on that question.</p>
-<div class="dact-row"><button type="button" class="dbtn primary" id="fqAdd">Add question</button></div>
+<div class="dact-row"><button type="button" class="dbtn primary ibtn" id="fqAdd"><svg aria-hidden="true" focusable="false"><use href="#ic-plus"/></svg><span>Add question</span></button></div>
 <div class="mlist" id="fqList"></div>
 <p class="dhelp" id="fqState" role="status"></p>
 <div class="dact-row"><button type="button" class="dbtn primary" id="fqPublish" disabled>Publish changes</button><button type="button" class="dbtn" id="fqDiscard" disabled>Discard changes</button></div></div></section>
 <section class="dpage" id="dp-experience" hidden><div class="dcard"><h2>Experience</h2>
 <p class="dhelp">Your work history. The Experience section stays hidden on the site until you switch it on below and have at least one visible entry.</p>
 <label class="tog"><input type="checkbox" id="exEnabled"> Show the Experience section on the site</label>
-<div class="dact-row"><button type="button" class="dbtn primary" id="exAdd">Add experience</button></div>
+<div class="dact-row"><button type="button" class="dbtn primary ibtn" id="exAdd"><svg aria-hidden="true" focusable="false"><use href="#ic-plus"/></svg><span>Add experience</span></button></div>
 <div class="mlist" id="exList"></div>
 <p class="dhelp" id="exState" role="status"></p>
 <div class="dact-row"><button type="button" class="dbtn primary" id="exPublish" disabled>Publish changes</button><button type="button" class="dbtn" id="exDiscard" disabled>Discard changes</button></div></div></section>
@@ -758,7 +760,7 @@
 <div class="dstats" id="clStats"></div>
 <div class="dfilters"><label class="fld">Show<select id="clFilter"><option value="current">Active</option><option value="inactive">Inactive</option><option value="overdue">Overdue invoices</option><option value="all">All clients</option></select></label>
 <label class="fld">Search<input type="search" id="clSearch" autocomplete="off" placeholder="Name, email or company"></label></div>
-<div class="dact-row"><button type="button" class="dbtn primary" id="clAdd">Add client</button></div>
+<div class="dact-row"><button type="button" class="dbtn primary ibtn" id="clAdd"><svg aria-hidden="true" focusable="false"><use href="#ic-plus"/></svg><span>Add client</span></button></div>
 <div class="mlist" id="clList"></div>
 <p class="dhelp" id="clState" role="status"></p></div></section>
 <section class="dpage" id="dp-visitors" hidden>
@@ -880,9 +882,9 @@ function doPost(e) {
 <label class="tog"><input type="checkbox" id="sfEnabled"> Enable service-specific forms</label>
 <p class="dhelp">Off: visitors only see the normal discovery call request form (no service dropdown). Turning it off never deletes your forms or past inquiries.</p></div>
 <div class="dcard"><h2>Service options</h2><p class="dhelp">The choices in the “Service type” dropdown.</p>
-<div class="dact-row"><button type="button" class="dbtn primary" id="sfSvcAdd">Add service</button></div><div class="mlist" id="sfSvcList"></div></div>
+<div class="dact-row"><button type="button" class="dbtn primary ibtn" id="sfSvcAdd"><svg aria-hidden="true" focusable="false"><use href="#ic-plus"/></svg><span>Add service</span></button></div><div class="mlist" id="sfSvcList"></div></div>
 <div class="dcard"><div id="sfListView"><h2>Service forms</h2><p class="dhelp">One active form per service. Services without an active form use the normal discovery call request form. File uploads are not available because Firebase Storage needs a paid plan.</p>
-<div class="dact-row"><button type="button" class="dbtn primary" id="sfFormAdd">Add form</button></div><div class="mlist" id="sfList"></div></div>
+<div class="dact-row"><button type="button" class="dbtn primary ibtn" id="sfFormAdd"><svg aria-hidden="true" focusable="false"><use href="#ic-plus"/></svg><span>Add form</span></button></div><div class="mlist" id="sfList"></div></div>
 <div id="sfEdit" hidden></div></div>
 <div class="dcard"><p class="dhelp" id="sfState" role="status"></p>
 <div class="dact-row"><button type="button" class="dbtn primary" id="sfPublish" disabled>Publish changes</button><button type="button" class="dbtn" id="sfDiscard" disabled>Discard changes</button></div></div></section>
@@ -1059,14 +1061,14 @@ function doPost(e) {
 <script src="scripts/meeting-form.js?v=c1"></script>
 <script src="scripts/booking-embed.js?v=c1"></script>
 <script src="scripts/owner-ui.js?v=b3"></script>
-<script src="scripts/owner-dashboard.js?v=t1"></script>
-<script src="scripts/owner-content.js?v=b3"></script>
-<script src="scripts/owner-phase1.js?v=t1"></script>
-<script src="scripts/owner-phase2.js?v=b3"></script>
+<script src="scripts/owner-dashboard.js?v=t2"></script>
+<script src="scripts/owner-content.js?v=t2"></script>
+<script src="scripts/owner-phase1.js?v=t2"></script>
+<script src="scripts/owner-phase2.js?v=t2"></script>
 <script src="scripts/analytics.js?v=b3"></script>
 <script src="scripts/owner-phase3.js?v=s2c2"></script>
-<script src="scripts/owner-phase5.js?v=c1"></script>
-<script src="scripts/owner-phase6.js?v=c1"></script>
+<script src="scripts/owner-phase5.js?v=t2"></script>
+<script src="scripts/owner-phase6.js?v=t2"></script>
 <script src="scripts/core-authcleanup.js?v=s2"></script>
 <script src="scripts/core-connlog.js?v=s2c2"></script>
 <script src="scripts/owner-s2.js?v=s2c2"></script>
@@ -1074,11 +1076,11 @@ function doPost(e) {
 <script src="scripts/owner-security.js?v=f6"></script>
 <script src="scripts/backup-core.js?v=c1"></script>
 <script src="scripts/owner-privacy.js?v=r3"></script>
-<script src="scripts/owner-library.js?v=b3"></script>
+<script src="scripts/owner-library.js?v=t2"></script>
 <script src="scripts/core-ids.js?v=b3"></script>
-<script src="scripts/owner-clientids.js?v=b3"></script>
+<script src="scripts/owner-clientids.js?v=t2"></script>
 <script src="scripts/owner-docs-core.js?v=c1b"></script>
-<script src="scripts/owner-docs.js?v=c1"></script>
+<script src="scripts/owner-docs.js?v=t2"></script>
 <script src="scripts/core-time.js?v=b3"></script>
 <script src="scripts/core-worktrack.js?v=b3"></script>
 <script src="scripts/core-wtschedule.js?v=w5b"></script>
@@ -1094,7 +1096,7 @@ function doPost(e) {
 <script src="scripts/owner-wtreport.js?v=b3"></script>
 <script src="scripts/core-money.js?v=b3"></script>
 <script src="scripts/core-billing.js?v=b3"></script>
-<script src="scripts/owner-billing.js?v=b3"></script>
+<script src="scripts/owner-billing.js?v=t2"></script>
 <script src="scripts/owner-billhours.js?v=b3"></script>
 <script src="scripts/core-invoice.js?v=b3"></script>
 <script src="scripts/owner-invoices.js?v=b3"></script>

@@ -129,10 +129,10 @@
       el('div', { class: 'cidmain' }, el('strong', { class: 'cidid' }, r.id), el('span', { class: 'cidbadge ' + r.status }, r.status === 'archived' ? 'Archived' : 'Active'), el('span', { class: 'libmeta' }, 'Created ' + fmtDate(r.createdAt) + ' · revision ' + r.rev)),
       r.notes ? el('div', { class: 'dhelp cidnote' }, r.notes) : null,
       el('div', { class: 'dact-row' },
-        el('button', { type: 'button', class: 'dbtn', 'aria-label': 'Copy ' + r.id, onclick: async () => { try { await navigator.clipboard.writeText(r.id); notify('Copied ' + r.id, 'success'); } catch (e) { notify('Please copy it by hand: ' + r.id, 'info'); } } }, 'Copy'),
-        el('button', { type: 'button', class: 'dbtn', 'aria-label': 'Edit note for ' + r.id, onclick: () => editNote(r) }, 'Note'),
-        el('button', { type: 'button', class: 'dbtn', 'aria-label': 'History of ' + r.id, onclick: () => history(r) }, 'History'),
-        r.status === 'archived' ? el('button', { type: 'button', class: 'dbtn', 'aria-label': 'Restore ' + r.id, onclick: () => setStatus(r, 'active') }, 'Restore') : el('button', { type: 'button', class: 'dbtn danger', 'aria-label': 'Archive ' + r.id, onclick: () => setStatus(r, 'archived') }, 'Archive')))) : [el('p', { class: 'dstate' }, rows.length ? 'No IDs match.' : 'No client IDs yet. Add your first one above.')]));
+        kit.iconBtn('copy', 'Copy', r.id, async () => { try { await navigator.clipboard.writeText(r.id); notify('Copied ' + r.id, 'success'); } catch (e) { notify('Please copy it by hand: ' + r.id, 'info'); } }),
+        kit.iconBtn('pencil', 'Edit note', r.id, () => editNote(r)),
+        kit.iconBtn('clock', 'History', r.id, () => history(r)),
+        r.status === 'archived' ? kit.iconBtn('restore', 'Restore', r.id, () => setStatus(r, 'active')) : kit.iconBtn('archive', 'Archive', r.id, () => setStatus(r, 'archived'), { danger: true })))) : [el('p', { class: 'dstate' }, rows.length ? 'No IDs match.' : 'No client IDs yet. Add your first one above.')]));
     preview();
   }
   async function show() {

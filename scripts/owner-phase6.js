@@ -64,9 +64,9 @@
       el('div', { class: 'mmain' }, el('strong', {}, s.name), el('small', {}, sf.draft.filter(f => f.serviceId === s.id).length + ' form(s)')),
       el('div', { class: 'mctl' }, ctl('Move up', s.name, () => { move(S, i, -1); sf.touch(); }, i === 0), ctl('Move down', s.name, () => { move(S, i, 1); sf.touch(); }, i === S.length - 1),
         ctl('Rename', s.name, async () => { const r = await editDialog('Rename service', [{ key: 'name', label: 'Service name', required: true, max: 60 }], s); if (r) { s.name = r.name.trim(); sf.touch(); } }),
-        el('button', { type: 'button', class: 'dbtn sm danger', 'aria-label': 'Delete: ' + s.name, onclick: async () => {
+        kit.iconBtn('trash', 'Delete', s.name, async () => {
           if (sf.draft.some(f => f.serviceId === s.id)) return notify('Delete or move this service’s forms first.', 'warning');
-          if (await confirmBox('Delete this service option?', '“' + s.name + '” will be removed from the dropdown once you publish.')) { S.splice(i, 1); sf.touch(); } } }, 'Delete'))))
+          if (await confirmBox('Delete this service option?', '“' + s.name + '” will be removed from the dropdown once you publish.')) { S.splice(i, 1); sf.touch(); } }, { danger: true }))))
       : [el('p', { class: 'dstate' }, 'No services yet. Add one to use this feature.')]));
   }
   function renderForms() {
@@ -82,8 +82,8 @@
         ctl(open.has(f.id) ? 'Hide preview' : 'Preview', f.name, () => { open.has(f.id) ? open.delete(f.id) : open.add(f.id); renderForms(); }),
         ctl('Edit', f.name, () => startEdit(f)),
         ctl('Move up', f.name, () => { move(L, i, -1); sf.touch(); }, i === 0), ctl('Move down', f.name, () => { move(L, i, 1); sf.touch(); }, i === L.length - 1),
-        el('button', { type: 'button', class: 'dbtn sm danger', 'aria-label': 'Delete: ' + f.name, onclick: async () => {
-          if (await confirmBox('Delete this form?', '“' + f.name + '” will be removed once you publish. Inquiries already received keep their answers.')) { L.splice(i, 1); sf.touch(); } } }, 'Delete'))))
+        kit.iconBtn('trash', 'Delete', f.name, async () => {
+          if (await confirmBox('Delete this form?', '“' + f.name + '” will be removed once you publish. Inquiries already received keep their answers.')) { L.splice(i, 1); sf.touch(); } }, { danger: true }))))
       : [el('p', { class: 'dstate' }, 'No service forms yet. Add one to ask service-specific questions.')]));
   }
   function previewBox(f) {
@@ -128,7 +128,7 @@
       el('div', { class: 'mctl' }, el('label', { class: 'tog' }, el('input', { type: 'checkbox', checked: q.required, 'aria-label': 'Required: ' + q.label, onchange: e => { q.required = e.target.checked; sf.touch(); } }), 'Required'),
         ctl('Move up', q.label, () => { move(L, i, -1); sf.touch(); }, i === 0), ctl('Move down', q.label, () => { move(L, i, 1); sf.touch(); }, i === L.length - 1),
         ctl('Edit', q.label, async () => { const r = await editDialog('Edit question', qFields(), Object.assign({}, q, { options: q.options.join('\n') }), qCheck); if (r) { Object.assign(q, toQ(r)); sf.touch(); } }),
-        el('button', { type: 'button', class: 'dbtn sm danger', 'aria-label': 'Delete: ' + q.label, onclick: async () => { if (await confirmBox('Delete this question?', '“' + q.label + '” will be removed from the form.')) { L.splice(i, 1); sf.touch(); } } }, 'Delete'))))
+        kit.iconBtn('trash', 'Delete', q.label, async () => { if (await confirmBox('Delete this question?', '“' + q.label + '” will be removed from the form.')) { L.splice(i, 1); sf.touch(); } }, { danger: true }))))
       : [el('p', { class: 'dstate' }, 'No questions yet. Add the first one.')]));
     const pv = $('sfEPrev'); pv.replaceChildren(); if (L.length) pv.append(previewBox(f));
   }

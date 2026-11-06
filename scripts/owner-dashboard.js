@@ -282,8 +282,8 @@
           el('td', { 'data-label': 'Date' }, fmt(toDate(q.createdAt))),
           el('td', { 'data-label': 'Status' }, chip(Q_STATUS[s], s)),
           el('td', { 'data-label': 'Actions' }, btn(q, 'reviewed', 'Reviewed'), btn(q, 'addressed', 'Addressed'), btn(q, 'archived', 'Archive'),
-            el('button', { class: 'dbtn sm danger', type: 'button', onclick: async () => {
-              if (await confirmBox('Delete this question?', 'This permanently deletes the recorded question.')) remove(q.ref, 'Chatbot question deleted'); } }, 'Delete')));
+            iconBtn('trash', 'Delete', String(q.question || 'question').slice(0, 60), async () => {
+              if (await confirmBox('Delete this question?', 'This permanently deletes the recorded question.')) remove(q.ref, 'Chatbot question deleted'); }, { danger: true })));
       })))));
   }
 

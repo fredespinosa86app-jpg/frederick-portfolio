@@ -23,9 +23,9 @@
     $('odList').replaceChildren(...(list.length ? list.map(r => el('div', { class: 'cidrow' },
       el('div', { class: 'cidmain' }, el('strong', {}, r.title || '(no title)'), el('span', { class: 'cidbadge active' }, core.LABELS[r.category] || 'Other'), el('span', { class: 'libmeta' }, 'Updated ' + fmtDate(r.updatedAt))),
       el('div', { class: 'dact-row' },
-        el('button', { type: 'button', class: 'dbtn', 'aria-label': 'Open ' + r.title, onclick: () => view(r) }, 'Open'),
-        el('button', { type: 'button', class: 'dbtn', 'aria-label': 'Edit ' + r.title, onclick: () => edit(r) }, 'Edit'),
-        el('button', { type: 'button', class: 'dbtn danger', 'aria-label': 'Delete ' + r.title, onclick: () => remove(r) }, 'Delete')))) : [el('p', { class: 'dhelp' }, rows.length ? 'No document matches.' : 'No documents yet. Use "New document" above.')]));
+        kit.iconBtn('eye', 'Open', r.title, () => view(r)),
+        kit.iconBtn('pencil', 'Edit', r.title, () => edit(r)),
+        kit.iconBtn('trash', 'Delete', r.title, () => remove(r), { danger: true })))) : [el('p', { class: 'dhelp' }, rows.length ? 'No document matches.' : 'No documents yet. Use "New document" above.')]));
   }
   function view(r) {
     $('odViewTitle').textContent = r.title || '';

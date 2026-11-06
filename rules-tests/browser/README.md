@@ -22,5 +22,6 @@ W5b (schedules and flicker):
     node s2-1-auth-reminder-connlog.mjs
     node s2c2-1-connect-rule.mjs
     node s2c3-1-img-media-rule.mjs
+    node t2-1-icon-buttons.mjs
 
 Note: the stand-in database now also offers orderBy and limit, so the owner dashboard modules load without errors.

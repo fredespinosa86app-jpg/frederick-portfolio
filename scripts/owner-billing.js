@@ -99,8 +99,8 @@
       el('div', { class: 'cidmain' }, el('strong', { class: 'cidid' }, p.id), el('span', { class: 'bbadge ' + (statusOf(p.id) === 'archived' ? 'bb-neutral' : 'bb-ok') }, statusOf(p.id) === 'archived' ? 'Archived client' : 'Active'), el('span', { class: 'libmeta' }, 'Revision ' + p.rev + ' · updated ' + fmtDate(p.updatedAt))),
       el('div', { class: 'dhelp' }, B.rateText(p) + ' (' + p.arrangement + ')'), el('div', { class: 'dhelp' }, B.describeSchedule(p)), el('div', { class: 'dhelp' }, B.describeDue(p)),
       el('div', { class: 'dact-row' },
-        el('button', { type: 'button', class: 'dbtn', 'aria-label': 'Edit the billing profile of ' + p.id, onclick: () => { $('bpClient').value = p.id; pickClient(); $('bpClient').scrollIntoView({ block: 'center' }); $('bpClient').focus(); } }, 'Edit'),
-        el('button', { type: 'button', class: 'dbtn', 'aria-label': 'History of the billing profile of ' + p.id, onclick: () => history(p) }, 'History')))) : [el('p', { class: 'dstate' }, 'No billing profiles yet.')]));
+        kit.iconBtn('pencil', 'Edit billing profile', p.id, () => { $('bpClient').value = p.id; pickClient(); $('bpClient').scrollIntoView({ block: 'center' }); $('bpClient').focus(); }),
+        kit.iconBtn('clock', 'History of billing profile', p.id, () => history(p))))) : [el('p', { class: 'dstate' }, 'No billing profiles yet.')]));
   }
 
   /* ---------------------------------------------------------------- migration of old client records */
