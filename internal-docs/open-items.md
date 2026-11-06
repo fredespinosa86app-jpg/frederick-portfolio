@@ -69,5 +69,10 @@
 Five items recorded in `4.5.0-security-enhancement-review.md`, each needing the owner's approval before a build: **E1** App Check enforcement (monitor first), **E2** real security headers (needs a Cloudflare domain move; optional), **E3** pin or self-host the Firebase SDK (recommended first), **E4** navigation and calendar-frame residual risk (trim `frame-src` to the provider in use), **E5** independent review (prepare a review pack; the review itself needs another person). Recommended order: E3, E1, E5, E4, E2.
 
 ## Update 2026-11-06: T2 icon buttons built
-- T2 (icon buttons on the other dashboard pages): AUTOMATED_TESTED, awaiting the owner's live test (`T2-CHECKLIST.md`). No rules, CSP or database change. Remaining approved items: security enhancement review E1 to E5 (recommended order E3, E1, E5, E4, E2).
+- T2 (icon buttons on the other dashboard pages): MANUALLY_VERIFIED (live test passed). No rules, CSP or database change. Remaining approved items: security enhancement review E1 to E5 (recommended order E3, E1, E5, E4, E2).
 
+
+## Update 2026-11-07: SV1 employer survey built
+- SV1 (employer testimonial survey, `survey.html` + Owner Panel > Employer surveys): AUTOMATED_TESTED, awaiting the owner's live test (`SV1-CHECKLIST.md`). Rules changed (new collections `surveyInvites`, `surveyInvitesPrivate`, `surveyResponses`): publish `firestore.rules.strict` BEFORE uploading the files.
+- SV2 (designed, not approved): custom surveys; 3-month reminder from a Client ID `startDate`; automatic deletion of unanswered invites (expiry + 30 days); survey data in backup export / restore; privacy-notice line.
+- Emulator test `rules-tests/emulator/survey-sv1.test.mjs` is written but has not been executed anywhere yet (it runs in GitHub Actions on the next push).

@@ -910,6 +910,87 @@ service cloud.firestore {
       allow create: if isOwner() && skipOk(id, request.resource.data);
     }
     match /clients/{id} { allow read, write: if isOwner(); }
+    // SV1 (4.5.0): employer testimonial survey. The invite key (32 letters/digits) is the document ID of the invite and of its ONE response.
+    // A visitor can read one invite by its key (never list), and answer it once while it is "sent" and not past expiresAt.
+    // The invite document is public to the key holder, so it holds no e-mail and no Client ID; those live in surveyInvitesPrivate (owner only).
+    function svKey(k) { return k.matches('^[A-Za-z0-9]{32}$'); }
+    function svInv(k) { return /databases/$(database)/documents/surveyInvites/$(k); }
+    function svResp(k) { return /databases/$(database)/documents/surveyResponses/$(k); }
+    function svVideoOk(v) {
+      return v.size() <= 300 && (v == '' || v.matches('^https://(www\\.)?(youtube\\.com|loom\\.com)/[^\\s]+$') || v.matches('^https://youtu\\.be/[^\\s]+$') || v.matches('^https://drive\\.google\\.com/[^\\s]+$'));
+    }
+    function svInviteOk(d) {
+      return d.keys().hasOnly(['surveyVersion','employerName','company','ownerName','status','createdAt','expiresAt'])
+        && d.keys().hasAll(['surveyVersion','employerName','company','ownerName','status','createdAt','expiresAt'])
+        && d.surveyVersion == 'default-1'
+        && d.employerName is string && d.employerName.size() > 0 && d.employerName.size() <= 100
+        && d.company is string && d.company.size() <= 100
+        && d.ownerName is string && d.ownerName.size() > 0 && d.ownerName.size() <= 80
+        && d.status == 'sent'
+        && d.createdAt == request.time
+        && d.expiresAt is timestamp && d.expiresAt > request.time && d.expiresAt <= request.time + duration.value(61, 'd');
+    }
+    function svRespOk(d) {
+      return d.keys().hasOnly(['rating','comment','best','recommend','videoUrl','displayName','displayRole','displayCompany','consentPublish','submittedAt','ownerStatus'])
+        && d.keys().hasAll(['rating','comment','best','recommend','videoUrl','displayName','displayRole','displayCompany','consentPublish','submittedAt','ownerStatus'])
+        && d.rating is int && d.rating >= 1 && d.rating <= 5
+        && d.comment is string && d.comment.size() >= 10 && d.comment.size() <= 700
+        && d.best is string && d.best.size() <= 500
+        && d.recommend in ['yes','no']
+        && d.videoUrl is string && svVideoOk(d.videoUrl)
+        && d.displayName is string && d.displayName.size() > 0 && d.displayName.size() <= 80
+        && d.displayRole is string && d.displayRole.size() <= 80
+        && d.displayCompany is string && d.displayCompany.size() <= 100
+        && d.consentPublish == true
+        && d.submittedAt == request.time
+        && d.ownerStatus == 'pending';
+    }
+    match /surveyInvites/{k} {
+      allow get: if svKey(k) && (isOwner() || (resource.data.status == 'sent' && resource.data.expiresAt > request.time));
+      allow list: if isOwner();
+      allow create: if isOwner() && svKey(k) && svInviteOk(request.resource.data);
+      // the owner can only revoke a sent invite; a visitor can only flip "sent" to "submitted" together with creating the one response
+      allow update: if (isOwner() && resource.data.status == 'sent' && request.resource.data.status == 'revoked'
+          && request.resource.data.keys().hasOnly(['surveyVersion','employerName','company','ownerName','status','createdAt','expiresAt'])
+          && request.resource.data.surveyVersion == resource.data.surveyVersion && request.resource.data.employerName == resource.data.employerName
+          && request.resource.data.company == resource.data.company && request.resource.data.ownerName == resource.data.ownerName
+          && request.resource.data.createdAt == resource.data.createdAt && request.resource.data.expiresAt == resource.data.expiresAt)
+        || (svKey(k) && intakeOpen() && resource.data.status == 'sent' && resource.data.expiresAt > request.time
+          && request.resource.data.keys().hasOnly(['surveyVersion','employerName','company','ownerName','status','createdAt','expiresAt','submittedAt'])
+          && request.resource.data.keys().hasAll(['surveyVersion','employerName','company','ownerName','status','createdAt','expiresAt','submittedAt'])
+          && request.resource.data.surveyVersion == resource.data.surveyVersion && request.resource.data.employerName == resource.data.employerName
+          && request.resource.data.company == resource.data.company && request.resource.data.ownerName == resource.data.ownerName
+          && request.resource.data.createdAt == resource.data.createdAt && request.resource.data.expiresAt == resource.data.expiresAt
+          && request.resource.data.status == 'submitted' && request.resource.data.submittedAt == request.time
+          && !exists(svResp(k)) && existsAfter(svResp(k)));
+      allow delete: if isOwner();
+    }
+    match /surveyInvitesPrivate/{k} {
+      allow get, create, update, delete: if isOwner() && svKey(k);
+      allow list: if isOwner();   // a query is not tied to one key, so the key check applies only to single-document access
+    }
+    match /surveyResponses/{k} {
+      allow create: if svKey(k) && intakeOpen() && svRespOk(request.resource.data)
+        && get(svInv(k)).data.status == 'sent' && get(svInv(k)).data.expiresAt > request.time
+        && getAfter(svInv(k)).data.status == 'submitted';
+      allow read, delete: if isOwner();
+      // the owner decides once: pending to approved or rejected (an approved response also records the id of the testimonial it became)
+      allow update: if isOwner() && resource.data.ownerStatus == 'pending' && request.resource.data.ownerStatus in ['approved','rejected']
+        && request.resource.data.rating == resource.data.rating && request.resource.data.comment == resource.data.comment
+        && request.resource.data.best == resource.data.best && request.resource.data.recommend == resource.data.recommend
+        && request.resource.data.videoUrl == resource.data.videoUrl && request.resource.data.displayName == resource.data.displayName
+        && request.resource.data.displayRole == resource.data.displayRole && request.resource.data.displayCompany == resource.data.displayCompany
+        && request.resource.data.consentPublish == resource.data.consentPublish && request.resource.data.submittedAt == resource.data.submittedAt
+        && request.resource.data.decidedAt == request.time
+        && ((request.resource.data.ownerStatus == 'rejected'
+              && request.resource.data.keys().hasOnly(['rating','comment','best','recommend','videoUrl','displayName','displayRole','displayCompany','consentPublish','submittedAt','ownerStatus','decidedAt'])
+              && request.resource.data.keys().hasAll(['rating','comment','best','recommend','videoUrl','displayName','displayRole','displayCompany','consentPublish','submittedAt','ownerStatus','decidedAt']))
+          || (request.resource.data.ownerStatus == 'approved'
+              && request.resource.data.keys().hasOnly(['rating','comment','best','recommend','videoUrl','displayName','displayRole','displayCompany','consentPublish','submittedAt','ownerStatus','decidedAt','testimonialId'])
+              && request.resource.data.keys().hasAll(['rating','comment','best','recommend','videoUrl','displayName','displayRole','displayCompany','consentPublish','submittedAt','ownerStatus','decidedAt','testimonialId'])
+              && request.resource.data.testimonialId is string && request.resource.data.testimonialId.matches('^[A-Za-z0-9_-]{4,40}$')));
+    }
+    // end SV1
     match /ownerPrivate/{doc} { allow read, write: if isOwner(); }
     match /content/{doc} {
       allow read: if true;

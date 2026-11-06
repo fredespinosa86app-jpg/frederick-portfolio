@@ -9,3 +9,6 @@ It is not Google's engine. For a second opinion, run `rules-tests/owner.test.mjs
     python3 rules-tests/attack/mutation_check.py .    # weakens the rules in hundreds of ways (F5 added 40 for the visitor token, daily counter and switch); every weakening must be caught
 
 Run them from the project folder after any change to `firestore.rules`. They need only Python 3.
+
+## SV1 (employer survey)
+Section 8m of `attack_cases.py` (both rules files), `mutations_sv1.py` and `mutations_sv1_gen.py` + `sv1_equiv.py` (run with `ONLY=SV1 python3 mutation_check.py .`, or `ONLY=SV1G` for the generated set) and `sv1_replay.py` (replays the writes recorded from the real survey page, `sv1_captured.json`).

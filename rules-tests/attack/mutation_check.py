@@ -71,7 +71,9 @@ from mutations_b2 import B2
 from mutations_f5 import F5
 from mutations_d1 import D1
 from mutations_w5b import W5B
-M=M+W1+W2+W3+B1+B2+F5+D1+W5B
+from mutations_sv1 import SV1
+from mutations_sv1_gen import SV1G
+M=M+W1+W2+W3+B1+B2+F5+D1+W5B+SV1+SV1G
 def mk(rules_text):
     """a throw-away copy of the project parts the attack suite reads (rules + the page state machine used by the W1 case generator)"""
     d=tempfile.mkdtemp(); open(d+'/firestore.rules','w').write(rules_text); shutil.copy(ROOT+'/firestore.rules.strict',d)

@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="gold-silver">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' https://www.gstatic.com; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src https://firestore.googleapis.com; base-uri 'none'; form-action 'none'; object-src 'none'; frame-src 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<script src="scripts/frame-guard.js?v=sv1"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Share your experience</title>
+<meta name="theme-color" content="#070C18">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="styles/fonts.css?v=sv1">
+<link rel="stylesheet" href="styles/themes.css?v=sv1">
+<link rel="stylesheet" href="styles/survey.css?v=sv1">
+</head>
+<body>
+<svg class="sv-sprite" width="0" height="0" aria-hidden="true" focusable="false"><symbol id="sv-star" viewBox="0 0 24 24"><path d="M12 2.5l2.9 6.3 6.8.7-5.1 4.6 1.5 6.7L12 17.3 5.9 20.8l1.5-6.7L2.3 9.5l6.8-.7z"/></symbol></svg>
+<main class="sv-wrap" id="svMain">
+  <p class="sv-state" id="svLoading" role="status">Opening your survey…</p>
+
+  <section class="sv-card" id="svInvalid" hidden>
+    <h1>This survey link is not valid</h1>
+    <p>The link may have expired, may already have been used, or may have been copied incompletely. If you expected to give feedback, please ask for a new link.</p>
+  </section>
+
+  <section class="sv-card" id="svThanks" hidden>
+    <h1>Thank you!</h1>
+    <p id="svThanksText">Your feedback was sent.</p>
+  </section>
+
+  <form class="sv-card" id="svForm" hidden novalidate autocomplete="off">
+    <h1 id="svTitle">Share your experience</h1>
+    <p class="sv-lead" id="svLead"></p>
+
+    <fieldset class="sv-field" id="fRating">
+      <legend>Overall rating <span class="sv-req">(required)</span></legend>
+      <div class="sv-stars" id="svStars"></div>
+      <p class="sv-hint" id="svRatingText" aria-live="polite">Choose 1 to 5 stars.</p>
+      <p class="sv-err" id="eRating" role="alert"></p>
+    </fieldset>
+
+    <div class="sv-field">
+      <label for="fComment">Your message <span class="sv-req">(required)</span></label>
+      <p class="sv-hint" id="hComment">How would you describe working with <span id="svOwnerA"></span>? 20 to 700 characters.</p>
+      <textarea id="fComment" rows="5" maxlength="700" aria-describedby="hComment cComment eComment"></textarea>
+      <p class="sv-count" id="cComment" aria-hidden="true">0 / 700</p>
+      <p class="sv-err" id="eComment" role="alert"></p>
+    </div>
+
+    <div class="sv-field">
+      <label for="fBest">What did they do best? <span class="sv-opt">(optional)</span></label>
+      <textarea id="fBest" rows="3" maxlength="500" aria-describedby="eBest"></textarea>
+      <p class="sv-err" id="eBest" role="alert"></p>
+    </div>
+
+    <fieldset class="sv-field" id="fRec">
+      <legend>Would you hire or recommend them again? <span class="sv-req">(required)</span></legend>
+      <div class="sv-choices">
+        <label class="sv-choice"><input type="radio" name="recommend" value="yes"> <span>Yes</span></label>
+        <label class="sv-choice"><input type="radio" name="recommend" value="no"> <span>No</span></label>
+      </div>
+      <p class="sv-err" id="eRec" role="alert"></p>
+    </fieldset>
+
+    <div class="sv-field">
+      <label for="fVideo">Video testimonial link <span class="sv-opt">(optional)</span></label>
+      <p class="sv-hint" id="hVideo">Paste a link to a short video from YouTube, Loom or Google Drive. For Google Drive, set sharing to “Anyone with the link”.</p>
+      <input id="fVideo" type="url" inputmode="url" maxlength="300" placeholder="https://" aria-describedby="hVideo eVideo">
+      <p class="sv-err" id="eVideo" role="alert"></p>
+    </div>
+
+    <div class="sv-group">
+      <h2>How should we show you?</h2>
+      <div class="sv-field">
+        <label for="fName">Name <span class="sv-req">(required)</span></label>
+        <input id="fName" type="text" maxlength="80" aria-describedby="eName">
+        <p class="sv-err" id="eName" role="alert"></p>
+      </div>
+      <div class="sv-field">
+        <label for="fRole">Your role <span class="sv-opt">(optional)</span></label>
+        <input id="fRole" type="text" maxlength="80">
+      </div>
+      <div class="sv-field">
+        <label for="fCompany">Company <span class="sv-opt">(optional)</span></label>
+        <input id="fCompany" type="text" maxlength="100">
+      </div>
+    </div>
+
+    <div class="sv-field sv-consent">
+      <label class="sv-check"><input type="checkbox" id="fConsent" aria-describedby="eConsent"> <span>I agree that my name, role, company, rating and message (and my video link, if I added one) may be published on <span id="svOwnerB"></span>’s portfolio website. <span class="sv-req">(required)</span></span></label>
+      <p class="sv-err" id="eConsent" role="alert"></p>
+    </div>
+
+    <p class="sv-fine">Every response is reviewed by <span id="svOwnerC"></span> before anything is published. This page does not collect your e-mail address. Your personal link works once.</p>
+    <p class="sv-err sv-submit-err" id="eSubmit" role="alert"></p>
+    <button type="submit" class="sv-btn" id="svSend">Send my feedback</button>
+  </form>
+</main>
+<script src="scripts/settings.js?v=sv1"></script>
+<script src="scripts/core-survey.js?v=sv1"></script>
+<script type="module" src="scripts/survey-page.js?v=sv1"></script>
+</body>
+</html>

@@ -40,7 +40,7 @@
 <script>try{if(localStorage.getItem('portfolio-dark')==='1')document.documentElement.setAttribute('data-theme','dark')}catch(e){}</script>
 <link rel="stylesheet" href="styles/main.css?v=b3">
 <link rel="stylesheet" href="styles/components.css?v=b3">
-<link rel="stylesheet" href="styles/owner.css?v=w5c">
+<link rel="stylesheet" href="styles/owner.css?v=sv1">
 <link rel="stylesheet" href="styles/themes.css?v=b3">
 <link rel="stylesheet" href="styles/responsive.css?v=b3">
 </head>
@@ -363,6 +363,7 @@
 <button type="button" data-page="billhours"><svg aria-hidden="true"><use href="#ic-clock"/></svg><span class="dlabel">Billable hours</span></button>
 <button type="button" data-page="due"><svg aria-hidden="true"><use href="#ic-clock"/></svg><span class="dlabel">Billing due</span><span class="nbadge" id="dueBadge" hidden></span></button>
 <button type="button" data-page="invoices"><svg aria-hidden="true"><use href="#ic-doc"/></svg><span class="dlabel">Invoices</span></button>
+<button type="button" data-page="surveys"><svg aria-hidden="true"><use href="#ic-chat"/></svg><span class="dlabel">Employer surveys</span><span class="nbadge" id="surveyBadge" hidden></span></button>
 <button type="button" data-page="visitors"><svg aria-hidden="true"><use href="#ic-grid"/></svg><span class="dlabel">Visitors</span></button>
 <button type="button" data-page="integrations"><svg aria-hidden="true"><use href="#ic-link"/></svg><span class="dlabel">Integrations</span></button>
 <button type="button" data-page="domain"><svg aria-hidden="true"><use href="#ic-link"/></svg><span class="dlabel">Custom domain</span></button>
@@ -587,6 +588,22 @@
 <label class="fld">Search<input type="search" id="cidSearch" placeholder="ID or note" autocomplete="off"></label>
 <button type="button" class="dbtn" id="cidRefresh">Refresh</button></div>
 <div class="cidlist" id="cidList"></div></div>
+</section>
+<section class="dpage" id="dp-surveys" hidden>
+<div class="dcard"><h2>Employer surveys</h2><p class="dhelp">Ask an employer for a rating, a written testimonial and, if they like, a link to a short video. Each employer gets <strong>one personal link</strong> that works once and expires after 60 days. Nothing is published until you approve it, and an approved answer arrives in Testimonials <strong>switched off</strong> so you decide when it goes live.</p>
+<p class="dhelp">You send the link from your own e-mail program (this page prepares the message). The employer’s e-mail address is stored privately with the invite and never appears in the link or on the survey page. Unanswered invites are not removed automatically in this version: delete them here when you no longer need them.</p>
+<p class="dstate" id="svState" role="status"></p></div>
+<div class="dcard"><h2>Send a survey</h2>
+<div class="ab"><label class="fld">Employer’s name<input type="text" id="svEmpName" maxlength="100" autocomplete="off"></label>
+<label class="fld">Employer’s e-mail<input type="email" id="svEmpEmail" maxlength="120" autocomplete="off" inputmode="email"></label>
+<label class="fld">Company (optional)<input type="text" id="svEmpCompany" maxlength="100" autocomplete="off"></label></div>
+<div class="ab"><label class="fld">Your name as the employer knows you<input type="text" id="svOwnerName" maxlength="80" autocomplete="off"></label>
+<label class="fld">Client ID (optional, for your own reference)<select id="svClient"><option value="">None</option></select></label>
+<button type="button" class="dbtn primary ibtn" id="svCreate"><svg aria-hidden="true" focusable="false"><use href="#ic-plus"/></svg><span>Create link</span></button></div>
+<p class="ferr" id="svErr" role="alert"></p></div>
+<div class="dcard" id="svOut" hidden></div>
+<div class="dcard"><h2>Answers to review</h2><div class="cidlist" id="svRespList"></div></div>
+<div class="dcard"><h2>Survey links</h2><div class="ab"><button type="button" class="dbtn" id="svRefresh">Refresh</button></div><div class="cidlist" id="svInvList"></div></div>
 </section>
 <section class="dpage" id="dp-billing" hidden>
 <div class="dcard"><h2>Billing profiles</h2><p class="dhelp">One billing profile per Client ID: currency, rate, hourly or monthly, how often invoices are made and when they are due. It holds <strong>no names, e-mails or phone numbers</strong>. This version only stores the settings: it does not create invoices or run a schedule yet. Every change is kept in a history with the reason.</p>
@@ -1061,7 +1078,7 @@ function doPost(e) {
 <script src="scripts/meeting-form.js?v=c1"></script>
 <script src="scripts/booking-embed.js?v=c1"></script>
 <script src="scripts/owner-ui.js?v=b3"></script>
-<script src="scripts/owner-dashboard.js?v=t2"></script>
+<script src="scripts/owner-dashboard.js?v=sv1"></script>
 <script src="scripts/owner-content.js?v=t2"></script>
 <script src="scripts/owner-phase1.js?v=t2"></script>
 <script src="scripts/owner-phase2.js?v=t2"></script>
@@ -1079,6 +1096,8 @@ function doPost(e) {
 <script src="scripts/owner-library.js?v=t2"></script>
 <script src="scripts/core-ids.js?v=b3"></script>
 <script src="scripts/owner-clientids.js?v=t2"></script>
+<script src="scripts/core-survey.js?v=sv1"></script>
+<script src="scripts/owner-surveys.js?v=sv1"></script>
 <script src="scripts/owner-docs-core.js?v=c1b"></script>
 <script src="scripts/owner-docs.js?v=t2"></script>
 <script src="scripts/core-time.js?v=b3"></script>

@@ -1,0 +1,50 @@
+/* survey.css - the employer survey page (CodeFlow 4.5.0, SV1). Uses the theme tokens from themes.css; no inline styles (the page CSP forbids them). */
+*,*::before,*::after{box-sizing:border-box}
+html{height:100%}
+body{margin:0;background:var(--cream);color:var(--ink);font:400 17px/1.6 "DM Sans",system-ui,sans-serif;min-height:100%;padding:env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0)}
+:focus-visible{outline:3px solid var(--gold);outline-offset:3px;border-radius:6px}
+.sv-sprite{position:absolute;width:0;height:0;overflow:hidden}
+.sv-wrap{max-width:680px;margin:0 auto;padding:28px 16px 56px}
+.sv-state{color:var(--muted);text-align:center;margin:48px 0}
+.sv-card{background:var(--paper);border:1px solid var(--line);border-radius:18px;padding:28px 24px;box-shadow:0 8px 28px rgba(0,0,0,.06)}
+.sv-card[hidden],.sv-state[hidden]{display:none}
+h1{font-family:Fraunces,Georgia,serif;font-weight:600;font-size:clamp(26px,5vw,34px);line-height:1.15;margin:0 0 10px;color:var(--navy)}
+h2{font-family:Fraunces,Georgia,serif;font-weight:600;font-size:20px;margin:0 0 12px;color:var(--navy)}
+p{margin:0 0 12px}
+.sv-lead{color:var(--muted);margin-bottom:22px}
+.sv-field{border:0;margin:0 0 20px;padding:0;min-width:0}
+.sv-field>label,legend{display:block;font-weight:600;color:var(--navy);padding:0;margin-bottom:6px}
+legend{float:none;width:100%}
+.sv-req{color:var(--role);font-weight:500;font-size:14px}
+.sv-opt{color:var(--muted);font-weight:400;font-size:14px}
+.sv-hint{color:var(--muted);font-size:15px;margin:0 0 8px}
+input[type=text],input[type=url],textarea{width:100%;font:inherit;font-size:16px;color:var(--ink);background:var(--field);border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;min-height:48px}
+textarea{resize:vertical;line-height:1.5}
+input:focus,textarea:focus{border-color:var(--gold)}
+.sv-count{text-align:right;color:var(--muted);font-size:13px;margin:4px 0 0}
+.sv-err{color:#b3261e;font-size:15px;margin:6px 0 0;min-height:0}
+.sv-err:empty{display:none}
+[data-theme="outer-space"] .sv-err{color:#ff8a80}
+.sv-invalid{border-color:#b3261e!important}
+.sv-group{border-top:1px solid var(--line);margin-top:8px;padding-top:20px}
+/* stars: real radio buttons (keyboard + screen reader), drawn as stars */
+.sv-stars{display:flex;gap:4px}
+.sv-star{position:relative;width:52px;height:52px;display:flex;align-items:center;justify-content:center;cursor:pointer;border-radius:12px}
+.sv-star input{position:absolute;inset:0;opacity:0;margin:0;cursor:pointer}
+.sv-star svg{width:40px;height:40px;fill:transparent;stroke:var(--gold);stroke-width:1.6;stroke-linejoin:round;pointer-events:none;transition:transform .12s}
+.sv-star.on svg{fill:var(--gold)}
+.sv-star:hover svg{transform:scale(1.12)}
+.sv-star:focus-within{outline:3px solid var(--gold);outline-offset:2px}
+.sv-choices{display:flex;gap:12px;flex-wrap:wrap}
+.sv-choice{display:flex;align-items:center;gap:10px;min-height:48px;padding:0 18px;border:1.5px solid var(--line);border-radius:12px;background:var(--field);cursor:pointer;font-weight:500}
+.sv-choice:has(input:checked){border-color:var(--gold);background:var(--tag);color:var(--tagc)}
+.sv-choice input,.sv-check input{width:22px;height:22px;accent-color:var(--gold);margin:0;flex:none}
+.sv-consent{background:var(--alt);border-radius:12px;padding:14px 16px}
+.sv-check{display:flex;gap:12px;align-items:flex-start;font-weight:400!important;cursor:pointer}
+.sv-fine{color:var(--muted);font-size:14px}
+.sv-btn{width:100%;min-height:52px;border:0;border-radius:14px;background:var(--deep);color:var(--onacc);font:600 17px/1 "DM Sans",system-ui,sans-serif;cursor:pointer;padding:0 20px}
+.sv-btn:hover{filter:brightness(1.12)}
+.sv-btn:disabled{opacity:.6;cursor:progress}
+.sv-submit-err{margin-bottom:12px;font-weight:600}
+@media (max-width:420px){.sv-card{padding:22px 16px}.sv-star{width:46px;height:46px}.sv-star svg{width:36px;height:36px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}

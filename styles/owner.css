@@ -314,3 +314,11 @@ button.libtile.pickable{cursor:pointer;min-height:44px}button.libtile.pickable:h
 
 /* S2-C3: note shown instead of a preview for outside image links */
 .seo-si{position:relative}.seo-sn{position:absolute;inset:0;margin:0;display:flex;align-items:center;justify-content:center;padding:12px;text-align:center;font-size:.85rem;color:#4b5563}
+
+/* SV1: employer surveys */
+.svlink{width:100%;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem}
+.svbadge{font-size:.75rem;font-weight:700;padding:2px 8px;border-radius:999px;background:#eceff4;color:#46526a}
+.svbadge.sent{background:#e6f0ff;color:#1b4a9a}.svbadge.answered{background:#fff1d6;color:#8a5200}.svbadge.approved{background:#e3f4e8;color:#14612e}.svbadge.rejected,.svbadge.revoked{background:#fde8e8;color:#9a1b1b}
+.svstars{color:#c58a00;font-size:1.15rem;letter-spacing:2px}
+.svquote{margin:4px 0;white-space:pre-wrap;overflow-wrap:anywhere}
+.svresp .dhelp{overflow-wrap:anywhere}

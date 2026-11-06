@@ -25,3 +25,6 @@ W5b (schedules and flicker):
     node t2-1-icon-buttons.mjs
 
 Note: the stand-in database now also offers orderBy and limit, so the owner dashboard modules load without errors.
+
+## SV1 (employer survey)
+`node sv1-1-survey.mjs` runs the real `survey.html` (real CSP, fake Firebase SDK) and the Owner Panel surveys page, and records the page's writes in `/tmp/sv/captured.json`. Copy that file to `../attack/sv1_captured.json` and run `python3 ../attack/sv1_replay.py ../..` to check the page's writes against the real rules text.

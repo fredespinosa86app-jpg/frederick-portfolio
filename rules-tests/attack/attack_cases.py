@@ -1199,6 +1199,103 @@ for nm,sim in (('transition',S),('strict',SS)):
     chk(f'W5b [{nm}] update of a client schedule needs the client to still exist in the registry; an archived client is allowed (registry doc still exists)',O('update',path=WP('ACME-1'),new=WS(fb=20,rev=2),old=WS(),docs=dict(RG,**{WP('ACME-1'):WS()})) and O('update',path=WP('ACME-1'),new=WS(fb=20,rev=2),old=WS(),docs={'clientRegistry/ACME-1':REG(status='archived'),WP('ACME-1'):WS()}) and not O('update',path=WP('ACME-1'),new=WS(fb=20,rev=2),old=WS(),docs={WP('ACME-1'):WS()}))
     chk(f'W5b [{nm}] owner can delete a schedule even if the client was removed; nobody else can',O('delete',path=WP('ACME-1'),old=WS(),docs={WP('ACME-1'):WS()}))
     chk(f'W5b [{nm}] a schedule cannot be written through a different collection name or a subcollection',not O('create',path='workSchedule/default',new=WS()) and not O('create',path='workSchedules/default/sub/x',new=WS()))
+# ---------------- 8m. SV1 (4.5.0): employer testimonial survey, checked on BOTH rules files
+SK='Kq7Zr2Lm9Xc4Vb8Nt3Hy6Wd1Sf5Gj0Pa'; assert len(SK)==32 and SK.isalnum()
+SK2='Zz7Zr2Lm9Xc4Vb8Nt3Hy6Wd1Sf5Gj0Pa'
+DAY_MS=86400000
+def INV(**k):
+    d={'surveyVersion':'default-1','employerName':'Ana Cruz','company':'Acme','ownerName':'Frederick','status':'sent','createdAt':TSNOW,'expiresAt':TS(NOW+60*DAY_MS)}; d.update(k); return d
+OLDINV=lambda **k: INV(**dict({'createdAt':TS(NOW-DAY_MS),'expiresAt':TS(NOW+10*DAY_MS)},**k))
+def SUBINV(old=None,**k):
+    d=dict(old or OLDINV()); d.update({'status':'submitted','submittedAt':TSNOW}); d.update(k); return d
+def RESP(**k):
+    d={'rating':5,'comment':'She was reliable, fast and kept me informed.','best':'','recommend':'yes','videoUrl':'','displayName':'Ana Cruz','displayRole':'Founder','displayCompany':'Acme','consentPublish':True,'submittedAt':TSNOW,'ownerStatus':'pending'}; d.update(k); return d
+IP=lambda k=SK:'surveyInvites/'+k
+RP=lambda k=SK:'surveyResponses/'+k
+PP=lambda k=SK:'surveyInvitesPrivate/'+k
+def submit(sim,resp=None,inv_old=None,inv_new=None,key=SK,au=None,docs_extra=None,with_inv=True,with_resp=True):
+    """the two writes of one submission: (invite update, response create)"""
+    old=inv_old if inv_old is not None else OLDINV(); new=inv_new if inv_new is not None else SUBINV(old)
+    r=resp if resp is not None else RESP()
+    docs={IP(key):old}; docs.update(docs_extra or {})
+    after={IP(key):new, RP(key):r}
+    return (A5(sim,'update',IP(key),au,new,old,docs,after), A5(sim,'create',RP(key),au,r,None,docs,after))
+for nm,sim in (('transition',S),('strict',SS)):
+    both=lambda **k: all(submit(sim,**k))
+    chk(f'SV1 [{nm}] control: owner creates an invite; a visitor submits it once (invite flips to submitted + one response)',A5(sim,'create',IP(),OWN,INV(),None,{}) and both())
+    chk(f'SV1 [{nm}] a visitor, a Google stranger and a visitor token cannot create, update (except the submit), delete or list invites',
+        not any(A5(sim,'create',IP(),a,INV(),None,{}) for a in (None,STRANGER,TV)) and not any(A5(sim,'delete',IP(),a,None,OLDINV(),{IP():OLDINV()}) for a in (None,STRANGER,TV))
+        and not any(A5(sim,'list','surveyInvites',a) for a in (None,STRANGER,TV)) and A5(sim,'list','surveyInvites',OWN))
+    chk(f'SV1 [{nm}] a visitor can read ONE invite by its key while it is sent and not expired; owner can read any; list is owner only',
+        A5(sim,'get',IP(),None,None,OLDINV(),{IP():OLDINV()}) and A5(sim,'get',IP(),OWN,None,OLDINV(status='submitted'),{IP():OLDINV(status='submitted')}))
+    chk(f'SV1 [{nm}] a visitor cannot read an invite that is submitted, revoked, expired, missing or whose id is not a 32-character key',
+        not any(A5(sim,'get',IP(),None,None,d,{IP():d}) for d in (OLDINV(status='submitted'),OLDINV(status='revoked'),OLDINV(expiresAt=TS(NOW)),OLDINV(expiresAt=TS(NOW-1000))))
+        and not A5(sim,'get',IP(),None,None,None,{}) and not any(A5(sim,'get',IP(x),None,None,OLDINV(),{IP(x):OLDINV()}) for x in (SK[:31],SK+'a',SK[:31]+'-',SK[:31]+'_','a b'+SK[3:],'..')))
+    chk(f'SV1 [{nm}] invite create: wrong status, forged createdAt, past/over-long expiry, extra or missing fields, bad text sizes refused',
+        not any(A5(sim,'create',IP(),OWN,d,None,{}) for d in (INV(status='submitted'),INV(status='revoked'),INV(createdAt=TS(NOW-5000)),INV(createdAt=NOW),INV(expiresAt=TS(NOW)),INV(expiresAt=TS(NOW-1000)),
+          INV(expiresAt=TS(NOW+62*DAY_MS)),INV(expiresAt=NOW+1000),INV(extra='x'),INV(clientId='ACME-1'),INV(employerEmail='a@b.co'),{k:v for k,v in INV().items() if k!='company'},
+          INV(employerName=''),INV(employerName='a'*101),INV(employerName=5),INV(company='c'*101),INV(ownerName=''),INV(ownerName='o'*81),INV(surveyVersion='custom-9'),INV(surveyVersion=1))))
+    chk(f'SV1 [{nm}] invite create: edges (61 days, 100-char name) accepted; bad key id refused',A5(sim,'create',IP(),OWN,INV(expiresAt=TS(NOW+61*DAY_MS)),None,{}) and A5(sim,'create',IP(),OWN,INV(employerName='a'*100,company='c'*100,ownerName='o'*80),None,{})
+        and not any(A5(sim,'create',IP(x),OWN,INV(),None,{}) for x in (SK[:31],SK+'a',SK[:31]+'-','abc')))
+    chk(f'SV1 [{nm}] SUBMIT: both writes together are accepted; either one alone is refused',submit(sim)==(True,True)
+        and not A5(sim,'create',RP(),None,RESP(),None,{IP():OLDINV()},None) and not A5(sim,'update',IP(),None,SUBINV(),OLDINV(),{IP():OLDINV()},{IP():SUBINV()}))
+    chk(f'SV1 [{nm}] REPLAY: a second submission of the same key is refused (invite already submitted, response already exists)',
+        not all(submit(sim,inv_old=SUBINV(),inv_new=SUBINV(),docs_extra={RP():RESP()})) and not A5(sim,'create',RP(),None,RESP(),None,{IP():SUBINV(),RP():RESP()},{IP():SUBINV(),RP():RESP()}))
+    chk(f'SV1 [{nm}] an expired, revoked or already-submitted invite cannot be answered',not any(all(submit(sim,inv_old=o)) for o in (OLDINV(expiresAt=TS(NOW)),OLDINV(expiresAt=TS(NOW-DAY_MS)),OLDINV(status='revoked'),OLDINV(status='submitted'))))
+    chk(f'SV1 [{nm}] the response needs an invite that exists; a key with no invite is refused',not A5(sim,'create',RP(SK2),None,RESP(),None,{IP():OLDINV()},{IP():SUBINV(),RP(SK2):RESP()}))
+    chk(f'SV1 [{nm}] a response cannot be filed under the key of a different invite (the flip must be on the SAME key)',
+        not A5(sim,'create',RP(SK2),None,RESP(),None,{IP():OLDINV(),IP(SK2):OLDINV()},{IP():SUBINV(),RP(SK2):RESP(),IP(SK2):OLDINV()}))
+    chk(f'SV1 [{nm}] the submit flip may change ONLY status and submittedAt (name, company, owner name, version, dates are frozen)',
+        not any(A5(sim,'update',IP(),None,SUBINV(**c),OLDINV(),{IP():OLDINV()},{IP():SUBINV(**c),RP():RESP()}) for c in ({'employerName':'Hacker'},{'company':'X'},{'ownerName':'Y'},{'surveyVersion':'x'},{'createdAt':TS(NOW)},{'expiresAt':TS(NOW+90*DAY_MS)},{'extra':1},{'status':'sent'},{'status':'approved'},{'status':'revoked'},{'submittedAt':TS(NOW-5000)},{'submittedAt':NOW})))
+    chk(f'SV1 [{nm}] a visitor cannot revoke, extend or edit an invite',not any(A5(sim,'update',IP(),a,OLDINV(status='revoked'),OLDINV(),{IP():OLDINV()}) for a in (None,STRANGER,TV)) and not A5(sim,'update',IP(),None,OLDINV(expiresAt=TS(NOW+60*DAY_MS)),OLDINV(),{IP():OLDINV()}))
+    chk(f'SV1 [{nm}] owner can revoke a sent invite and only that (nothing else may change, no revoke after submit)',
+        A5(sim,'update',IP(),OWN,OLDINV(status='revoked'),OLDINV(),{IP():OLDINV()}) and not any(A5(sim,'update',IP(),OWN,n,o,{IP():o}) for n,o in (
+          (OLDINV(status='revoked',employerName='Z'),OLDINV()),(OLDINV(status='revoked',expiresAt=TS(NOW+99*DAY_MS)),OLDINV()),(OLDINV(status='sent'),OLDINV()),(OLDINV(status='approved'),OLDINV()),
+          (OLDINV(status='revoked'),OLDINV(status='submitted')),(OLDINV(status='revoked'),OLDINV(status='revoked')),(dict(OLDINV(status='revoked'),extra=1),OLDINV()))))
+    chk(f'SV1 [{nm}] response fields: rating 0, 6, 2.5, text, missing; comment too short/long; best too long; bad recommend refused',
+        not any(all(submit(sim,resp=RESP(**c))) for c in ({'rating':0},{'rating':6},{'rating':2.5},{'rating':'5'},{'rating':True},{'comment':'short'},{'comment':'c'*701},{'comment':5},{'best':'b'*501},{'best':5},{'recommend':'maybe'},{'recommend':''},{'recommend':True}))
+        and not all(submit(sim,resp={k:v for k,v in RESP().items() if k!='rating'})) and all(all(submit(sim,resp=RESP(**c))) for c in ({'rating':1},{'rating':5},{'comment':'c'*10},{'comment':'c'*700},{'best':'b'*500},{'recommend':'no'})))
+    chk(f'SV1 [{nm}] response names: name empty/81, role 81, company 101, wrong types refused; edge lengths accepted',
+        not any(all(submit(sim,resp=RESP(**c))) for c in ({'displayName':''},{'displayName':'n'*81},{'displayName':5},{'displayRole':'r'*81},{'displayRole':5},{'displayCompany':'c'*101},{'displayCompany':['x']}))
+        and all(all(submit(sim,resp=RESP(**c))) for c in ({'displayName':'n'*80},{'displayRole':''},{'displayRole':'r'*80},{'displayCompany':''},{'displayCompany':'c'*100})))
+    chk(f'SV1 [{nm}] consent must be exactly true; false, missing, text or number refused',not any(all(submit(sim,resp=RESP(consentPublish=v))) for v in (False,'true',1,None)) and not all(submit(sim,resp={k:v for k,v in RESP().items() if k!='consentPublish'})))
+    chk(f'SV1 [{nm}] a visitor cannot forge the owner decision, the approval id, extra fields or the time',
+        not any(all(submit(sim,resp=RESP(**c))) for c in ({'ownerStatus':'approved'},{'ownerStatus':'rejected'},{'ownerStatus':''},{'testimonialId':'abcd'},{'decidedAt':TSNOW},{'isAdmin':True},{'submittedAt':TS(NOW-5000)},{'submittedAt':TS(NOW+5000)},{'submittedAt':NOW},{'extra':'x'})))
+    chk(f'SV1 [{nm}] video link: empty, YouTube, Loom, Drive accepted; other hosts, look-alikes, http, scripts, spaces, 301 characters refused',
+        all(all(submit(sim,resp=RESP(videoUrl=u))) for u in ('','https://www.youtube.com/watch?v=dQw4w9WgXcQ','https://youtube.com/shorts/dQw4w9WgXcQ','https://youtu.be/dQw4w9WgXcQ','https://www.loom.com/share/0123456789abcdef','https://drive.google.com/file/d/1AbC/view'))
+        and not any(all(submit(sim,resp=RESP(videoUrl=u))) for u in ('http://youtu.be/dQw4w9WgXcQ','https://evil.com/youtube.com/x','https://youtube.com.evil.com/x','https://youtube.com@evil.com/x','https://notyoutube.com/x','https://youtu.be.evil.com/x','https://drive.google.com.evil.io/x','https://docs.google.com/document/d/1','javascript:alert(1)','data:text/html,x','https://drive.google.com/a b','https://youtu.be/dQw4w9WgXcQ extra','https://www.youtube.com/watch?v=dQw4w9WgXcQ x','https://www.loom.com/share/0123456789 x','https://drive.google.com/'+'a'*300,'ftp://drive.google.com/x',5,None,['https://youtu.be/x'])))
+    chk(f'SV1 [{nm}] script text in the message is stored as text (the page renders it with textContent); it is not an extra field',all(submit(sim,resp=RESP(comment='<script>alert(1)</script><img src=x onerror=alert(1)> and more',displayName='<b>Ana</b>'))))
+    chk(f'SV1 [{nm}] the emergency pause (content/guard.pause = true) stops survey submissions',not all(submit(sim,docs_extra={'content/guard':{'pause':True}})) and all(submit(sim,docs_extra={'content/guard':{'pause':False}})))
+    chk(f'SV1 [{nm}] a visitor, a stranger and a visitor token cannot read, list, update or delete responses',
+        not any(A5(sim,op,RP() if op!='list' else 'surveyResponses',a,RESP(ownerStatus='approved') if op=='update' else None,RESP() if op in('update','delete','get') else None,{RP():RESP()}) for a in (None,STRANGER,TV) for op in ('get','list','update','delete')))
+    chk(f'SV1 [{nm}] nobody but the owner can record a decision, even a well-formed one',not any(A5(sim,'update',RP(),a,dict(RESP(),ownerStatus=st,decidedAt=TSNOW,**({'testimonialId':'sv_abc123'} if st=='approved' else {})),RESP(),{RP():RESP()}) for a in (None,STRANGER,TV) for st in ('approved','rejected')))
+    chk(f'SV1 [{nm}] owner can read, list and delete responses',A5(sim,'get',RP(),OWN,None,RESP(),{RP():RESP()}) and A5(sim,'list','surveyResponses',OWN) and A5(sim,'delete',RP(),OWN,None,RESP(),{RP():RESP()}))
+    DEC=lambda **k: dict(RESP(),ownerStatus='approved',decidedAt=TSNOW,testimonialId='sv_abc123',**k)
+    chk(f'SV1 [{nm}] owner approves (pending to approved with a testimonial id) or rejects (no id); content is frozen',
+        A5(sim,'update',RP(),OWN,DEC(),RESP(),{RP():RESP()}) and A5(sim,'update',RP(),OWN,dict(RESP(),ownerStatus='rejected',decidedAt=TSNOW),RESP(),{RP():RESP()}))
+    chk(f'SV1 [{nm}] owner decision: cannot change the content, the consent, the rating or the time; cannot decide twice; approval needs a valid id; rejection must not carry one',
+        not any(A5(sim,'update',RP(),OWN,n,o,{RP():o}) for n,o in (
+          (DEC(comment='Edited by owner text here'),RESP()),(DEC(rating=1),RESP()),(DEC(consentPublish=False),RESP()),(DEC(displayName='Other'),RESP()),(DEC(videoUrl='https://youtu.be/dQw4w9WgXcQ'),RESP()),
+          (dict(DEC(),decidedAt=TS(NOW-5000)),RESP()),(dict(DEC(),submittedAt=TS(NOW-5000)),RESP()),(dict(DEC(),testimonialId='ab'),RESP()),(dict(DEC(),testimonialId='a b c d'),RESP()),(dict(DEC(),testimonialId=5),RESP()),
+          ({k:v for k,v in DEC().items() if k!='testimonialId'},RESP()),(dict(RESP(),ownerStatus='rejected',decidedAt=TSNOW,testimonialId='sv_abc123'),RESP()),
+          (DEC(),dict(RESP(),ownerStatus='approved')),(DEC(),dict(RESP(),ownerStatus='rejected')),(dict(DEC(),ownerStatus='pending'),RESP()),(dict(DEC(),ownerStatus='deleted'),RESP()),(dict(DEC(),extra=1),RESP()))))
+    chk(f'SV1 [{nm}] invite private data (e-mail, Client ID) is owner only; a key holder, stranger and token cannot read, list or write it',
+        not any(A5(sim,op,PP() if op!='list' else 'surveyInvitesPrivate',a,{'employerEmail':'a@b.co'} if op in('create','update') else None,{'employerEmail':'a@b.co'} if op in('update','delete','get') else None,{PP():{'employerEmail':'a@b.co'}}) for a in (None,STRANGER,TV) for op in ('get','list','create','update','delete'))
+        and all(A5(sim,op,PP(),OWN,{'employerEmail':'a@b.co','clientId':'ACME-1'},{'employerEmail':'a@b.co'},{PP():{'employerEmail':'a@b.co'}}) for op in ('get','create','update','delete')) and A5(sim,'list','surveyInvitesPrivate',OWN) and not A5(sim,'create',PP('short'),OWN,{'a':1},None,{}))
+    chk(f'SV1 [{nm}] survey data cannot be written through a similar collection name or a subcollection',not any(A5(sim,'create',p,a,d,None,{}) for p,a,d in (('surveyInvite/'+SK,OWN,INV()),('surveyResponse/'+SK,None,RESP()),('surveyInvites/'+SK+'/x/y',OWN,INV()),('surveyResponses/'+SK+'/x/y',None,RESP()))))
+    # --- gaps found by the generated mutation run (mutations_sv1_gen.py)
+    chk(f'SV1 [{nm}] a video link of exactly 300 characters is accepted, 301 refused',
+        all(submit(sim,resp=RESP(videoUrl='https://drive.google.com/'+'a'*(300-len('https://drive.google.com/'))))) and not all(submit(sim,resp=RESP(videoUrl='https://drive.google.com/'+'a'*(301-len('https://drive.google.com/'))))))
+    chk(f'SV1 [{nm}] text fields must be text: a list or a map (which also has a size) is refused in the invite and in the answer',
+        not any(A5(sim,'create',IP(),OWN,INV(**{f:v}),None,{}) for f in ('employerName','company','ownerName') for v in (['x']*5,{'a':1},True))
+        and not any(all(submit(sim,resp=RESP(**{f:v}))) for f in ('comment','best','displayName','displayRole','displayCompany') for v in (['x']*12,{'a':1},True)))
+    chk(f'SV1 [{nm}] the owner revoke freezes EVERY other field (version, name, company, owner name, created, expiry)',
+        not any(A5(sim,'update',IP(),OWN,OLDINV(status='revoked',**c),OLDINV(),{IP():OLDINV()}) for c in ({'surveyVersion':'x'},{'employerName':'Z'},{'company':'Z'},{'ownerName':'Z'},{'createdAt':TS(NOW)},{'expiresAt':TS(NOW+99*DAY_MS)}))
+        and not A5(sim,'update',IP(),OWN,dict(OLDINV(status='revoked'),submittedAt=TSNOW),OLDINV(),{IP():OLDINV()}))
+    chk(f'SV1 [{nm}] the submit flip is refused while a response already exists for the key',not A5(sim,'update',IP(),None,SUBINV(),OLDINV(),{IP():OLDINV(),RP():RESP()},{IP():SUBINV(),RP():RESP()}))
+    chk(f'SV1 [{nm}] the owner decision freezes EVERY answer field (best, recommend, role, company as well)',
+        not any(A5(sim,'update',RP(),OWN,dict(DEC(),**c),RESP(),{RP():RESP()}) for c in ({'best':'changed'},{'recommend':'no'},{'displayRole':'CEO'},{'displayCompany':'Other'},{'comment':'Changed by the owner'},{'videoUrl':'https://youtu.be/dQw4w9WgXcQ'},{'displayName':'Z'},{'rating':1},{'consentPublish':False},{'submittedAt':TS(NOW-5000)})))
+    chk(f'SV1 [{nm}] the survey cannot write to the public testimonials (content/testimonials) or settings',not any(A5(sim,op,'content/testimonials',a,{'enabled':True,'items':[]},{'enabled':False},{}) for a in (None,STRANGER,TV) for op in ('create','update','delete')))
 # ---------------- 9. cross-check: strict file equals transition file apart from the owner check
 a=re.sub(r'\s+','',TXT); b=re.sub(r'\s+','',re.sub(r'^//.*\n','',STRICT,flags=re.M))
 chk('strict rules differ from the transition rules only in the owner e-mail fallback',a.replace("&&(request.auth.uid==ownerUid()||request.auth.token.email=='fredespinosa86.app@gmail.com');","&&request.auth.uid==ownerUid();")==b,'')
