@@ -82,3 +82,9 @@ Five items recorded in `4.5.0-security-enhancement-review.md`, each needing the 
 - SV2a: reminders (`surveyReminders`, separate from the registry on purpose: the registry is shared with billing/work hours and audited), manual cleanup, survey collections in backup (export-only), privacy line. AUTOMATED_TESTED; awaiting `SV2A-CHECKLIST.md`.
 - SV2b not built: custom surveys (templates, snapshot into the invite, validated answer shape). Needs its own layout round and rules.
 - Still open from before: retention periods for rejected answers (kept until the owner deletes them), security enhancements E1-E5 (recommended order E3, E1, E5, E4, E2), optional "Build" footer label.
+
+## Update 2026-11-07: SV2a verified, SV2b built
+- SV2a: MANUALLY_VERIFIED (all 14 steps).
+- SV2b (custom surveys): built and AUTOMATED_TESTED, awaiting `SV2B-CHECKLIST.md`. Decisions: extra questions only; templates export-only in backups; limits 10 surveys / 6 questions.
+- Known limits: the 10-survey cap is page-enforced; each sent link keeps its own question copy (editing a template never changes it); extra answers are never published and are not part of the testimonial.
+- Still open: retention period for rejected answers (kept until the owner deletes them), security enhancements E1-E5 (order E3, E1, E5, E4, E2), optional "Build" footer label.

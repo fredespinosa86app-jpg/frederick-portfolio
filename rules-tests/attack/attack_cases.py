@@ -1312,6 +1312,124 @@ for nm,sim in (('transition',S),('strict',SS)):
     chk(f'SV2a [{nm}] snooze is empty or a valid date; free text is refused',O('create',new=SR(snoozedUntil=''),docs=RG) and O('create',new=SR(snoozedUntil='2026-11-14'),docs=RG) and not any(O('create',new=SR(snoozedUntil=v),docs=RG) for v in ('later','2026-11-31x','2026/11/14',5,None)))
     chk(f'SV2a [{nm}] updatedAt must be the server time (no forged or missing time)',not O('create',new=SR(updatedAt=TS(NOW-1000)),docs=RG) and not O('create',new=SR(updatedAt=TS(NOW+1000)),docs=RG) and not O('create',new=SR(updatedAt='now'),docs=RG))
     chk(f'SV2a [{nm}] the reminder cannot reach other collections (registry, testimonials, settings) and other names are not matched',not any(A5(sim,'create',pth,OWN,SR(),None,RG) for pth in ('surveyReminder/ACME-1','surveyReminders/ACME-1/sub/x','clientRegistry/ZZZ-9')) and not A5(sim,'create','content/testimonials',None,SR(),None,RG))
+# ---------------- 8o. SV2b (4.5.0): custom surveys (templates, forms, extra answers), checked on BOTH rules files
+def QQ(n=1,**k):
+    d={'id':'q%d'%n,'type':'short','label':'What did we do well?','required':False,'options':[]}; d.update(k); return d
+def QS(*types):
+    out=[]
+    for i,t in enumerate(types or ('short',),1):
+        out.append(QQ(i,type=t,options=['Yes','No','Maybe'] if t=='choice' else [],required=(i==1)))
+    return out
+def TPL(**k):
+    d={'title':'Quarterly check-in','intro':'Two more questions for you.','questions':QS('stars','long','choice'),'updatedAt':TSNOW}; d.update(k); return d
+def FRM(**k):
+    d={'title':'Quarterly check-in','intro':'Two more questions for you.','questions':QS('stars','long','choice'),'createdAt':TSNOW}; d.update(k); return d
+def ANSW(**k):
+    d={'q1':4,'q2':'Fast and reliable.','q3':'Yes','submittedAt':TSNOW}; d.update(k); return d
+TP=lambda i='Tpl12345678':'surveyTemplates/'+i
+FP=lambda k=SK:'surveyForms/'+k
+AP=lambda k=SK:'surveyAnswers/'+k
+def csubmit(sim,ans=None,resp=None,form=None,old=None,drop_ans=False,drop_resp=False,au=None,key=SK):
+    """the three writes of one CUSTOM submission: invite update, response create, answers create"""
+    old=old if old is not None else OLDINV(); new=SUBINV(old); r=resp if resp is not None else RESP(); a=ans if ans is not None else ANSW(); f=form if form is not None else FRM()
+    docs={IP(key):old,FP(key):f}; after={IP(key):new}
+    if not drop_resp: after[RP(key)]=r
+    if not drop_ans: after[AP(key)]=a
+    return (A5(sim,'update',IP(key),au,new,old,docs,after), A5(sim,'create',RP(key),au,r,None,docs,after), A5(sim,'create',AP(key),au,a,None,docs,after))
+for nm,sim in (('transition',S),('strict',SS)):
+    ok3=lambda **k: all(csubmit(sim,**k)); bad3=lambda **k: not all(csubmit(sim,**k))
+    OT=lambda op,path=TP(),au=OWN,new=None,old=None: A5(sim,op,path,au,new,old,{})
+    chk(f'SV2b [{nm}] control: owner saves a template; owner creates invite + form together; a visitor submits a custom survey (invite flip + response + extra answers)',
+        OT('create',new=TPL()) and OT('update',new=TPL(title='Changed'),old=TPL()) and OT('delete',old=TPL()) and OT('get',old=TPL()) and A5(sim,'list','surveyTemplates',OWN)
+        and A5(sim,'create',FP(),OWN,FRM(),None,{},{IP():INV(),FP():FRM()}) and ok3())
+    chk(f'SV2b [{nm}] templates: nobody but the owner can read, list, create, update or delete them',
+        not any(A5(sim,op,TP() if op!='list' else 'surveyTemplates',a,TPL() if op in ('create','update') else None,TPL() if op in ('get','update','delete') else None,{}) for a in (None,STRANGER,TV) for op in ('get','list','create','update','delete')))
+    chk(f'SV2b [{nm}] template id must be 8-32 letters/digits; fields whitelisted; title 1-80, intro 0-300; time is the server time',
+        not any(OT('create',path=TP(i),new=TPL()) for i in ('short','a'*33,'abc def12','abc-def12','abc/def12')) and not OT('create',new=dict(TPL(),extra=1)) and not any(OT('create',new=dropk(TPL(),k)) for k in TPL())
+        and not OT('create',new=TPL(title='')) and not OT('create',new=TPL(title='x'*81)) and OT('create',new=TPL(title='x'*80)) and not OT('create',new=TPL(intro='x'*301)) and OT('create',new=TPL(intro='')) and OT('create',new=TPL(intro='x'*300))
+        and not OT('create',new=TPL(title=5)) and not OT('create',new=TPL(intro=None)) and not OT('create',new=TPL(updatedAt=TS(NOW-1000))) and not OT('create',new=TPL(updatedAt='now')))
+    chk(f'SV2b [{nm}] questions: 1 to 6 only, ids q1..q6 in order, known type, label 1-200, required is true/false',
+        not OT('create',new=TPL(questions=[])) and not OT('create',new=TPL(questions=QS(*['short']*7))) and OT('create',new=TPL(questions=QS(*['short']*6))) and OT('create',new=TPL(questions=QS('short')))
+        and not OT('create',new=TPL(questions='x')) and not OT('create',new=TPL(questions=[QQ(2)])) and not OT('create',new=TPL(questions=[QQ(1),QQ(1)])) and not OT('create',new=TPL(questions=[QQ(1),QQ(3)]))
+        and not any(OT('create',new=TPL(questions=[QQ(1,type=t)])) for t in ('rating','text','',None,5,'STARS')) and all(OT('create',new=TPL(questions=[QQ(1,type=t,options=['A','B'] if t=='choice' else [])])) for t in ('stars','short','long','yesno','choice'))
+        and not OT('create',new=TPL(questions=[QQ(1,label='')])) and not OT('create',new=TPL(questions=[QQ(1,label='x'*201)])) and OT('create',new=TPL(questions=[QQ(1,label='x'*200)])) and not OT('create',new=TPL(questions=[QQ(1,label=3)]))
+        and not any(OT('create',new=TPL(questions=[QQ(1,required=v)])) for v in ('yes',1,None,'true')) and not OT('create',new=TPL(questions=[dict(QQ(1),extra='x')])) and not any(OT('create',new=TPL(questions=[dropk(QQ(1),k)])) for k in QQ(1))
+        and not OT('create',new=TPL(questions=['x'])) and not OT('create',new=TPL(questions=[None])))
+    badq=lambda n,**k: (QS(*['short']*(n-1)) if n>1 else [])+[QQ(n,**k)]
+    chk(f'SV2b [{nm}] every question slot 1..6 is checked on its own: a bad label, type, required, extra field or wrong id in that slot is refused, and the counts 1..6 are all accepted',
+        all(OT('create',new=TPL(questions=QS(*['short']*n))) for n in range(1,7))
+        and all(not OT('create',new=TPL(questions=badq(n,label=''))) and not OT('create',new=TPL(questions=badq(n,label='x'*201))) and not OT('create',new=TPL(questions=badq(n,type='bad'))) and not OT('create',new=TPL(questions=badq(n,required='yes'))) and not OT('create',new=TPL(questions=badq(n,options=['A']))) and not OT('create',new=TPL(questions=badq(n,id='q%d'%(n+1 if n<6 else 1)))) and not OT('create',new=TPL(questions=badq(n,extra='x'))) for n in range(1,7))
+        and all(not OT('create',new=TPL(questions=badq(n,type='choice',options=o))) for n in range(1,7) for o in (['A'],[],['A',''],['','B'],['A','x'*61]+[]) )
+        and not OT('create',new=TPL(questions=QS(*['short']*6)+[QQ(7)])) and OT('create',new=TPL(title='x',questions=[QQ(1,label='y')])))
+    chk(f'SV2b [{nm}] text fields must really be text: a list or number for title, intro or a question label is refused; options must be a list',
+        not OT('create',new=TPL(title=['x'])) and not OT('create',new=TPL(title={'a':1})) and not OT('create',new=TPL(intro=['x'])) and not OT('create',new=TPL(intro={})) and not OT('create',new=TPL(questions=[QQ(1,label=['x'])]))
+        and not OT('create',new=TPL(questions=[QQ(1,options='')])) and not OT('create',new=TPL(questions=[QQ(1,options={})])) and not OT('create',new=TPL(questions=[QQ(1,type='choice',options='AB')])) and not OT('create',new=TPL(questions=[QQ(1,type='choice',options={'a':1,'b':2})])))
+    chk(f'SV2b [{nm}] choice questions need 2-6 options of 1-60 characters; other types need none',
+        not OT('create',new=TPL(questions=[QQ(1,type='choice',options=['A'])])) and not OT('create',new=TPL(questions=[QQ(1,type='choice',options=[])])) and not OT('create',new=TPL(questions=[QQ(1,type='choice',options=list('ABCDEFG'))]))
+        and OT('create',new=TPL(questions=[QQ(1,type='choice',options=list('ABCDEF'))])) and not any(OT('create',new=TPL(questions=[QQ(1,type='choice',options=['A','B','C','D','E','F'][:n-1]+[v])])) for n in range(2,7) for v in ('','x'*61,5,None))
+        and all(OT('create',new=TPL(questions=[QQ(1,type='choice',options=['A','B','C','D','E','F'][:n-1]+['x'*60])])) for n in range(2,7))
+        and not any(OT('create',new=TPL(questions=[QQ(1,type=t,options=['A'])])) for t in ('stars','short','long','yesno')) and not OT('create',new=TPL(questions=[QQ(1,options='A')])))
+    chk(f'SV2b [{nm}] form: only the owner creates it, only together with its invite while "sent", never edited; deleted by the owner only',
+        not any(A5(sim,'create',FP(),a,FRM(),None,{},{IP():INV(),FP():FRM()}) for a in (None,STRANGER,TV)) and not A5(sim,'create',FP(),OWN,FRM(),None,{},{FP():FRM()})
+        and not A5(sim,'create',FP(),OWN,FRM(),None,{},{IP():INV(status='revoked'),FP():FRM()}) and not A5(sim,'create',FP('short'),OWN,FRM(),None,{},{IP('short'):INV(),FP('short'):FRM()})
+        and not any(A5(sim,'update',FP(),a,FRM(title='x'),FRM(),{FP():FRM()}) for a in (None,STRANGER,TV,OWN)) and A5(sim,'delete',FP(),OWN,None,FRM(),{FP():FRM()}) and not any(A5(sim,'delete',FP(),a,None,FRM(),{FP():FRM()}) for a in (None,STRANGER,TV)))
+    chk(f'SV2b [{nm}] form fields: whitelist, title/intro limits, createdAt is server time, same question limits as templates',
+        not A5(sim,'create',FP(),OWN,dict(FRM(),extra=1),None,{},{IP():INV(),FP():dict(FRM(),extra=1)}) and not any(A5(sim,'create',FP(),OWN,f,None,{},{IP():INV(),FP():f}) for f in (FRM(title=''),FRM(title='x'*81),FRM(intro='x'*301),FRM(questions=[]),FRM(questions=QS(*['short']*7)),FRM(createdAt=TS(NOW-5)),dropk(FRM(),'createdAt'),dropk(FRM(),'intro'),FRM(questions=[QQ(1,type='bad')])))
+        and A5(sim,'create',FP(),OWN,FRM(intro=''),None,{},{IP():INV(),FP():FRM(intro='')}))
+    chk(f'SV2b [{nm}] a visitor reads ONE form by key while the invite is sent and not expired; never when submitted, revoked or expired; list is owner only; owner reads any',
+        A5(sim,'get',FP(),None,None,FRM(),{FP():FRM(),IP():OLDINV()}) and A5(sim,'get',FP(),OWN,None,FRM(),{FP():FRM(),IP():OLDINV(status='submitted')}) and A5(sim,'list','surveyForms',OWN)
+        and not any(A5(sim,'get',FP(),None,None,FRM(),{FP():FRM(),IP():d}) for d in (OLDINV(status='submitted'),OLDINV(status='revoked'),OLDINV(expiresAt=TS(NOW-1000)),OLDINV(expiresAt=TS(NOW))))
+        and not any(A5(sim,'list','surveyForms',a) for a in (None,STRANGER,TV)) and not A5(sim,'get',FP('short'),None,None,FRM(),{FP('short'):FRM(),IP('short'):OLDINV()}))
+    chk(f'SV2b [{nm}] control-by-type: every answer type accepted when valid (stars 1-5, short, long, yes/no, one of the options); optional answers may be left out',
+        all(ok3(ans=a,form=FRM(questions=q)) for a,q in ((ANSW(),QS('stars','long','choice')),(ANSW(q1=1,q2='x',q3='No'),QS('stars','long','choice')),(ANSW(q1=5,q2='x'*700,q3='Maybe'),QS('stars','long','choice')),({'q1':'yes','q2':'x'*200,'submittedAt':TSNOW},QS('yesno','short')),({'q1':'no','submittedAt':TSNOW},QS('yesno','short')))))
+    chk(f'SV2b [{nm}] stars must be a whole number 1 to 5',all(ok3(ans=ANSW(q1=v)) for v in (1,5)) and all(bad3(ans=ANSW(q1=v)) for v in (0,6,-1,3.5,'3',None,True)))
+    one=lambda t,v,req=True: dict(ans={'q1':v,'submittedAt':TSNOW},form=FRM(questions=[QQ(1,type=t,required=req,options=['A','B'] if t=='choice' else [])]))
+    chk(f'SV2b [{nm}] short answers max 200, long answers max 700, must be text; required ones may not be empty; optional ones may be empty or left out',
+        all(bad3(**one('short',v)) for v in ('x'*201,5,None,'',['x'],True)) and all(ok3(**one('short',v)) for v in ('x','x'*200)) and all(bad3(**one('long',v)) for v in ('x'*701,7,None,'',['x'],True)) and all(ok3(**one('long',v)) for v in ('x','x'*700))
+        and all(ok3(**one(t,'',False)) for t in ('short','long')) and all(bad3(**one(t,v,False)) for t in ('short','long') for v in (5,None,['x'],True)) and bad3(**one('short','x'*201,False)) and bad3(**one('long','x'*701,False))
+        and all(ok3(ans={'submittedAt':TSNOW},form=FRM(questions=[QQ(1,type=t,required=False,options=['A','B'] if t=='choice' else [])])) for t in ('stars','short','long','yesno','choice')))
+    ALL6=('stars','short','long','yesno','choice','short')
+    def six(bad_slot=None,bad=None,n=6,extra=None):
+        good={'q1':3,'q2':'x','q3':'y','q4':'yes','q5':'A','q6':'z','submittedAt':TSNOW}
+        d={k:v for k,v in good.items() if k=='submittedAt' or int(k[1])<=n}
+        if bad_slot: d['q%d'%bad_slot]=bad
+        if extra: d[extra]='x'
+        return dict(ans=d,form=FRM(questions=[QQ(i,type=t,required=True,options=['A','B'] if t=='choice' else []) for i,t in enumerate(ALL6[:n],1)]))
+    chk(f'SV2b [{nm}] every one of the six answer slots is checked on its own (a wrong value in slot 1..6 is refused); a full valid set is accepted',
+        ok3(**six()) and all(bad3(**six(i,v)) for i,v in ((1,0),(1,'3'),(2,''),(2,'x'*201),(3,''),(3,'x'*701),(4,'maybe'),(4,1),(5,'C'),(5,''),(6,''),(6,'x'*201),(6,None))))
+    chk(f'SV2b [{nm}] the LAST answer slot of every form size (2 to 6 questions) is checked too (a required answer left empty there is refused)',
+        all(bad3(**six(n,'',n)) for n in (2,3,4,5)) and all(ok3(**six(n=n)) for n in (2,3,4,5)) and bad3(**six(6,'',6)))
+    chk(f'SV2b [{nm}] an answer for a slot the form does not have is refused, for every form size (1 to 5 questions plus one extra slot)',
+        all(ok3(**six(n=n)) for n in range(1,7)) and all(bad3(**six(n=n,extra='q%d'%(n+1))) for n in range(1,6)) and bad3(**six(n=6,extra='q7')) and bad3(**six(n=2,extra='q6')))
+    chk(f'SV2b [{nm}] yes/no accepts only yes or no; a choice answer must be exactly one of the listed options',
+        all(bad3(ans={'q1':v,'submittedAt':TSNOW},form=FRM(questions=QS('yesno'))) for v in ('maybe','YES','',None,1,True)) and all(bad3(ans={'q1':v,'submittedAt':TSNOW},form=FRM(questions=QS('choice'))) for v in ('yes','Other','',None,5,'Yes ','yes'))
+        and ok3(ans={'q1':'Maybe','submittedAt':TSNOW},form=FRM(questions=QS('choice'))))
+    chk(f'SV2b [{nm}] required questions must be answered; an unknown or extra slot, extra field or forged time is refused',
+        bad3(ans={'submittedAt':TSNOW},form=FRM(questions=QS('short'))) and bad3(ans=ANSW(q4='x')) and bad3(ans=ANSW(q7='x')) and bad3(ans=dict(ANSW(),extra='x')) and bad3(ans=dict(ANSW(),email='a@b.co'))
+        and bad3(ans=ANSW(submittedAt=TS(NOW-1000))) and bad3(ans=ANSW(submittedAt='now')) and bad3(ans=dropk(ANSW(),'submittedAt')) and bad3(ans=ANSW(q2='x'*701)) and bad3(ans=ANSW(),form=FRM(questions=QS('stars')))
+        and ok3(ans={'q1':3,'submittedAt':TSNOW},form=FRM(questions=QS('stars'))))
+    chk(f'SV2b [{nm}] the extra answers must travel in the same batch: without them the response is refused, and answers alone (no response/flip) are refused',
+        not all(csubmit(sim,drop_ans=True)) and not all(csubmit(sim,drop_resp=True)) and bad3(old=OLDINV(status='submitted')) and bad3(old=OLDINV(expiresAt=TS(NOW-1000))) and bad3(old=OLDINV(status='revoked')))
+    chk(f'SV2b [{nm}] a default survey (no form) cannot get extra answers, and still submits exactly as before',
+        not A5(sim,'create',AP(),None,ANSW(),None,{IP():OLDINV()},{IP():SUBINV(),RP():RESP(),AP():ANSW()}) and all(submit(sim)))
+    def ansonly(old=None,form=None,after_inv='default',after_resp=True,extra=None,au=None,key=SK):
+        old=old if old is not None else OLDINV(); docs={IP(key):old,FP(key):(form if form is not None else FRM())}; docs.update(extra or {})
+        if form is False: docs.pop(FP(key))
+        after={AP(key):ANSW()}
+        after[IP(key)]=SUBINV(old) if after_inv=='default' else after_inv
+        if after_resp: after[RP(key)]=RESP()
+        return A5(sim,'create',AP(key),au,ANSW(),None,docs,after)
+    chk(f'SV2b [{nm}] the extra-answers write alone is judged on its own: needs the form, a sent and unexpired invite, the invite flipping to submitted and the response in the same batch; the pause stops it',
+        ansonly() and ansonly(au=TV) and not ansonly(extra={'content/guard':{'pause':True}}) and not ansonly(form=False)
+        and not any(ansonly(old=OLDINV(status=x)) for x in ('submitted','revoked')) and not any(ansonly(old=OLDINV(expiresAt=t)) for t in (TS(NOW),TS(NOW-1000)))
+        and not ansonly(after_inv=OLDINV()) and not ansonly(after_inv=SUBINV(OLDINV(),status='revoked')) and not ansonly(after_resp=False) and not ansonly(key='short'))
+    chk(f'SV2b [{nm}] the response write for a custom survey needs the extra answers in the same batch (a default survey does not)',
+        not A5(sim,'create',RP(),None,RESP(),None,{IP():OLDINV(),FP():FRM()},{IP():SUBINV(),RP():RESP()}) and A5(sim,'create',RP(),None,RESP(),None,{IP():OLDINV(),FP():FRM()},{IP():SUBINV(),RP():RESP(),AP():ANSW()})
+        and A5(sim,'create',RP(),None,RESP(),None,{IP():OLDINV()},{IP():SUBINV(),RP():RESP()}))
+    chk(f'SV2b [{nm}] extra answers: owner reads and deletes; nobody edits; others cannot read; the pause stops custom submissions too',
+        A5(sim,'get',AP(),OWN,None,ANSW(),{AP():ANSW()}) and A5(sim,'list','surveyAnswers',OWN) and A5(sim,'delete',AP(),OWN,None,ANSW(),{AP():ANSW()}) and not any(A5(sim,op,AP() if op!='list' else 'surveyAnswers',a,ANSW() if op=='update' else None,ANSW() if op!='list' else None,{AP():ANSW()}) for a in (None,STRANGER,TV) for op in ('get','list','update','delete'))
+        and not A5(sim,'update',AP(),OWN,ANSW(q1=1),ANSW(),{AP():ANSW()}))
+    chk(f'SV2b [{nm}] the new collections do not open anything else (testimonials, settings) and similar names are not matched',not any(A5(sim,'create',pth,OWN,TPL(),None,{}) for pth in ('surveyTemplate/Tpl12345678','surveyForm/'+SK,'surveyAnswer/'+SK,'surveyTemplates/Tpl12345678/sub/x')))
 # ---------------- 9. cross-check: strict file equals transition file apart from the owner check
 a=re.sub(r'\s+','',TXT); b=re.sub(r'\s+','',re.sub(r'^//.*\n','',STRICT,flags=re.M))
 chk('strict rules differ from the transition rules only in the owner e-mail fallback',a.replace("&&(request.auth.uid==ownerUid()||request.auth.token.email=='fredespinosa86.app@gmail.com');","&&request.auth.uid==ownerUid();")==b,'')

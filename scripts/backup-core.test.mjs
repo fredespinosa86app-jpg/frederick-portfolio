@@ -74,5 +74,5 @@ test('4.5.0: client ID registry and its history are saved but never restored', a
   assert.ok(BC.EXPORT_ONLY.includes('clientRegistry') && !BC.RESTORABLE.includes('clientRegistry'));
 });
 test('SV2a: survey collections are saved in a backup for your records but never restored (visitors create answers; the rules tie each write to the clock)', () => {
-  for (const c of ['surveyInvites', 'surveyInvitesPrivate', 'surveyResponses', 'surveyReminders']) { assert.ok(BC.EXPORT_ONLY.includes(c), c); assert.ok(!BC.RESTORABLE.includes(c), c); assert.ok(BC.LABEL[c], c); }
+  for (const c of ['surveyInvites', 'surveyInvitesPrivate', 'surveyResponses', 'surveyReminders', 'surveyTemplates', 'surveyForms', 'surveyAnswers']) { assert.ok(BC.EXPORT_ONLY.includes(c), c); assert.ok(!BC.RESTORABLE.includes(c), c); assert.ok(BC.LABEL[c], c); }
 });

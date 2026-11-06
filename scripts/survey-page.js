@@ -21,9 +21,11 @@ const key = SV.keyFromHash(location.hash);
     invRef = fs.doc(db, 'surveyInvites', key); respRef = fs.doc(db, 'surveyResponses', key);
   } catch (e) { return show('svInvalid'); }
 
-  let inv;
+  let inv, form = null;
   try { const s = await fs.getDoc(invRef); inv = s.exists() ? s.data() : null; } catch (e) { return show('svInvalid'); }
   if (!SV.inviteUsable(inv, Date.now())) return show('svInvalid');
+  /* a custom survey has a copy of its questions (surveyForms/KEY); a default survey has none */
+  try { const fsn = await fs.getDoc(fs.doc(db, 'surveyForms', key)); if (fsn.exists()) { form = fsn.data(); if (!form || !Array.isArray(form.questions) || !form.questions.length || form.questions.length > SV.QLIM.questions) return show('svInvalid'); } } catch (e) { return show('svInvalid'); }
 
   /* ---- fill the page (text only) ---- */
   const owner = String(inv.ownerName || '').slice(0, 80), who = String(inv.employerName || '').slice(0, 100);
@@ -31,6 +33,25 @@ const key = SV.keyFromHash(location.hash);
   $('svLead').textContent = 'Hello ' + who + ', thank you for working with ' + owner + '. Two minutes of your time helps others know what to expect.';
   for (const id of ['svOwnerA', 'svOwnerB', 'svOwnerC']) $(id).textContent = owner;
   $('fName').value = who; $('fCompany').value = String(inv.company || '').slice(0, 100);
+
+  /* ---- extra questions of a custom survey (text only; every value is checked again by SV.validateAnswers and by the rules) ---- */
+  const extra = {}, extraErr = {};
+  if (form) {
+    const t = String(form.title || '').slice(0, SV.QLIM.title); if (t) { $('svTitle').textContent = t; document.title = t; }
+    const intro = String(form.intro || '').slice(0, SV.QLIM.intro); if (intro) { const p = document.createElement('p'); p.className = 'sv-lead'; p.textContent = intro; p.style.whiteSpace = 'pre-line'; $('svLead').after(p); }
+    const host = $('svExtra');
+    form.questions.forEach((q, i) => {
+      const k = SV.QKEYS[i], id = 'x_' + k, box = document.createElement('fieldset'), lg = document.createElement('legend'), err = document.createElement('p');
+      box.className = 'sv-field'; box.id = id; lg.textContent = String(q.label || '').slice(0, SV.QLIM.label) + ' '; const rq = document.createElement('span'); rq.className = q.required ? 'sv-req' : 'sv-opt'; rq.textContent = q.required ? '(required)' : '(optional)'; lg.append(rq); box.append(lg);
+      err.className = 'sv-err'; err.setAttribute('role', 'alert'); err.id = 'e' + id; extraErr[k] = err;
+      const choose = (vals, labels) => { const w = document.createElement('div'); w.className = 'sv-choices'; vals.forEach((v, j) => { const l = document.createElement('label'), r = document.createElement('input'), sp = document.createElement('span'); l.className = 'sv-choice'; r.type = 'radio'; r.name = id; r.value = String(v); r.addEventListener('change', () => { extra[k] = String(v); err.textContent = ''; }); sp.textContent = labels[j]; l.append(r, sp); w.append(l); }); box.append(w); };
+      if (q.type === 'stars') choose([1, 2, 3, 4, 5], ['1', '2', '3', '4', '5'].map(n => n + (n === '1' ? ' star' : ' stars')));
+      else if (q.type === 'yesno') choose(['yes', 'no'], ['Yes', 'No']);
+      else if (q.type === 'choice') choose(q.options.slice(0, SV.QLIM.options[1]).map(String), q.options.slice(0, SV.QLIM.options[1]).map(o => String(o).slice(0, SV.QLIM.option)));
+      else { const long = q.type === 'long', inp = document.createElement(long ? 'textarea' : 'input'); if (long) inp.rows = 4; else inp.type = 'text'; inp.maxLength = long ? SV.QLIM.long : SV.QLIM.short; inp.setAttribute('aria-label', String(q.label || '').slice(0, SV.QLIM.label)); inp.addEventListener('input', () => { extra[k] = inp.value; err.textContent = ''; }); box.append(inp); }
+      box.append(err); host.append(box);
+    });
+  }
 
   /* ---- stars: five real radio buttons ---- */
   let rating = 0; const stars = $('svStars'), starEls = [];
@@ -62,7 +83,10 @@ const key = SV.keyFromHash(location.hash);
     const rec = document.querySelector('input[name=recommend]:checked');
     const v = SV.validateResponse({ rating, comment: $('fComment').value, best: $('fBest').value, recommend: rec ? rec.value : '', videoUrl: $('fVideo').value, displayName: $('fName').value, displayRole: $('fRole').value, displayCompany: $('fCompany').value, consentPublish: $('fConsent').checked });
     for (const k of Object.keys(FIELD)) clearErr(k);
-    if (!v.ok) {
+    let ans = null;
+    if (form) { ans = SV.validateAnswers(form.questions, extra); for (const k of Object.keys(extraErr)) extraErr[k].textContent = ''; if (!ans.ok) for (const [k, m] of Object.entries(ans.errors)) extraErr[k].textContent = m; }
+    if (!v.ok || (ans && !ans.ok)) {
+      if (v.ok) { const fk = Object.keys(ans.errors)[0], fe = $('x_' + fk); if (fe) (fe.querySelector('input,textarea') || fe).focus(); return; }
       const map = { rating: 'Rating', comment: 'Comment', best: 'Best', recommend: 'Rec', videoUrl: 'Video', displayName: 'Name', consentPublish: 'Consent' };
       let first = '';
       for (const [f, m] of Object.entries(v.errors)) { setErr(map[f], m); first = first || map[f]; }
@@ -74,6 +98,7 @@ const key = SV.keyFromHash(location.hash);
       /* one batch = the response + the invite flipping to "submitted". The rules accept it only if both are present and the key is still valid. */
       const b = fs.writeBatch(db);
       b.set(respRef, Object.assign({}, v.data, { submittedAt: fs.serverTimestamp(), ownerStatus: 'pending' }));
+      if (form) b.set(fs.doc(db, 'surveyAnswers', key), Object.assign({}, ans.data, { submittedAt: fs.serverTimestamp() }));
       b.update(invRef, { status: 'submitted', submittedAt: fs.serverTimestamp() });
       await b.commit();
       $('svThanksText').textContent = 'Your feedback was sent to ' + owner + '. Nothing is published until ' + owner + ' has reviewed it.';

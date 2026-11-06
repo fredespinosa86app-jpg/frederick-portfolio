@@ -57,7 +57,7 @@ const fillGood = async (pg, o = {}) => {
 const D1 = { [`surveyInvites/${KEY}`]: inviteOk() };
 {
   const { ctx, pg, reqs, perr, cons } = await emp('#k=' + KEY, { docs: D1 });
-  check('B valid link: the form is shown and only that ONE invite was read', (await which(pg)) === 'svForm' && (await pg.evaluate(() => window.__reads.join())) === 'surveyInvites/' + KEY);
+  check('B valid link: the form is shown and only that ONE invite and its own (empty) question copy were read', (await which(pg)) === 'svForm' && (await pg.evaluate(() => window.__reads.join())) === 'surveyInvites/' + KEY + ',surveyForms/' + KEY);
   check('B greeting uses the employer and owner names; name and company are prefilled', await pg.evaluate(() => document.getElementById('svLead').textContent.includes('Ana Cruz') && document.getElementById('svLead').textContent.includes('Frederick Espinosa') && document.getElementById('fName').value === 'Ana Cruz' && document.getElementById('fCompany').value === 'Acme Ltd' && document.title.includes('Frederick')));
   check('B the page asks for no e-mail address', (await pg.$$eval('input', i => i.filter(x => /mail/i.test(x.type + x.id + x.name + (x.placeholder || ''))).length)) === 0);
   check('B five star radios, each named, none pre-selected', await pg.$$eval('.sv-star input', r => r.length === 5 && r.every((x, i) => x.type === 'radio' && x.getAttribute('aria-label') === (i + 1) + (i ? ' stars' : ' star') && !x.checked)));
@@ -323,6 +323,63 @@ const D1 = { [`surveyInvites/${KEY}`]: inviteOk() };
   const left = await pg.evaluate(() => Object.keys(window.__store).filter(k => /^(surveyInvites|surveyInvitesPrivate|surveyResponses)\/Old/.test(k)).sort());
   check('F2 cleanup deleted the two old invites and their private records; the answered invite, its answer and the recent invite remain', left.join() === ['surveyInvites/', 'surveyInvites/', 'surveyInvitesPrivate/', 'surveyInvitesPrivate/', 'surveyResponses/'].map((p, i) => p + ('Old' + (i % 2 === 0 || p === 'surveyResponses/' ? 'C' : 'D').repeat(32)).slice(0, 32)).join() && (await pg.$eval('#svCleanBtn', b => b.disabled)), left.join());
   check('F2 reminder rows hold no e-mail or name, and every new control has an accessible name', await pg.evaluate(() => !/@/.test(document.getElementById('svRemList').textContent + document.getElementById('svDueList').textContent) && [...document.querySelectorAll('#dp-surveys button, #dp-surveys input, #dp-surveys select')].filter(x => !x.hidden && x.type !== 'hidden').every(x => (x.getAttribute('aria-label') || '').trim() || (x.labels && x.labels.length) || (x.textContent || '').trim())));
+  // ---------------- SV2b: templates, sending a custom survey, extra answers, cleanup of forms
+  const dq = sel => pg.locator('dialog[open] ' + sel);
+  await pg.evaluate(() => document.querySelector('.dnav [data-page=surveys]').click()); await pg.waitForTimeout(200);
+  check('F3 "My surveys" starts empty and the Survey selector offers only the default', /No custom surveys yet/.test(await pg.textContent('#svTplList')) && (await pg.$$eval('#svSurvey option', o => o.map(x => x.textContent).join())) === 'Default survey');
+  await pg.click('#svTplNew'); await pg.waitForTimeout(200);
+  await dq('[aria-label="Survey title"]').fill(''); await dq('button:text-is("Save survey")').click(); await pg.waitForTimeout(150);
+  check('F3 saving without a title is refused with a message and nothing is written', /title/i.test(await dq('.ferr').textContent()) && !(await pg.evaluate(() => Object.keys(window.__store).some(k => k.startsWith('surveyTemplates/')))));
+  await dq('[aria-label="Survey title"]').fill('Quarterly check-in'); await dq('[aria-label="Introduction"]').fill('Two quick questions.'); await dq('[aria-label="Question 1 wording"]').fill('How was communication?'); await dq('[aria-label="Question 1 is required"]').check();
+  await dq('button:text-is("Add question")').click(); await dq('[aria-label="Question 2 type"]').selectOption('choice'); await dq('[aria-label="Question 2 wording"]').fill('Which service?'); await dq('button:text-is("Save survey")').click(); await pg.waitForTimeout(150);
+  check('F3 a choice question without options is refused with a message naming the question', /Question 2/.test(await dq('.ferr').textContent()) && !(await pg.evaluate(() => Object.keys(window.__store).some(k => k.startsWith('surveyTemplates/')))));
+  await dq('[aria-label="Question 2 options, one per line"]').fill('Research\nAdmin\n\nSupport'); await dq('button:text-is("Save survey")').click(); await pg.waitForTimeout(400);
+  const tk = await pg.evaluate(() => Object.keys(window.__store).filter(k => k.startsWith('surveyTemplates/'))), tdoc = await pg.evaluate(k => window.__store[k], tk[0]);
+  check('F3 the template is saved with exactly title, intro, questions (ids q1,q2; required flag; clean options) and a server time', tk.length === 1 && /^surveyTemplates\/[A-Za-z0-9]{16}$/.test(tk[0]) && Object.keys(tdoc).sort().join() === 'intro,questions,title,updatedAt' && tdoc.title === 'Quarterly check-in' && tdoc.questions.length === 2 && tdoc.questions[0].id === 'q1' && tdoc.questions[0].required === true && tdoc.questions[0].type === 'short' && JSON.stringify(tdoc.questions[1].options) === '["Research","Admin","Support"]' && tdoc.questions[1].required === false && JSON.stringify(Object.keys(tdoc.questions[0]).sort()) === '["id","label","options","required","type"]', JSON.stringify(tdoc));
+  check('F3 the list shows the survey with its question count and "Edit survey" / "Delete survey" icon buttons; the selector now offers it', await pg.evaluate(() => { const r = document.querySelector('#svTplList .cidrow'); return !!r && /2 extra questions/.test(r.textContent) && [...r.querySelectorAll('button')].map(x => x.getAttribute('aria-label')).join() === 'Edit survey: Quarterly check-in,Delete survey: Quarterly check-in' && [...document.querySelectorAll('#svSurvey option')].map(o => o.textContent).join() === 'Default survey,Quarterly check-in'; }));
+  // send it
+  const tid = tk[0].split('/')[1];
+  await pg.selectOption('#svSurvey', tid); await pg.fill('#svEmpName', 'Tess Tran'); await pg.fill('#svEmpEmail', 'tess@acme.com'); await pg.click('#svCreate'); await pg.waitForTimeout(600);
+  const st = await pg.evaluate(() => JSON.parse(JSON.stringify(window.__store))), fk = Object.keys(st).filter(k => k.startsWith('surveyForms/'));
+  const tinv = Object.keys(st).find(k => k.startsWith('surveyInvites/') && st[k].employerName === 'Tess Tran');
+  check('F3 creating a link for a custom survey also writes a COPY of the questions under the same key (title, intro, questions, time) and nothing private', fk.length === 1 && fk[0] === 'surveyForms/' + tinv.split('/')[1] && JSON.stringify(st[fk[0]].questions) === JSON.stringify(tdoc.questions) && st[fk[0]].title === tdoc.title && Object.keys(st[fk[0]]).sort().join() === 'createdAt,intro,questions,title' && !JSON.stringify(st[fk[0]]).includes('tess@acme.com'));
+  check('F3 the invite itself is unchanged in shape (no survey fields), and the row says which survey it uses', Object.keys(st[tinv]).sort().join() === 'company,createdAt,employerName,expiresAt,ownerName,status,surveyVersion' && (await pg.evaluate(() => [...document.querySelectorAll('#svInvList .cidrow')].some(r => r.textContent.includes('Tess Tran') && r.textContent.includes('Survey: Quarterly check-in')))));
+  check('F3 the survey selector returns to the default after creating a link', (await pg.inputValue('#svSurvey')) === '');
+  await pg.click('#svOut button[aria-label^="Hide"]');
+  // editing the template later does not change the copy
+  await pg.click('#svTplList button[aria-label^="Edit survey"]'); await pg.waitForTimeout(200);
+  check('F3 editing opens the saved survey (title, intro, both questions, the choice options)', (await dq('[aria-label="Survey title"]').inputValue()) === 'Quarterly check-in' && (await dq('[aria-label="Question 2 options, one per line"]').inputValue()) === 'Research\nAdmin\nSupport' && (await dq('[aria-label="Question 1 is required"]').isChecked()));
+  await dq('[aria-label="Survey title"]').fill('Renamed survey'); await dq('button:text-is("Remove")').first().click(); await dq('button:text-is("Save survey")').click(); await pg.waitForTimeout(400);
+  const st2 = await pg.evaluate(() => JSON.parse(JSON.stringify(window.__store)));
+  check('F3 after editing the template, the survey already sent keeps its own copy of the questions', st2['surveyTemplates/' + tid].title === 'Renamed survey' && st2['surveyTemplates/' + tid].questions.length === 1 && st2['surveyTemplates/' + tid].questions[0].id === 'q1' && JSON.stringify(st2[fk[0]].questions) === JSON.stringify(tdoc.questions) && st2[fk[0]].title === 'Quarterly check-in');
+  // extra answers shown to the owner, as text
+  await pg.evaluate(() => {
+    const S = window.__store, ts = ms => ({ toDate: () => new Date(ms), toMillis: () => ms }), now = Date.now(), K = 'Xx7Zr2Lm9Xc4Vb8Nt3Hy6Wd1Sf5Gj0Pa';
+    S['surveyInvites/' + K] = { surveyVersion: 'default-1', employerName: 'Extra Eli', company: '', ownerName: 'F', status: 'submitted', createdAt: ts(now - 9e5), expiresAt: ts(now + 5e8), submittedAt: ts(now) }; S['surveyInvitesPrivate/' + K] = { employerEmail: 'eli@x.com', clientId: '' };
+    S['surveyForms/' + K] = { title: 'Eli survey', intro: '', createdAt: ts(now - 9e5), questions: [{ id: 'q1', type: 'stars', label: 'Communication?', required: true, options: [] }, { id: 'q2', type: 'long', label: '<img src=x onerror="window.__xss=9">Improve?', required: false, options: [] }, { id: 'q3', type: 'yesno', label: 'Renew?', required: false, options: [] }] };
+    S['surveyAnswers/' + K] = { q1: 4, q2: '<script>window.__xss=8</script> More reports please', submittedAt: ts(now) };
+    S['surveyResponses/' + K] = { rating: 5, comment: 'Wonderful to work with, always on time.', best: '', recommend: 'yes', videoUrl: '', displayName: 'Extra Eli', displayRole: '', displayCompany: '', consentPublish: true, submittedAt: ts(now), ownerStatus: 'pending' };
+  });
+  await pg.click('#svRefresh'); await pg.waitForTimeout(500);
+  const ex = await pg.evaluate(() => { const r = [...document.querySelectorAll('#svRespList .cidrow')].find(x => x.querySelector('strong').textContent === 'Extra Eli'); return r ? { t: r.querySelector('.svextra').textContent.replace(/\s+/g, ' '), imgs: r.querySelectorAll('img,script').length, xss: window.__xss || 0 } : null; });
+  check('F3 the owner sees the extra answers under the question wording, labelled "only for you, never published"; a skipped question says "(no answer)"; hostile text is inert', ex && /never published/.test(ex.t) && /Communication\?: ★★★★ \(4\/5\)/.test(ex.t) && /More reports please/.test(ex.t) && /Renew\?: \(no answer\)/.test(ex.t) && ex.imgs === 0 && !ex.xss, JSON.stringify(ex));
+  check('F3 a default answer shows no extra-answers block', await pg.evaluate(() => { const r = [...document.querySelectorAll('#svRespList .cidrow')].find(x => x.querySelector('strong').textContent === 'Pete'); return !r || !r.querySelector('.svextra'); }));
+  // deleting a template asks first and leaves the sent link and its copy alone
+  await pg.click('#svTplList button[aria-label^="Delete survey"]'); const dt = await pg.evaluate(() => document.querySelector('dialog[open]').textContent.replace(/\s+/g, ' ')); await dlg('^\\s*cancel');
+  check('F3 deleting a survey asks first and says sent links keep working; cancel keeps it', /keep their own copy/.test(dt) && (await pg.evaluate(id => 'surveyTemplates/' + id in window.__store, tid)));
+  await pg.click('#svTplList button[aria-label^="Delete survey"]'); await dlg('delete survey'); await pg.waitForTimeout(300);
+  check('F3 after deleting the template the sent link still has its copy', !(await pg.evaluate(id => 'surveyTemplates/' + id in window.__store, tid)) && (await pg.evaluate(k => k in window.__store, fk[0])));
+  // limit of 10 surveys
+  await pg.evaluate(() => { for (let i = 0; i < 10; i++) window.__store['surveyTemplates/Tpl' + String(i).padStart(10, '0')] = { title: 'S' + i, intro: '', questions: [{ id: 'q1', type: 'short', label: 'q', required: false, options: [] }], updatedAt: { toMillis: () => 1 } }; });
+  await pg.click('#svRefresh'); await pg.waitForTimeout(400); await pg.click('#svTplNew'); await pg.waitForTimeout(150);
+  await dq('[aria-label="Survey title"]').fill('Eleventh'); await dq('[aria-label="Question 1 wording"]').fill('q'); await dq('button:text-is("Save survey")').click(); await pg.waitForTimeout(250);
+  check('F3 an eleventh survey is refused with a clear message', /10 surveys/.test(await dq('.ferr').textContent()) && !(await pg.evaluate(() => 'surveyTemplates/' in window.__store)) && (await pg.evaluate(() => Object.keys(window.__store).filter(k => k.startsWith('surveyTemplates/')).length)) === 10);
+  await pg.evaluate(() => document.querySelector('dialog[open]').close());
+  check('F3 a seventh question is refused by the editor', await (async () => { await pg.click('#svTplNew'); await pg.waitForTimeout(150); for (let i = 0; i < 6; i++) await dq('button:text-is("Add question")').click({ force: true }).catch(() => {}); const n = await pg.evaluate(() => document.querySelectorAll('dialog[open] .svq').length); const dis = await dq('button:text-is("Add question")').isDisabled(); await pg.evaluate(() => document.querySelector('dialog[open]').close()); return n === 6 && dis; })());
+  // cleanup removes the form copy of an old unanswered link too
+  await pg.evaluate(() => { const S = window.__store, ts = ms => ({ toDate: () => new Date(ms), toMillis: () => ms }), now = Date.now(), K = 'OldFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF'.slice(0, 32); S['surveyInvites/' + K] = { surveyVersion: 'default-1', employerName: 'Old FFF', company: '', ownerName: 'F', status: 'sent', createdAt: ts(now - 120 * 864e5), expiresAt: ts(now - 60 * 864e5) }; S['surveyInvitesPrivate/' + K] = { employerEmail: 'o@x.com', clientId: '' }; S['surveyForms/' + K] = { title: 'old', intro: '', createdAt: ts(now - 120 * 864e5), questions: [] }; });
+  await pg.click('#svRefresh'); await pg.waitForTimeout(400); await pg.click('#svCleanBtn'); await dlg('remove old links'); await pg.waitForTimeout(400);
+  check('F3 cleanup also deletes the question copy of the old link', !(await pg.evaluate(() => Object.keys(window.__store).some(k => /^surveyForms\/OldFFF/.test(k)))));
   // sign out clears everything
   await signOut(pg); await pg.waitForTimeout(200);
   check('F signing out clears the lists and the link panel', await pg.evaluate(() => document.querySelectorAll('#svInvList .cidrow, #svRespList .cidrow').length === 0 && document.getElementById('svOut').hidden && document.getElementById('surveyBadge').hidden));
@@ -334,6 +391,42 @@ const D1 = { [`surveyInvites/${KEY}`]: inviteOk() };
   check('F row actions are icon buttons (T2 style)', touch > 0);
   await ctx.close();
 }
+
+// ======================= G. custom survey (SV2b): extra questions on the employer page =======================
+{
+  const FORM = { title: 'Quarterly check-in <b>x</b>', intro: 'Two quick things.\nThank you.', createdAt: Date.now(), questions: [
+    { id: 'q1', type: 'stars', label: 'How was communication?', required: true, options: [] }, { id: 'q2', type: 'long', label: 'Anything to improve? <img src=x onerror="window.__xss=7">', required: false, options: [] },
+    { id: 'q3', type: 'choice', label: 'Which service?', required: true, options: ['Research', 'Admin', '<i>Other</i>'] }, { id: 'q4', type: 'yesno', label: 'Renew?', required: true, options: [] }, { id: 'q5', type: 'short', label: 'One word', required: false, options: [] }] };
+  const DOCS = { [`surveyInvites/${KEY}`]: inviteOk(), [`surveyForms/${KEY}`]: FORM };
+  const { ctx, pg, perr } = await emp('#k=' + KEY, { docs: DOCS });
+  check('G custom: the form shows the survey title and introduction as plain text (no markup)', await pg.evaluate(() => document.getElementById('svTitle').textContent === 'Quarterly check-in <b>x</b>' && document.title === 'Quarterly check-in <b>x</b>' && !document.querySelector('#svTitle b') && /Two quick things\./.test(document.querySelector('.sv-lead + .sv-lead').textContent)));
+  check('G custom: five extra questions are shown with required/optional marks and real controls', await pg.evaluate(() => { const f = [...document.querySelectorAll('#svExtra fieldset')]; return f.length === 5 && f[0].querySelector('legend').textContent.includes('(required)') && f[1].querySelector('legend').textContent.includes('(optional)') && f[0].querySelectorAll('input[type=radio]').length === 5 && f[2].querySelectorAll('input[type=radio]').length === 3 && f[3].querySelectorAll('input[type=radio]').length === 2 && !!f[1].querySelector('textarea') && !!f[4].querySelector('input[type=text]'); }));
+  check('G custom: hostile question text is inert (no element created, no script ran)', await pg.evaluate(() => !window.__xss && !document.querySelector('#svExtra img, #svExtra i, #svExtra b') && document.getElementById('svExtra').textContent.includes('<img src=x') && document.getElementById('svExtra').textContent.includes('<i>Other</i>')));
+  await fillGood(pg); await pg.click('#svSend'); await pg.waitForTimeout(250);
+  const em = await pg.evaluate(() => [...document.querySelectorAll('#svExtra .sv-err')].map(e => e.textContent));
+  check('G custom: required extra questions block sending with a message each (stars, choice, yes/no), nothing is written', em[0] && !em[1] && em[2] && em[3] && !em[4] && (await pg.evaluate(() => window.__commits.length)) === 0 && (await which(pg)) === 'svForm', JSON.stringify(em));
+  await pg.click('#x_q1 label:nth-child(4)'); await pg.fill('#x_q2 textarea', 'x'.repeat(701).slice(0, 700) + ''); await pg.click('#x_q3 label:nth-child(3)'); await pg.click('#x_q4 label:nth-child(2)'); await pg.fill('#x_q5 input', 'Great');
+  await pg.click('#svSend'); await pg.waitForTimeout(400);
+  const ops = await pg.evaluate(() => window.__commits[0]);
+  check('G custom: one batch of THREE writes: the response, the extra answers (only q1..q5 + time) and the invite flip', ops && ops.length === 3 && ops[0].path === 'surveyResponses/' + KEY && ops[1].path === 'surveyAnswers/' + KEY && ops[2].path === 'surveyInvites/' + KEY && ops[2].op === 'update', JSON.stringify(ops && ops.map(o => o.path)));
+  check('G custom: the extra answers hold exactly the validated values (stars 4, long text, choice text as written, yes/no, short) and a server time', ops && JSON.stringify(Object.keys(ops[1].data).sort()) === JSON.stringify(['q1', 'q2', 'q3', 'q4', 'q5', 'submittedAt']) && ops[1].data.q1 === 4 && ops[1].data.q2.length === 700 && ops[1].data.q3 === '<i>Other</i>' && ops[1].data.q4 === 'no' && ops[1].data.q5 === 'Great' && ops[1].data.submittedAt.__sv === true, JSON.stringify(ops && ops[1].data).slice(0, 200));
+  check('G custom: thank-you page shown and no page errors', (await which(pg)) === 'svThanks' && perr.length === 0, JSON.stringify(perr));
+  require_replay(ops, FORM);
+  await ctx.close();
+  // a default survey sends exactly two writes and never reads/writes answers
+  const d = await emp('#k=' + KEY, { docs: D1 }); await fillGood(d.pg); await d.pg.click('#svSend'); await d.pg.waitForTimeout(400);
+  const dops = await d.pg.evaluate(() => window.__commits[0]);
+  check('G default survey: still exactly two writes (response + invite flip), no extra answers, no extra block on the page', dops.length === 2 && !dops.some(o => /surveyAnswers/.test(o.path)) && (await d.pg.evaluate(() => document.querySelectorAll('#svExtra *').length)) === 0);
+  await d.ctx.close();
+  // a form that cannot be read, or is malformed, gives the neutral page
+  { const r = await emp('#k=' + KEY, { docs: { [`surveyInvites/${KEY}`]: inviteOk(), [`surveyForms/${KEY}`]: { title: 't', intro: '', questions: [] } } }); check('G custom: a malformed copy of the questions shows the neutral "not valid" page', (await which(r.pg)) === 'svInvalid'); await r.ctx.close(); }
+  { const r = await emp('#k=' + KEY, { docs: { [`surveyInvites/${KEY}`]: inviteOk(), [`surveyForms/${KEY}`]: Object.assign({}, FORM, { questions: Array(7).fill(FORM.questions[0]) }) } }); check('G custom: more than six questions shows the neutral "not valid" page', (await which(r.pg)) === 'svInvalid'); await r.ctx.close(); }
+  // optional-only survey: all optional left empty submits
+  { const OPT = { title: 'Short', intro: '', createdAt: Date.now(), questions: [{ id: 'q1', type: 'short', label: 'Anything else?', required: false, options: [] }] };
+    const r = await emp('#k=' + KEY, { docs: { [`surveyInvites/${KEY}`]: inviteOk(), [`surveyForms/${KEY}`]: OPT } }); await fillGood(r.pg); await r.pg.click('#svSend'); await r.pg.waitForTimeout(400);
+    const o = await r.pg.evaluate(() => window.__commits[0]); check('G custom: an optional question left empty is allowed and not written (answers hold only the time)', o && o.length === 3 && JSON.stringify(Object.keys(o[1].data)) === '["submittedAt"]'); await r.ctx.close(); }
+}
+function require_replay(ops, form) { fs.writeFileSync('/tmp/sv/sv2b_captured.json', JSON.stringify({ key: KEY, ops, form: { title: form.title, intro: form.intro, questions: form.questions }, invite: inviteOk() })); }
 check('page errors: ' + JSON.stringify(errs), errs.length === 0);
 const bad = results.filter(r => !r[1]).length; console.log(bad ? 'SOME FAILED (' + bad + ')' : 'ALL PASSED (' + results.length + ')');
 await b.close(); srv.close();

@@ -169,7 +169,61 @@
     return e + REMIND.cleanupGraceDays * DAY < nowMs;   // 30 days after the end date of the link (a revoked link keeps its original end date)
   }
 
+  /* ---- SV2b: custom surveys = title + intro + 1-6 EXTRA questions. The testimonial core (rating, message, name, consent) is unchanged. ---- */
+  const QLIM = { templates: 10, questions: 6, title: 80, intro: 300, label: 200, options: [2, 6], option: 60, short: 200, long: 700 };
+  const QTYPES = ['stars', 'short', 'long', 'yesno', 'choice'];
+  const QTYPE_LABEL = { stars: 'Stars (1 to 5)', short: 'Short text', long: 'Long text', yesno: 'Yes / No', choice: 'Choice (pick one)' };
+  const QKEYS = ['q1', 'q2', 'q3', 'q4', 'q5', 'q6'];
+  /* Owner input -> a clean template { title, intro, questions:[{id,type,label,required,options}] }, or friendly errors */
+  function validateTemplate(input) {
+    const x = input && typeof input === 'object' ? input : {}, err = {};
+    const title = cleanText(x.title, QLIM.title), intro = cleanText(x.intro, QLIM.intro, true);
+    if (!title) err.title = 'Give the survey a title.';
+    if (cleanText(x.title, 5000).length > QLIM.title) err.title = 'The title is too long (' + QLIM.title + ' characters at most).';
+    if (cleanText(x.intro, 5000, true).length > QLIM.intro) err.intro = 'The introduction is too long (' + QLIM.intro + ' characters at most).';
+    const qs = Array.isArray(x.questions) ? x.questions : [], questions = [], qerr = [];
+    if (!qs.length) err.questions = 'Add at least one question.';
+    if (qs.length > QLIM.questions) err.questions = 'Use ' + QLIM.questions + ' questions or fewer.';
+    qs.slice(0, QLIM.questions).forEach((q, i) => {
+      const o = q && typeof q === 'object' ? q : {}, e = {}, type = QTYPES.includes(o.type) ? o.type : '';
+      const label = cleanText(o.label, QLIM.label);
+      if (!type) e.type = 'Choose a question type.';
+      if (!label) e.label = 'Write the question.'; else if (cleanText(o.label, 5000).length > QLIM.label) e.label = 'The question is too long (' + QLIM.label + ' characters at most).';
+      let options = [];
+      if (type === 'choice') {
+        const seen = new Set(); options = (Array.isArray(o.options) ? o.options : []).map(v => cleanText(v, 5000)).filter(Boolean);
+        if (options.length < QLIM.options[0] || options.length > QLIM.options[1]) e.options = 'A choice question needs ' + QLIM.options[0] + ' to ' + QLIM.options[1] + ' options.';
+        else if (options.some(v => v.length > QLIM.option)) e.options = 'Each option may have ' + QLIM.option + ' characters at most.';
+        else if (options.some(v => (seen.has(v) ? true : (seen.add(v), false)))) e.options = 'Each option must be different.';
+      }
+      if (Object.keys(e).length) qerr[i] = e;
+      questions.push({ id: 'q' + (i + 1), type, label, required: o.required === true, options });
+    });
+    if (qerr.length) err.items = qerr;
+    if (Object.keys(err).length) return { ok: false, errors: err };
+    return { ok: true, data: { title, intro, questions } };
+  }
+  /* what is copied into a sent link: only the survey wording, never an ID or anything private */
+  const formFrom = t => ({ title: t.title, intro: t.intro, questions: t.questions.map(q => ({ id: q.id, type: q.type, label: q.label, required: q.required === true, options: q.options.slice() })) });
+  /* The employer's extra answers against the copied questions -> { ok, data: {q1: ...} } or { ok:false, errors:{q1:msg} } (rules enforce the same, slot by slot) */
+  function validateAnswers(questions, input) {
+    const x = input && typeof input === 'object' ? input : {}, qs = Array.isArray(questions) ? questions.slice(0, QLIM.questions) : [], data = {}, errors = {};
+    qs.forEach((q, i) => {
+      const k = QKEYS[i], v = Object.prototype.hasOwnProperty.call(x, k) ? x[k] : undefined, blank = v == null || v === '';
+      if (blank) { if (q.required) errors[k] = q.type === 'stars' ? 'Please choose a rating.' : 'Please answer this question.'; return; }
+      if (q.type === 'stars') { const n = Number(v); if (Number.isInteger(n) && n >= 1 && n <= 5) data[k] = n; else errors[k] = 'Please choose 1 to 5 stars.'; }
+      else if (q.type === 'yesno') { if (v === 'yes' || v === 'no') data[k] = v; else errors[k] = 'Please choose yes or no.'; }
+      else if (q.type === 'choice') { if (typeof v === 'string' && q.options.includes(v)) data[k] = v; else errors[k] = 'Please choose one of the options.'; }
+      else {
+        const max = q.type === 'long' ? QLIM.long : QLIM.short, full = cleanText(v, 5000, q.type === 'long');
+        if (!full) { if (q.required) errors[k] = 'Please answer this question.'; return; }
+        if (full.length > max) errors[k] = 'Please keep this to ' + max + ' characters or fewer (now ' + full.length + ').'; else data[k] = full;
+      }
+    });
+    return Object.keys(errors).length ? { ok: false, errors } : { ok: true, data };
+  }
+
   const DEFAULT_SURVEY = { version: 'default-1', title: 'Share your experience' };
-  const api = { KEY_RE, EXPIRY_DAYS, LIM, newKey, validKey, keyFromHash, linkFor, cleanText, parseVideoLink, validateResponse, inviteUsable, expiryFrom, stateOf, testimonialFromResponse, messageFor, mailtoFor, webmailUrls, validEmail, DEFAULT_SURVEY, DATE_RE, REMIND, validDate, todayManila, addMonths, addDays, validReminder, dueDate, isDue, snoozeTo, cleanable };
+  const api = { KEY_RE, EXPIRY_DAYS, LIM, newKey, validKey, keyFromHash, linkFor, cleanText, parseVideoLink, validateResponse, inviteUsable, expiryFrom, stateOf, testimonialFromResponse, messageFor, mailtoFor, webmailUrls, validEmail, DEFAULT_SURVEY, DATE_RE, REMIND, validDate, todayManila, addMonths, addDays, validReminder, dueDate, isDue, snoozeTo, cleanable, QLIM, QTYPES, QTYPE_LABEL, QKEYS, validateTemplate, formFrom, validateAnswers };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.coreSurvey = api;
 })(typeof window !== 'undefined' ? window : globalThis);

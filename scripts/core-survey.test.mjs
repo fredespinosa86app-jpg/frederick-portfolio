@@ -160,3 +160,32 @@ test('SV2a cleanable: only never-answered sent/revoked invites past the 30-day g
   assert.equal(S.cleanable({ status: 'revoked', expiresAt: now + 20 * D }, now), false);
   assert.equal(S.cleanable({ status: 'submitted', expiresAt: now - 99 * D }, now), false); assert.equal(S.cleanable(null, now), false); assert.equal(S.cleanable({ status: 'sent' }, now), false);
 });
+const tq = (o = {}) => ({ title: 'Check-in', intro: 'Hello', questions: [{ type: 'stars', label: 'Rate us', required: true }, { type: 'choice', label: 'Which?', options: ['A', 'B'] }], ...o });
+test('SV2b validateTemplate: clean result with ids q1..qN, trimmed text, required only when true', () => {
+  const r = S.validateTemplate(tq({ title: '  Check-in  ', questions: [{ type: 'short', label: ' Q one ', required: true }, { type: 'long', label: 'Q two', required: 'yes' }, { type: 'yesno', label: 'Q three' }, { type: 'choice', label: 'Q four', options: [' A ', 'B', '', 'B2'] }] }));
+  assert.ok(r.ok); assert.equal(r.data.title, 'Check-in'); assert.deepEqual(r.data.questions.map(q => q.id), ['q1', 'q2', 'q3', 'q4']);
+  assert.deepEqual(r.data.questions.map(q => q.required), [true, false, false, false]); assert.deepEqual(r.data.questions[3].options, ['A', 'B', 'B2']); assert.deepEqual(r.data.questions[0].options, []); assert.equal(r.data.questions[0].label, 'Q one');
+});
+test('SV2b validateTemplate: refuses empty/long title, long intro, 0 or 7 questions, bad type/label/options, duplicates', () => {
+  assert.ok(S.validateTemplate(tq({ title: '' })).errors.title); assert.ok(S.validateTemplate(tq({ title: 'x'.repeat(81) })).errors.title); assert.ok(S.validateTemplate(tq({ intro: 'x'.repeat(301) })).errors.intro);
+  assert.ok(S.validateTemplate(tq({ questions: [] })).errors.questions); assert.ok(S.validateTemplate(tq({ questions: Array(7).fill({ type: 'short', label: 'q' }) })).errors.questions); assert.ok(S.validateTemplate(tq({ questions: Array(6).fill({ type: 'short', label: 'q' }) })).ok);
+  assert.ok(S.validateTemplate(tq({ questions: [{ type: 'bad', label: 'q' }] })).errors.items[0].type); assert.ok(S.validateTemplate(tq({ questions: [{ type: 'short', label: '' }] })).errors.items[0].label); assert.ok(S.validateTemplate(tq({ questions: [{ type: 'short', label: 'x'.repeat(201) }] })).errors.items[0].label);
+  for (const o of [[], ['A'], ['A', ''], Array(7).fill(0).map((_, i) => 'o' + i), ['A', 'x'.repeat(61)], ['A', 'A']]) assert.ok(S.validateTemplate(tq({ questions: [{ type: 'choice', label: 'q', options: o }] })).errors.items[0].options, JSON.stringify(o).slice(0, 30));
+  assert.ok(S.validateTemplate(tq({ questions: [{ type: 'choice', label: 'q', options: Array(6).fill(0).map((_, i) => 'o' + i) }] })).ok); assert.equal(S.validateTemplate(null).ok, false);
+});
+test('SV2b validateTemplate: result is accepted by formFrom and never carries extra fields', () => {
+  const r = S.validateTemplate(tq({ questions: [{ type: 'short', label: 'q', evil: 'x', options: ['no'] }], secret: 'x' })); const f = S.formFrom(r.data);
+  assert.deepEqual(Object.keys(f).sort(), ['intro', 'questions', 'title']); assert.deepEqual(Object.keys(f.questions[0]).sort(), ['id', 'label', 'options', 'required', 'type']); assert.deepEqual(f.questions[0].options, []);
+});
+const FQ = [{ id: 'q1', type: 'stars', label: 'a', required: true, options: [] }, { id: 'q2', type: 'short', label: 'b', required: false, options: [] }, { id: 'q3', type: 'long', label: 'c', required: true, options: [] }, { id: 'q4', type: 'yesno', label: 'd', required: false, options: [] }, { id: 'q5', type: 'choice', label: 'e', required: true, options: ['A', 'B'] }];
+test('SV2b validateAnswers: valid answers pass, optional ones may be left out, text is cleaned', () => {
+  const r = S.validateAnswers(FQ, { q1: '4', q2: '', q3: '  Great\u200b work ', q4: 'yes', q5: 'B' }); assert.ok(r.ok); assert.deepEqual(r.data, { q1: 4, q3: 'Great work', q4: 'yes', q5: 'B' });
+  assert.deepEqual(S.validateAnswers(FQ, { q1: 1, q3: 'x', q5: 'A' }).data, { q1: 1, q3: 'x', q5: 'A' });
+});
+test('SV2b validateAnswers: required missing, bad stars/yesno/choice, too long text; unknown keys are ignored', () => {
+  const e = S.validateAnswers(FQ, {}).errors; assert.deepEqual(Object.keys(e).sort(), ['q1', 'q3', 'q5']);
+  for (const [k, v] of [['q1', 0], ['q1', 6], ['q1', 2.5], ['q1', 'x'], ['q4', 'maybe'], ['q5', 'C'], ['q5', 'a'], ['q2', 'x'.repeat(201)], ['q3', 'x'.repeat(701)]]) assert.ok(S.validateAnswers(FQ, { q1: 3, q3: 'x', q5: 'A', [k]: v }).errors[k], k + ' ' + String(v).slice(0, 5));
+  assert.ok(S.validateAnswers(FQ, { q1: 3, q3: ' \u200b ', q5: 'A' }).errors.q3);
+  const r = S.validateAnswers(FQ, { q1: 3, q3: 'x', q5: 'A', q6: 'x', extra: 1, __proto__: { q2: 'p' } }); assert.ok(r.ok); assert.ok(!('q6' in r.data) && !('extra' in r.data) && !('q2' in r.data));
+  assert.deepEqual(S.validateAnswers([], { q1: 'x' }), { ok: true, data: {} }); assert.deepEqual(S.validateAnswers(null, null), { ok: true, data: {} });
+});

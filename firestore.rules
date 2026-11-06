@@ -971,6 +971,7 @@ service cloud.firestore {
     match /surveyResponses/{k} {
       allow create: if svKey(k) && intakeOpen() && svRespOk(request.resource.data)
         && get(svInv(k)).data.status == 'sent' && get(svInv(k)).data.expiresAt > request.time
+        && (!exists(svFormDoc(k)) || existsAfter(svAns(k)))
         && getAfter(svInv(k)).data.status == 'submitted';
       allow read, delete: if isOwner();
       // the owner decides once: pending to approved or rejected (an approved response also records the id of the testimonial it became)
@@ -1008,6 +1009,72 @@ service cloud.firestore {
       allow delete: if isOwner();
     }
     // end SV2a
+    // SV2b (4.5.0): custom surveys = a title, an intro and 1-6 EXTRA questions. The testimonial core (rating, message, name, consent) is unchanged.
+    // surveyTemplates: the owner's saved surveys (owner only). surveyForms/{key}: a COPY of one template made when a link is created, readable by whoever holds
+    // that link (same rule as the invite) so later edits or deletes of a template never change a link already sent. surveyAnswers/{key}: the extra answers,
+    // written in the SAME batch as the response and checked slot by slot against the copy of the questions. Extra answers are for the owner only (never published).
+    function svOpt(o) { return o is string && o.size() >= 1 && o.size() <= 60; }
+    function svQ(q, id) {
+      return q is map && q.keys().hasOnly(['id','type','label','required','options']) && q.keys().hasAll(['id','type','label','required','options'])
+        && q.id == id && q.type in ['stars','short','long','yesno','choice']
+        && q.label is string && q.label.size() >= 1 && q.label.size() <= 200
+        && q.required is bool && q.options is list
+        && ((q.type == 'choice' && q.options.size() >= 2 && q.options.size() <= 6 && svOpt(q.options[0]) && svOpt(q.options[1])
+              && (q.options.size() < 3 || svOpt(q.options[2])) && (q.options.size() < 4 || svOpt(q.options[3])) && (q.options.size() < 5 || svOpt(q.options[4])) && (q.options.size() < 6 || svOpt(q.options[5])))
+          || (q.type != 'choice' && q.options.size() == 0));
+    }
+    function svQs(qs) {
+      return qs is list && qs.size() >= 1 && qs.size() <= 6 && svQ(qs[0], 'q1')
+        && (qs.size() < 2 || svQ(qs[1], 'q2')) && (qs.size() < 3 || svQ(qs[2], 'q3')) && (qs.size() < 4 || svQ(qs[3], 'q4')) && (qs.size() < 5 || svQ(qs[4], 'q5')) && (qs.size() < 6 || svQ(qs[5], 'q6'));
+    }
+    function svFormBody(d) {
+      return d.title is string && d.title.size() >= 1 && d.title.size() <= 80 && d.intro is string && d.intro.size() <= 300 && svQs(d.questions);
+    }
+    function svFormDoc(k) { return /databases/$(database)/documents/surveyForms/$(k); }
+    function svAns(k) { return /databases/$(database)/documents/surveyAnswers/$(k); }
+    function svAnsSlot(d, key, q) {
+      return (!(key in d.keys()) && q.required == false)
+        || (key in d.keys() && (
+             (q.type == 'stars' && d[key] is int && d[key] >= 1 && d[key] <= 5)
+          || (q.type == 'short' && d[key] is string && d[key].size() <= 200 && (q.required == false || d[key].size() >= 1))
+          || (q.type == 'long' && d[key] is string && d[key].size() <= 700 && (q.required == false || d[key].size() >= 1))
+          || (q.type == 'yesno' && d[key] in ['yes','no'])
+          || (q.type == 'choice' && d[key] is string && d[key] in q.options)));
+    }
+    function svAnsOk(d, qs) {
+      return d.keys().hasOnly(['q1','q2','q3','q4','q5','q6','submittedAt']) && d.keys().hasAll(['submittedAt']) && d.submittedAt == request.time
+        && svAnsSlot(d, 'q1', qs[0])
+        && (qs.size() >= 2 || !('q2' in d.keys())) && (qs.size() < 2 || svAnsSlot(d, 'q2', qs[1]))
+        && (qs.size() >= 3 || !('q3' in d.keys())) && (qs.size() < 3 || svAnsSlot(d, 'q3', qs[2]))
+        && (qs.size() >= 4 || !('q4' in d.keys())) && (qs.size() < 4 || svAnsSlot(d, 'q4', qs[3]))
+        && (qs.size() >= 5 || !('q5' in d.keys())) && (qs.size() < 5 || svAnsSlot(d, 'q5', qs[4]))
+        && (qs.size() >= 6 || !('q6' in d.keys())) && (qs.size() < 6 || svAnsSlot(d, 'q6', qs[5]));
+    }
+    match /surveyTemplates/{id} {
+      allow read: if isOwner();
+      allow create, update: if isOwner() && id.matches('^[A-Za-z0-9]{8,32}$')
+        && request.resource.data.keys().hasOnly(['title','intro','questions','updatedAt']) && request.resource.data.keys().hasAll(['title','intro','questions','updatedAt'])
+        && svFormBody(request.resource.data) && request.resource.data.updatedAt == request.time;
+      allow delete: if isOwner();
+    }
+    match /surveyForms/{k} {
+      allow get: if svKey(k) && (isOwner() || (get(svInv(k)).data.status == 'sent' && get(svInv(k)).data.expiresAt > request.time));
+      allow list: if isOwner();
+      // created only together with its invite, still "sent"; never edited (a new link makes a new copy)
+      allow create: if isOwner() && svKey(k)
+        && request.resource.data.keys().hasOnly(['title','intro','questions','createdAt']) && request.resource.data.keys().hasAll(['title','intro','questions','createdAt'])
+        && svFormBody(request.resource.data) && request.resource.data.createdAt == request.time
+        && existsAfter(svInv(k)) && getAfter(svInv(k)).data.status == 'sent';
+      allow delete: if isOwner();
+    }
+    match /surveyAnswers/{k} {
+      allow read, delete: if isOwner();
+      allow create: if svKey(k) && intakeOpen() && exists(svFormDoc(k))
+        && get(svInv(k)).data.status == 'sent' && get(svInv(k)).data.expiresAt > request.time
+        && getAfter(svInv(k)).data.status == 'submitted' && existsAfter(svResp(k))
+        && svAnsOk(request.resource.data, get(svFormDoc(k)).data.questions);
+    }
+    // end SV2b
     match /ownerPrivate/{doc} { allow read, write: if isOwner(); }
     match /content/{doc} {
       allow read: if true;

@@ -13,7 +13,7 @@
   const kit = window.dashKit, SV = window.coreSurvey; if (!kit || !SV) return;
   const { el, notify, confirmBox } = kit;
   const $ = id => document.getElementById(id), own = () => window.OWN;
-  let invites = [], priv = {}, resps = {}, rems = {}, signed = false, loaded = false, clientIds = [];
+  let invites = [], priv = {}, resps = {}, rems = {}, templates = {}, forms = {}, answers = {}, signed = false, loaded = false, clientIds = [];
   const say = (id, m) => { const n = $(id); if (n) n.textContent = m || ''; };
   const errText = e => (e && e.code === 'permission-denied') ? 'The database refused this (permission denied). Publish the newest firestore.rules.strict, sign in again and refresh this page.' : ((e && e.message) || 'Unknown error.');
   const ms = t => t && typeof t.toMillis === 'function' ? t.toMillis() : (Number(t) || 0);
@@ -28,6 +28,8 @@
     const [a, b, c] = await Promise.all([f.getDocs(f.query(f.collection(o.db, 'surveyInvites'))), f.getDocs(f.query(f.collection(o.db, 'surveyInvitesPrivate'))), f.getDocs(f.query(f.collection(o.db, 'surveyResponses')))]);
     invites = a.docs.map(d => Object.assign({ key: d.id }, d.data())).sort((x, y) => ms(y.createdAt) - ms(x.createdAt));
     priv = {}; b.docs.forEach(d => { priv[d.id] = d.data(); }); resps = {}; c.docs.forEach(d => { resps[d.id] = d.data(); });
+    templates = {}; forms = {}; answers = {};
+    for (const [col, into] of [['surveyTemplates', templates], ['surveyForms', forms], ['surveyAnswers', answers]]) { try { const r = await f.getDocs(f.query(f.collection(o.db, col))); r.docs.forEach(d => { into[d.id] = d.data(); }); } catch (e) { /* optional */ } }
     rems = {}; try { const r = await f.getDocs(f.query(f.collection(o.db, 'surveyReminders'))); r.docs.forEach(d => { rems[d.id] = d.data(); }); } catch (e) { rems = {}; }
     try { const s = await f.getDocs(f.query(f.collection(o.db, 'clientRegistry'))); clientIds = s.docs.filter(d => d.data().status === 'active').map(d => d.id).sort(); } catch (e) { clientIds = []; }
     try { const m = await f.getDoc(f.doc(o.db, 'ownerPrivate', 'surveySettings')); if (m.exists() && !$('svOwnerName').value) $('svOwnerName').value = SV.cleanText(m.data().ownerName, 80); } catch (e) { /* optional */ }
@@ -60,6 +62,51 @@
   }
   function useReminder(id) { const sel = $('svClient'); if (sel) sel.value = id; const n = $('svEmpName'); if (n) { n.scrollIntoView({ block: 'center' }); n.focus(); } notify('Client ID ' + id + ' is selected. Enter the employer’s name and e-mail, then create the link.', 'info'); }
 
+
+  /* ---------------------------------------------------------------- survey templates (SV2b): title, intro, 1-6 extra questions */
+  const dBtn = (txt, fn, cls) => el('button', { type: 'button', class: 'dbtn' + (cls ? ' ' + cls : ''), onclick: fn }, txt);
+  function editTemplate(id) {
+    const cur = id ? templates[id] : null, d = el('dialog', { class: 'dmodal svtpl', 'aria-labelledby': 'svTplT' });
+    const title = el('input', { type: 'text', maxlength: String(SV.QLIM.title), 'aria-label': 'Survey title', autocomplete: 'off' }), intro = el('textarea', { rows: '3', maxlength: String(SV.QLIM.intro), 'aria-label': 'Introduction' });
+    const list = el('div', { class: 'svqs' }), err = el('p', { class: 'ferr', role: 'alert' }), rows = [];
+    title.value = cur ? cur.title : ''; intro.value = cur ? cur.intro : '';
+    const addBtn = dBtn('Add question', () => addRow(), 'ibtn');
+    function addRow(q) {
+      if (rows.length >= SV.QLIM.questions) { err.textContent = 'Use ' + SV.QLIM.questions + ' questions or fewer.'; return; }
+      const n = rows.length + 1, type = el('select', { 'aria-label': 'Question ' + n + ' type' }, ...SV.QTYPES.map(t => el('option', { value: t }, SV.QTYPE_LABEL[t])));
+      const label = el('input', { type: 'text', maxlength: String(SV.QLIM.label), 'aria-label': 'Question ' + n + ' wording', autocomplete: 'off', placeholder: 'The question' });
+      const req = el('input', { type: 'checkbox', 'aria-label': 'Question ' + n + ' is required' }), opts = el('textarea', { rows: '3', 'aria-label': 'Question ' + n + ' options, one per line', placeholder: 'One option per line (2 to 6)' });
+      const rm = dBtn('Remove', () => { rows.splice(rows.indexOf(r), 1); wrap.remove(); renumber(); }, 'sm');
+      rm.setAttribute('aria-label', 'Remove question ' + n);
+      const sync = () => { opts.parentElement.hidden = type.value !== 'choice'; }; type.addEventListener('change', sync);
+      const wrap = el('div', { class: 'svq' }, el('div', { class: 'ab' }, el('label', { class: 'fld' }, 'Type', type), el('label', { class: 'fld svqw' }, 'Question', label), el('label', { class: 'tog' }, req, ' Required')), el('label', { class: 'fld' }, 'Options', opts), rm);
+      const r = { type, label, req, opts, wrap, rm };
+      if (q) { type.value = q.type; label.value = q.label; req.checked = q.required === true; opts.value = (q.options || []).join('\n'); }
+      sync(); rows.push(r); list.append(wrap); renumber();
+    }
+    function renumber() { rows.forEach((r, i) => { const n = i + 1; r.type.setAttribute('aria-label', 'Question ' + n + ' type'); r.label.setAttribute('aria-label', 'Question ' + n + ' wording'); r.req.setAttribute('aria-label', 'Question ' + n + ' is required'); r.opts.setAttribute('aria-label', 'Question ' + n + ' options, one per line'); r.rm.setAttribute('aria-label', 'Remove question ' + n); }); addBtn.disabled = rows.length >= SV.QLIM.questions; }
+    ((cur && cur.questions) || [{ type: 'short', label: '', required: false, options: [] }]).forEach(q => addRow(q));
+    const save = dBtn('Save survey', async () => {
+      err.textContent = '';
+      const v = SV.validateTemplate({ title: title.value, intro: intro.value, questions: rows.map(r => ({ type: r.type.value, label: r.label.value, required: r.req.checked, options: r.type.value === 'choice' ? r.opts.value.split('\n') : [] })) });
+      if (!v.ok) { const e = v.errors, qi = (e.items || []).findIndex(Boolean); err.textContent = e.title || e.intro || e.questions || (qi >= 0 ? 'Question ' + (qi + 1) + ': ' + (Object.values(e.items[qi])[0]) : 'Please check the form.'); return; }
+      if (!id && Object.keys(templates).length >= SV.QLIM.templates) { err.textContent = 'You can keep ' + SV.QLIM.templates + ' surveys. Delete one first.'; return; }
+      try {
+        const o = own(), f = o.fs, tid = id || SV.newKey().slice(0, 16); await f.setDoc(f.doc(o.db, 'surveyTemplates', tid), Object.assign({}, v.data, { updatedAt: f.serverTimestamp() }));
+        o.log && o.log('Survey saved: ' + v.data.title); notify('Survey saved.', 'success'); d.close(); await load(); draw();
+      } catch (e) { err.textContent = 'Could not save. ' + errText(e); }
+    }, 'primary');
+    d.append(el('div', {}, el('h2', { id: 'svTplT' }, id ? 'Edit survey' : 'New survey'),
+      el('p', { class: 'dhelp' }, 'Every survey keeps the rating, message, name and consent questions (they become the testimonial). Add up to ' + SV.QLIM.questions + ' extra questions. The answers to your extra questions are only for you and are never published.'),
+      el('label', { class: 'fld' }, 'Survey title', title), el('label', { class: 'fld' }, 'Introduction (optional)', intro), list, addBtn, err,
+      el('div', { class: 'dact-row' }, dBtn('Cancel', () => d.close()), save)));
+    d.addEventListener('close', () => d.remove()); document.body.append(d); d.showModal(); title.focus();
+  }
+  async function removeTemplate(id) {
+    if (!await confirmBox('Delete this survey?', '“' + templates[id].title + '” is deleted. Links you already sent keep their own copy of the questions and still work.', 'Delete survey')) return;
+    try { const o = own(), f = o.fs; await f.deleteDoc(f.doc(o.db, 'surveyTemplates', id)); notify('Survey deleted.', 'success'); await load(); draw(); } catch (e) { notify('Could not delete. ' + errText(e), 'error'); }
+  }
+
   /* ---------------------------------------------------------------- cleanup of old unanswered links (SV2a): manual, never touches answers */
   const oldInvites = () => invites.filter(i => !resps[i.key] && SV.cleanable(i, Date.now()));
   async function cleanup() {
@@ -67,7 +114,7 @@
     if (!await confirmBox('Remove ' + list.length + ' old survey link' + (list.length === 1 ? '' : 's') + '?', 'These links were never answered and ended more than ' + SV.REMIND.cleanupGraceDays + ' days ago (expired or revoked). They and their private e-mail records are deleted. Answers are never removed here.', 'Remove old links')) return;
     try {
       const o = own(), f = o.fs;
-      for (let i = 0; i < list.length; i += 100) { const b = f.writeBatch(); list.slice(i, i + 100).forEach(x => { b.delete(f.doc(o.db, 'surveyInvites', x.key)); b.delete(f.doc(o.db, 'surveyInvitesPrivate', x.key)); }); await b.commit(); }
+      for (let i = 0; i < list.length; i += 70) { const b = f.writeBatch(); list.slice(i, i + 70).forEach(x => { b.delete(f.doc(o.db, 'surveyInvites', x.key)); b.delete(f.doc(o.db, 'surveyInvitesPrivate', x.key)); b.delete(f.doc(o.db, 'surveyForms', x.key)); }); await b.commit(); }
       o.log && o.log('Old survey links removed (' + list.length + ')'); notify(list.length + ' old link' + (list.length === 1 ? '' : 's') + ' removed.', 'success'); await load(); draw(); badge();
     } catch (e) { notify('Could not remove the old links. ' + errText(e), 'error'); }
   }
@@ -76,7 +123,7 @@
   async function create() {
     say('svErr', '');
     const name = SV.cleanText($('svEmpName').value, 100), email = String($('svEmpEmail').value || '').trim(), company = SV.cleanText($('svEmpCompany').value, 100),
-      ownerName = SV.cleanText($('svOwnerName').value, 80), clientId = $('svClient').value;
+      ownerName = SV.cleanText($('svOwnerName').value, 80), clientId = $('svClient').value, tpl = templates[$('svSurvey').value] || null;
     if (!name) return say('svErr', 'Enter the employer’s name.');
     if (!SV.validEmail(email)) return say('svErr', 'Enter a valid e-mail address for the employer.');
     if (!ownerName) return say('svErr', 'Enter your name as the employer knows you.');
@@ -85,10 +132,11 @@
       const o = own(), f = o.fs, b = f.writeBatch();
       b.set(f.doc(o.db, 'surveyInvites', key), { surveyVersion: SV.DEFAULT_SURVEY.version, employerName: name, company, ownerName, status: 'sent', createdAt: f.serverTimestamp(), expiresAt: new Date(SV.expiryFrom(now)) });
       b.set(f.doc(o.db, 'surveyInvitesPrivate', key), { employerEmail: email, clientId, createdAt: f.serverTimestamp() });
+      if (tpl) b.set(f.doc(o.db, 'surveyForms', key), Object.assign(SV.formFrom(tpl), { createdAt: f.serverTimestamp() }));   // a COPY of the questions: later edits of the template never change this link
       await b.commit();
       f.setDoc(f.doc(o.db, 'ownerPrivate', 'surveySettings'), { ownerName }).catch(() => {});
       o.log && o.log('Survey link created for an employer (reference ' + key.slice(0, 8) + ')');
-      ['svEmpName', 'svEmpEmail', 'svEmpCompany'].forEach(i => { $(i).value = ''; }); $('svClient').value = '';
+      ['svEmpName', 'svEmpEmail', 'svEmpCompany'].forEach(i => { $(i).value = ''; }); $('svClient').value = ''; $('svSurvey').value = '';
       if (clientId && rems[clientId] && rems[clientId].status === 'active') { try { await saveReminder(clientId, Object.assign({}, rems[clientId], { status: 'done', snoozedUntil: '' })); } catch (e) { /* the link is created; the reminder can be marked by hand */ } }
       await load(); draw(); badge();
       showLink(key, name, email, ownerName);
@@ -134,7 +182,7 @@
   async function removeInvite(inv) {
     if (!await confirmBox('Delete this invite?', 'The invite and the employer e-mail saved with it are deleted. This cannot be undone.', 'Delete')) return;
     try {
-      const o = own(), f = o.fs, b = f.writeBatch(); b.delete(f.doc(o.db, 'surveyInvites', inv.key)); b.delete(f.doc(o.db, 'surveyInvitesPrivate', inv.key)); await b.commit();
+      const o = own(), f = o.fs, b = f.writeBatch(); b.delete(f.doc(o.db, 'surveyInvites', inv.key)); b.delete(f.doc(o.db, 'surveyInvitesPrivate', inv.key)); b.delete(f.doc(o.db, 'surveyForms', inv.key)); await b.commit();
       notify('Invite deleted.', 'success'); await load(); draw(); badge();
     } catch (e) { notify('Could not delete. ' + errText(e), 'error'); }
   }
@@ -165,6 +213,12 @@
   }
 
   /* ---------------------------------------------------------------- drawing (all text via el(), never innerHTML) */
+  /* the extra answers of a custom survey, labelled with the question text copied into that link; plain text only, never published */
+  function extraAnswers(key) {
+    const f = forms[key], a = answers[key]; if (!f || !a || !Array.isArray(f.questions)) return null;
+    const rowsE = f.questions.map((q, i) => { const v = a['q' + (i + 1)]; return el('li', {}, el('strong', {}, String(q.label)), ': ', v == null || v === '' ? '(no answer)' : (q.type === 'stars' ? '★'.repeat(Number(v) || 0) + ' (' + v + '/5)' : String(v))); });
+    return el('div', { class: 'svextra' }, el('p', { class: 'dhelp' }, 'Extra answers from “' + String(f.title) + '” (only for you, never published):'), el('ul', { class: 'svxl' }, ...rowsE));
+  }
   const chip = s => el('span', { class: 'svbadge ' + s }, STATE[s] || s);
   function draw() {
     const now = Date.now();
@@ -172,7 +226,7 @@
     $('svInvList').replaceChildren(...(invites.length ? invites.map(inv => {
       const st = SV.stateOf(inv, resps[inv.key], now), p = priv[inv.key] || {};
       return el('div', { class: 'cidrow svrow' },
-        el('div', { class: 'cidmain' }, el('strong', {}, inv.employerName), chip(st), el('span', { class: 'libmeta' }, [inv.company, p.clientId ? 'Client ID ' + p.clientId : '', 'Created ' + fmt(inv.createdAt), st === 'sent' ? 'Expires ' + fmt(inv.expiresAt) : '', 'Ref ' + inv.key.slice(0, 8)].filter(Boolean).join(' \u00B7 '))),
+        el('div', { class: 'cidmain' }, el('strong', {}, inv.employerName), chip(st), el('span', { class: 'libmeta' }, [inv.company, p.clientId ? 'Client ID ' + p.clientId : '', (forms[inv.key] ? 'Survey: ' + forms[inv.key].title : ''), 'Created ' + fmt(inv.createdAt), st === 'sent' ? 'Expires ' + fmt(inv.expiresAt) : '', 'Ref ' + inv.key.slice(0, 8)].filter(Boolean).join(' \u00B7 '))),
         el('div', { class: 'svact' },
           st === 'sent' ? kit.iconBtn('inbox', 'Send e-mail', inv.employerName, () => openMail(p.employerEmail || '', linkOf(inv.key), inv.ownerName, inv.employerName), { disabled: !p.employerEmail }) : null,
           st === 'sent' ? kit.iconBtn('link', 'Copy link', inv.employerName, () => copy(linkOf(inv.key), 'Link')) : null,
@@ -185,7 +239,8 @@
       return el('div', { class: 'cidrow svresp' },
         el('div', { class: 'cidmain' }, el('strong', {}, r.displayName), chip(s), el('span', { class: 'libmeta' }, [r.displayRole, r.displayCompany, 'Sent ' + fmt(r.submittedAt), 'Ref ' + key.slice(0, 8)].filter(Boolean).join(' · '))),
         el('div', { class: 'svstars', role: 'img', 'aria-label': 'Rated ' + r.rating + ' out of 5' }, '★'.repeat(Number(r.rating) || 0) + '☆'.repeat(5 - (Number(r.rating) || 0)), el('span', { class: 'libmeta' }, ' ' + r.rating + '/5 · Would recommend: ' + (r.recommend === 'yes' ? 'yes' : 'no'))),
-        el('p', { class: 'svquote' }, r.comment), r.best ? el('p', { class: 'dhelp' }, 'Best: ' + r.best) : null,
+        el('p', { class: 'svquote' }, r.comment), extraAnswers(key),
+        r.best ? el('p', { class: 'dhelp' }, 'Best: ' + r.best) : null,
         v.ok && v.url ? el('p', { class: 'dhelp' }, 'Video (' + v.label + '): ', el('a', { href: v.url, target: '_blank', rel: 'noopener noreferrer' }, 'open in a new tab'), v.kind === 'drive' ? ' · check that it opens without signing in before you use it' : '') : null,
         el('div', { class: 'dact-row' },
           s === 'answered' ? kit.iconBtn('eye', 'Approve and add to Testimonials', r.displayName, () => approve(key, r), { primary: true, text: 'Approve' }) : null,
@@ -193,6 +248,11 @@
           v.ok && v.url ? kit.iconBtn('copy', 'Copy video link', r.displayName, () => copy(v.url, 'Video link')) : null,
           s === 'approved' ? kit.iconBtn('pencil', 'Open Testimonials', r.displayName, () => { const b = document.querySelector('.dnav button[data-page="testimonials"]'); if (b) b.click(); }, { text: 'Open Testimonials' }) : null));
     }) : [el('p', { class: 'dstate' }, 'No answers yet.')]));
+    const tids = Object.keys(templates).sort((a, b) => (templates[a].title < templates[b].title ? -1 : 1));
+    $('svTplList').replaceChildren(...(tids.length ? tids.map(id => el('div', { class: 'cidrow svrow' },
+      el('div', { class: 'cidmain' }, el('strong', {}, templates[id].title), el('span', { class: 'libmeta' }, templates[id].questions.length + ' extra question' + (templates[id].questions.length === 1 ? '' : 's'))),
+      el('div', { class: 'svact' }, kit.iconBtn('pencil', 'Edit survey', templates[id].title, () => editTemplate(id)), kit.iconBtn('trash', 'Delete survey', templates[id].title, () => removeTemplate(id), { danger: true })))) : [el('p', { class: 'dstate' }, 'No custom surveys yet. The default survey is always available.')]));
+    const ss = $('svSurvey'), scur = ss.value; ss.replaceChildren(el('option', { value: '' }, 'Default survey'), ...tids.map(id => el('option', { value: id }, templates[id].title))); ss.value = tids.includes(scur) ? scur : '';
     const due = dueList(), today = SV.todayManila(now);
     $('svDueList').replaceChildren(...(due.length ? due.map(([id, r]) => el('div', { class: 'cidrow svrow' },
       el('div', { class: 'cidmain' }, el('strong', {}, id), el('span', { class: 'svbadge answered' }, 'Survey due'), el('span', { class: 'libmeta' }, 'Started ' + r.startDate + ' · due ' + SV.dueDate(r))),
@@ -217,10 +277,10 @@
   }
   function init() {
     if (!$('dp-surveys')) return;
-    $('svCreate').addEventListener('click', create); $('svRemSave').addEventListener('click', addReminder); $('svCleanBtn').addEventListener('click', cleanup); $('svRefresh').addEventListener('click', show);
+    $('svCreate').addEventListener('click', create); $('svTplNew').addEventListener('click', () => editTemplate(null)); $('svRemSave').addEventListener('click', addReminder); $('svCleanBtn').addEventListener('click', cleanup); $('svRefresh').addEventListener('click', show);
     $('svEmpEmail').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); create(); } });
     document.addEventListener('dash:page', e => { if (e.detail === 'surveys') show(); });
-    document.addEventListener('own:auth', e => { signed = !!(e.detail && e.detail.ok); loaded = false; invites = []; priv = {}; resps = {}; if (!signed) { $('svInvList').replaceChildren(); $('svRespList').replaceChildren(); $('svOut').replaceChildren(); $('svOut').hidden = true; say('svState', ''); const n = $('surveyBadge'); if (n) n.hidden = true; } else badgeOnly(); });
+    document.addEventListener('own:auth', e => { signed = !!(e.detail && e.detail.ok); loaded = false; invites = []; priv = {}; resps = {}; rems = {}; templates = {}; forms = {}; answers = {}; if (!signed) { $('svInvList').replaceChildren(); $('svRespList').replaceChildren(); $('svDueList').replaceChildren(); $('svRemList').replaceChildren(); $('svTplList').replaceChildren(); $('svOut').replaceChildren(); $('svOut').hidden = true; say('svState', ''); const n = $('surveyBadge'); if (n) n.hidden = true; } else badgeOnly(); });
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();

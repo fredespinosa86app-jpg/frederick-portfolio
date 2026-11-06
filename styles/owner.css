@@ -326,3 +326,10 @@ button.libtile.pickable{cursor:pointer;min-height:44px}button.libtile.pickable:h
 .svrow .cidmain{flex:1 1 280px;min-width:0}
 .svact{display:flex;gap:8px;margin-left:auto;flex:none}
 .svchoose .dbtn{flex:1 1 auto}
+dialog.svtpl{max-width:min(720px,94vw);max-height:92vh;overflow:auto}
+.svqs{display:grid;gap:12px;margin:10px 0}
+.svq{border:1px solid var(--line,#ccc);border-radius:10px;padding:10px 12px;display:grid;gap:8px}
+.svq .svqw{flex:1 1 220px}
+.svq textarea,.svtpl textarea{width:100%}
+.svxl{margin:4px 0 8px 18px;padding:0}
+.svextra{margin:6px 0}

@@ -58,7 +58,8 @@ test('survey page keeps the key out of the network: it is read from the #fragmen
   assert.ok(!/location\.search/.test(js)); assert.ok(!/localStorage|sessionStorage|document\.cookie/.test(js), 'the key must not be stored');
 });
 test('survey page: only the fields the rules allow are written, and the batch holds exactly the response and the invite flip', () => {
-  assert.equal((js.match(/b\.(set|update|delete)\(/g) || []).length, 2); assert.match(js, /b\.set\(respRef, Object\.assign\(\{\}, v\.data, \{ submittedAt: fs\.serverTimestamp\(\), ownerStatus: 'pending' \}\)\)/);
+  assert.equal((js.match(/b\.(set|update|delete)\(/g) || []).length, 3);   // response, extra answers (custom surveys only), invite flip
+  assert.match(js, /if \(form\) b\.set\(fs\.doc\(db, 'surveyAnswers', key\), Object\.assign\(\{\}, ans\.data, \{ submittedAt: fs\.serverTimestamp\(\) \}\)\);/); assert.match(js, /b\.set\(respRef, Object\.assign\(\{\}, v\.data, \{ submittedAt: fs\.serverTimestamp\(\), ownerStatus: 'pending' \}\)\)/);
   assert.match(js, /b\.update\(invRef, \{ status: 'submitted', submittedAt: fs\.serverTimestamp\(\) \}\)/);
 });
 test('owner page: every id used by owner-surveys.js exists once in index.html; links to employer-supplied addresses are validated and safe', () => {
@@ -95,3 +96,11 @@ test('App Check: if a site key is ever set, the survey CSP must allow the reCAPT
   if (key) { assert.ok(P['script-src'].some(h => /google\.com\/recaptcha|gstatic\.com\/recaptcha/.test(h)) || P['script-src'].includes('https://www.google.com/recaptcha/'), 'add the App Check hosts to survey.html and initialise App Check in survey-page.js'); assert.match(js, /AppCheck|appCheck/i); }
 });
 test('survey styles use theme tokens and no external addresses', () => { assert.ok(!/https?:\/\//.test(css)); assert.ok(!/@import/.test(css)); });
+test('SV2b: the employer page renders extra questions with textContent/createElement only, validates them again, and the owner page never uses innerHTML for survey text', () => {
+  const code = t => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');   // comments may mention the word
+  assert.ok(!/innerHTML|insertAdjacentHTML|outerHTML|document\.write/.test(code(js)), 'survey page');
+  assert.ok(!/innerHTML|insertAdjacentHTML|outerHTML/.test(code(own)), 'owner survey page');
+  assert.match(js, /SV\.validateAnswers\(form\.questions, extra\)/); assert.match(js, /SV\.QKEYS\[i\]/);
+  assert.match(js, /fs\.doc\(db, 'surveyForms', key\)/); assert.match(own, /Object\.assign\(SV\.formFrom\(tpl\), \{ createdAt: f\.serverTimestamp\(\) \}\)/);
+  assert.match(own, /b\.delete\(f\.doc\(o\.db, 'surveyForms', inv\.key\)\)/); assert.match(own, /b\.delete\(f\.doc\(o\.db, 'surveyForms', x\.key\)\)/);
+});
