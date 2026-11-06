@@ -13,7 +13,7 @@
   const kit = window.dashKit, SV = window.coreSurvey; if (!kit || !SV) return;
   const { el, notify, confirmBox } = kit;
   const $ = id => document.getElementById(id), own = () => window.OWN;
-  let invites = [], priv = {}, resps = {}, signed = false, loaded = false, clientIds = [];
+  let invites = [], priv = {}, resps = {}, rems = {}, signed = false, loaded = false, clientIds = [];
   const say = (id, m) => { const n = $(id); if (n) n.textContent = m || ''; };
   const errText = e => (e && e.code === 'permission-denied') ? 'The database refused this (permission denied). Publish the newest firestore.rules.strict, sign in again and refresh this page.' : ((e && e.message) || 'Unknown error.');
   const ms = t => t && typeof t.toMillis === 'function' ? t.toMillis() : (Number(t) || 0);
@@ -28,17 +28,48 @@
     const [a, b, c] = await Promise.all([f.getDocs(f.query(f.collection(o.db, 'surveyInvites'))), f.getDocs(f.query(f.collection(o.db, 'surveyInvitesPrivate'))), f.getDocs(f.query(f.collection(o.db, 'surveyResponses')))]);
     invites = a.docs.map(d => Object.assign({ key: d.id }, d.data())).sort((x, y) => ms(y.createdAt) - ms(x.createdAt));
     priv = {}; b.docs.forEach(d => { priv[d.id] = d.data(); }); resps = {}; c.docs.forEach(d => { resps[d.id] = d.data(); });
+    rems = {}; try { const r = await f.getDocs(f.query(f.collection(o.db, 'surveyReminders'))); r.docs.forEach(d => { rems[d.id] = d.data(); }); } catch (e) { rems = {}; }
     try { const s = await f.getDocs(f.query(f.collection(o.db, 'clientRegistry'))); clientIds = s.docs.filter(d => d.data().status === 'active').map(d => d.id).sort(); } catch (e) { clientIds = []; }
     try { const m = await f.getDoc(f.doc(o.db, 'ownerPrivate', 'surveySettings')); if (m.exists() && !$('svOwnerName').value) $('svOwnerName').value = SV.cleanText(m.data().ownerName, 80); } catch (e) { /* optional */ }
     loaded = true;
   }
-  function badge() {
-    const n = $('surveyBadge'); if (!n) return; const c = Object.values(resps).filter(r => r.ownerStatus === 'pending').length;
-    n.textContent = String(c); n.hidden = !c; n.setAttribute('aria-label', c + ' survey answer' + (c === 1 ? '' : 's') + ' to review');
-  }
+  const dueList = () => Object.entries(rems).filter(([, r]) => SV.isDue(r, SV.todayManila(Date.now()))).sort((x, y) => (SV.dueDate(x[1]) < SV.dueDate(y[1]) ? -1 : 1));
+  function setBadge(c) { const n = $('surveyBadge'); if (!n) return; n.textContent = String(c); n.hidden = !c; n.setAttribute('aria-label', c + ' survey item' + (c === 1 ? '' : 's') + ' to look at (answers to review and reminders due)'); }
+  const badge = () => setBadge(Object.values(resps).filter(r => r.ownerStatus === 'pending').length + dueList().length);
   async function badgeOnly() {
     if (!signed) return; try { const o = own(), f = o.fs, s = await f.getDocs(f.query(f.collection(o.db, 'surveyResponses'), f.where('ownerStatus', '==', 'pending'), f.limit(50)));
-      const n = $('surveyBadge'); if (n) { n.textContent = String(s.size); n.hidden = !s.size; n.setAttribute('aria-label', s.size + ' survey answer' + (s.size === 1 ? '' : 's') + ' to review'); } } catch (e) { /* the badge is optional */ }
+      let due = 0; try { const r = await f.getDocs(f.query(f.collection(o.db, 'surveyReminders'))); const t = SV.todayManila(Date.now()); r.docs.forEach(d => { if (SV.isDue(d.data(), t)) due++; }); } catch (e) { /* reminders are optional */ }
+      setBadge(s.size + due); } catch (e) { /* the badge is optional */ }
+  }
+
+  /* ---------------------------------------------------------------- reminders (SV2a): start date + months per Client ID, due card, snooze, not needed */
+  async function saveReminder(id, data) { const o = own(), f = o.fs; await f.setDoc(f.doc(o.db, 'surveyReminders', id), Object.assign({}, data, { updatedAt: f.serverTimestamp() })); }
+  async function addReminder() {
+    say('svRemErr', ''); const id = $('svRemClient').value; if (!id) return say('svRemErr', 'Choose a Client ID first.');
+    const v = SV.validReminder({ startDate: $('svRemStart').value, months: $('svRemMonths').value }); if (!v.ok) return say('svRemErr', v.errors.startDate || v.errors.months);
+    try { await saveReminder(id, v.data); own().log && own().log('Survey reminder saved for ' + id); notify('Reminder saved. It is due on ' + SV.dueDate(v.data) + '.', 'success'); $('svRemStart').value = ''; await load(); draw(); badge(); }
+    catch (e) { say('svRemErr', 'Could not save the reminder. ' + errText(e)); }
+  }
+  async function patchReminder(id, patch, msg) {
+    try { const r = rems[id]; if (!r) return; await saveReminder(id, { startDate: r.startDate, months: r.months, status: r.status, snoozedUntil: r.snoozedUntil || '', ...patch }); notify(msg, 'success'); await load(); draw(); badge(); }
+    catch (e) { notify('Could not change the reminder. ' + errText(e), 'error'); }
+  }
+  async function removeReminder(id) {
+    if (!await confirmBox('Delete this reminder?', 'The reminder for ' + id + ' is removed. Your survey links and answers are not affected.', 'Delete reminder')) return;
+    try { const o = own(), f = o.fs; await f.deleteDoc(f.doc(o.db, 'surveyReminders', id)); notify('Reminder deleted.', 'success'); await load(); draw(); badge(); } catch (e) { notify('Could not delete. ' + errText(e), 'error'); }
+  }
+  function useReminder(id) { const sel = $('svClient'); if (sel) sel.value = id; const n = $('svEmpName'); if (n) { n.scrollIntoView({ block: 'center' }); n.focus(); } notify('Client ID ' + id + ' is selected. Enter the employer’s name and e-mail, then create the link.', 'info'); }
+
+  /* ---------------------------------------------------------------- cleanup of old unanswered links (SV2a): manual, never touches answers */
+  const oldInvites = () => invites.filter(i => !resps[i.key] && SV.cleanable(i, Date.now()));
+  async function cleanup() {
+    const list = oldInvites(); if (!list.length) return;
+    if (!await confirmBox('Remove ' + list.length + ' old survey link' + (list.length === 1 ? '' : 's') + '?', 'These links were never answered and ended more than ' + SV.REMIND.cleanupGraceDays + ' days ago (expired or revoked). They and their private e-mail records are deleted. Answers are never removed here.', 'Remove old links')) return;
+    try {
+      const o = own(), f = o.fs;
+      for (let i = 0; i < list.length; i += 100) { const b = f.writeBatch(); list.slice(i, i + 100).forEach(x => { b.delete(f.doc(o.db, 'surveyInvites', x.key)); b.delete(f.doc(o.db, 'surveyInvitesPrivate', x.key)); }); await b.commit(); }
+      o.log && o.log('Old survey links removed (' + list.length + ')'); notify(list.length + ' old link' + (list.length === 1 ? '' : 's') + ' removed.', 'success'); await load(); draw(); badge();
+    } catch (e) { notify('Could not remove the old links. ' + errText(e), 'error'); }
   }
 
   /* ---------------------------------------------------------------- create + send */
@@ -58,6 +89,7 @@
       f.setDoc(f.doc(o.db, 'ownerPrivate', 'surveySettings'), { ownerName }).catch(() => {});
       o.log && o.log('Survey link created for an employer (reference ' + key.slice(0, 8) + ')');
       ['svEmpName', 'svEmpEmail', 'svEmpCompany'].forEach(i => { $(i).value = ''; }); $('svClient').value = '';
+      if (clientId && rems[clientId] && rems[clientId].status === 'active') { try { await saveReminder(clientId, Object.assign({}, rems[clientId], { status: 'done', snoozedUntil: '' })); } catch (e) { /* the link is created; the reminder can be marked by hand */ } }
       await load(); draw(); badge();
       showLink(key, name, email, ownerName);
     } catch (e) { say('svErr', 'Could not create the link. ' + errText(e) + (e && e.code === 'permission-denied' ? ' If your computer clock is more than a day ahead, correct it and try again.' : '')); }
@@ -161,6 +193,21 @@
           v.ok && v.url ? kit.iconBtn('copy', 'Copy video link', r.displayName, () => copy(v.url, 'Video link')) : null,
           s === 'approved' ? kit.iconBtn('pencil', 'Open Testimonials', r.displayName, () => { const b = document.querySelector('.dnav button[data-page="testimonials"]'); if (b) b.click(); }, { text: 'Open Testimonials' }) : null));
     }) : [el('p', { class: 'dstate' }, 'No answers yet.')]));
+    const due = dueList(), today = SV.todayManila(now);
+    $('svDueList').replaceChildren(...(due.length ? due.map(([id, r]) => el('div', { class: 'cidrow svrow' },
+      el('div', { class: 'cidmain' }, el('strong', {}, id), el('span', { class: 'svbadge answered' }, 'Survey due'), el('span', { class: 'libmeta' }, 'Started ' + r.startDate + ' · due ' + SV.dueDate(r))),
+      el('div', { class: 'svact' },
+        kit.iconBtn('plus', 'Create survey link', id, () => useReminder(id), { primary: true }),
+        kit.iconBtn('clock', 'Snooze 7 days', id, () => patchReminder(id, { snoozedUntil: SV.snoozeTo(today) }, 'Snoozed until ' + SV.snoozeTo(today) + '.')),
+        kit.iconBtn('close', 'Not needed', id, () => patchReminder(id, { status: 'skipped', snoozedUntil: '' }, 'Marked as not needed.'), { danger: true })))) : [el('p', { class: 'dstate' }, 'No survey is due right now.')]));
+    const all = Object.entries(rems).sort((x, y) => (x[0] < y[0] ? -1 : 1));
+    $('svRemList').replaceChildren(...(all.length ? all.map(([id, r]) => el('div', { class: 'cidrow svrow' },
+      el('div', { class: 'cidmain' }, el('strong', {}, id), el('span', { class: 'libmeta' }, 'Started ' + r.startDate + ' · ' + r.months + ' months · due ' + SV.dueDate(r) + ' · ' + (r.status === 'done' ? 'survey sent' : r.status === 'skipped' ? 'not needed' : (SV.isDue(r, today) ? 'due now' : (r.snoozedUntil && r.snoozedUntil > today ? 'snoozed until ' + r.snoozedUntil : 'waiting'))))),
+      el('div', { class: 'svact' },
+        kit.iconBtn('pencil', 'Edit reminder', id, () => { $('svRemClient').value = id; $('svRemStart').value = r.startDate; $('svRemMonths').value = String(r.months); $('svRemStart').focus(); }),
+        kit.iconBtn('trash', 'Delete reminder', id, () => removeReminder(id), { danger: true })))) : [el('p', { class: 'dstate' }, 'No reminders yet. Choose a Client ID, enter the start work date and save.')]));
+    const rc = $('svRemClient'), rcur = rc.value; rc.replaceChildren(el('option', { value: '' }, 'Choose…'), ...clientIds.map(id => el('option', { value: id }, id))); rc.value = clientIds.includes(rcur) ? rcur : '';
+    const old = oldInvites(); say('svCleanState', old.length ? old.length + ' old link' + (old.length === 1 ? '' : 's') + ' can be removed.' : 'Nothing to clean up.'); $('svCleanBtn').disabled = !old.length;
     const sel = $('svClient'), cur = sel.value;
     sel.replaceChildren(el('option', { value: '' }, 'None'), ...clientIds.map(id => el('option', { value: id }, id))); sel.value = clientIds.includes(cur) ? cur : '';
   }
@@ -170,7 +217,7 @@
   }
   function init() {
     if (!$('dp-surveys')) return;
-    $('svCreate').addEventListener('click', create); $('svRefresh').addEventListener('click', show);
+    $('svCreate').addEventListener('click', create); $('svRemSave').addEventListener('click', addReminder); $('svCleanBtn').addEventListener('click', cleanup); $('svRefresh').addEventListener('click', show);
     $('svEmpEmail').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); create(); } });
     document.addEventListener('dash:page', e => { if (e.detail === 'surveys') show(); });
     document.addEventListener('own:auth', e => { signed = !!(e.detail && e.detail.ok); loaded = false; invites = []; priv = {}; resps = {}; if (!signed) { $('svInvList').replaceChildren(); $('svRespList').replaceChildren(); $('svOut').replaceChildren(); $('svOut').hidden = true; say('svState', ''); const n = $('surveyBadge'); if (n) n.hidden = true; } else badgeOnly(); });

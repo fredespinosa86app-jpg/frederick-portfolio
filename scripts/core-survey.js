@@ -130,7 +130,46 @@
   }
   const validEmail = e => typeof e === 'string' && e.length > 4 && e.length <= 120 && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e);
 
+
+  /* ---- SV2a: 3-month reminder (dates are plain "YYYY-MM-DD" text, so no time-zone surprises) and cleanup of old invites ---- */
+  const DATE_RE = /^20[0-9]{2}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$/;
+  const REMIND = { defaultMonths: 3, minMonths: 1, maxMonths: 24, snoozeDays: 7, cleanupGraceDays: 30 };
+  const validDate = d => { if (typeof d !== 'string' || !DATE_RE.test(d)) return false; const t = new Date(d + 'T00:00:00Z'); return !isNaN(t) && t.toISOString().slice(0, 10) === d; };
+  /* today in the owner's time zone (Asia/Manila = UTC+8, no daylight saving) */
+  const todayManila = nowMs => new Date(nowMs + 8 * 36e5).toISOString().slice(0, 10);
+  /* start date + N months; a day that does not exist in the target month moves to that month's last day (31 Aug + 6 months = 28/29 Feb) */
+  function addMonths(date, n) {
+    if (!validDate(date)) return '';
+    const y = +date.slice(0, 4), m = +date.slice(5, 7) - 1, d = +date.slice(8, 10), t = m + n, ny = y + Math.floor(t / 12), nm = ((t % 12) + 12) % 12;
+    const last = new Date(Date.UTC(ny, nm + 1, 0)).getUTCDate();
+    return new Date(Date.UTC(ny, nm, Math.min(d, last))).toISOString().slice(0, 10);
+  }
+  const addDays = (date, n) => validDate(date) ? new Date(Date.parse(date + 'T00:00:00Z') + n * DAY).toISOString().slice(0, 10) : '';
+  function validReminder(r) {
+    const x = r && typeof r === 'object' ? r : {}, err = {};
+    if (!validDate(x.startDate)) err.startDate = 'Enter the start work date.';
+    const months = Number(x.months);
+    if (!Number.isInteger(months) || months < REMIND.minMonths || months > REMIND.maxMonths) err.months = 'Months must be from ' + REMIND.minMonths + ' to ' + REMIND.maxMonths + '.';
+    if (Object.keys(err).length) return { ok: false, errors: err };
+    return { ok: true, data: { startDate: x.startDate, months, status: 'active', snoozedUntil: '' } };
+  }
+  const dueDate = r => r && validDate(r.startDate) ? addMonths(r.startDate, Number(r.months) || REMIND.defaultMonths) : '';
+  /* a reminder is due when active, the due date is today or earlier, and any snooze has ended */
+  function isDue(r, today) {
+    if (!r || r.status !== 'active') return false;
+    const d = dueDate(r); if (!d || d > today) return false;
+    return !(validDate(r.snoozedUntil) && r.snoozedUntil > today);
+  }
+  const snoozeTo = today => addDays(today, REMIND.snoozeDays);
+  /* only an invite that was NEVER answered (expired or revoked, and older than the grace period) may be cleaned up */
+  function cleanable(inv, nowMs) {
+    if (!inv || (inv.status !== 'sent' && inv.status !== 'revoked')) return false;
+    const e = inv.expiresAt && typeof inv.expiresAt.toMillis === 'function' ? inv.expiresAt.toMillis() : Number(inv.expiresAt);
+    if (!Number.isFinite(e)) return false;
+    return e + REMIND.cleanupGraceDays * DAY < nowMs;   // 30 days after the end date of the link (a revoked link keeps its original end date)
+  }
+
   const DEFAULT_SURVEY = { version: 'default-1', title: 'Share your experience' };
-  const api = { KEY_RE, EXPIRY_DAYS, LIM, newKey, validKey, keyFromHash, linkFor, cleanText, parseVideoLink, validateResponse, inviteUsable, expiryFrom, stateOf, testimonialFromResponse, messageFor, mailtoFor, webmailUrls, validEmail, DEFAULT_SURVEY };
+  const api = { KEY_RE, EXPIRY_DAYS, LIM, newKey, validKey, keyFromHash, linkFor, cleanText, parseVideoLink, validateResponse, inviteUsable, expiryFrom, stateOf, testimonialFromResponse, messageFor, mailtoFor, webmailUrls, validEmail, DEFAULT_SURVEY, DATE_RE, REMIND, validDate, todayManila, addMonths, addDays, validReminder, dueDate, isDue, snoozeTo, cleanable };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.coreSurvey = api;
 })(typeof window !== 'undefined' ? window : globalThis);

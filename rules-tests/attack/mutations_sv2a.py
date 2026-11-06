@@ -1,0 +1,27 @@
+# SV2a (4.5.0) mutations: each weakens ONE clause of the survey-reminder rules; attack_cases.py (section 8n) must fail for every one.
+def X(name, a, b): return (name, a, b)
+SV2A = [
+ X('SV2a read: anyone may read reminders', "    match /surveyReminders/{id} {\n      allow read: if isOwner();", "    match /surveyReminders/{id} {\n      allow read: if true;"),
+ X('SV2a write: owner check removed', "allow create, update: if isOwner() && validClientId(id) && exists(regDoc(id)) && srOk", "allow create, update: if validClientId(id) && exists(regDoc(id)) && srOk"),
+ X('SV2a write: Client ID shape not checked', "allow create, update: if isOwner() && validClientId(id) && exists(regDoc(id))", "allow create, update: if isOwner() && exists(regDoc(id))"),
+ X('SV2a write: registry entry not required', "allow create, update: if isOwner() && validClientId(id) && exists(regDoc(id)) && srOk", "allow create, update: if isOwner() && validClientId(id) && srOk"),
+ X('SV2a write: field check removed', "allow create, update: if isOwner() && validClientId(id) && exists(regDoc(id)) && srOk(request.resource.data);", "allow create, update: if isOwner() && validClientId(id) && exists(regDoc(id));"),
+ X('SV2a delete: anyone may delete', "      allow delete: if isOwner();\n    }\n    // end SV2a", "      allow delete: if true;\n    }\n    // end SV2a"),
+ X('SV2a fields: whitelist removed', "d.keys().hasOnly(['startDate','months','status','snoozedUntil','updatedAt'])\n        && d.keys().hasAll", "true\n        && d.keys().hasAll"),
+ X('EQUIV SV2a fields: required keys removed (every field is also checked on its own and a missing field makes that check fail)', "        && d.keys().hasAll(['startDate','months','status','snoozedUntil','updatedAt'])\n", ""),
+ X('SV2a date: start date not checked', "        && srDate(d.startDate)\n", ""),
+ X('SV2a date: any string accepted as a date', "function srDate(v) { return v is string && v.matches(", "function srDate(v) { return v is string || v.matches("),
+ X('SV2a date: month 13+ allowed', "(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$'); }\n    function srOk", "([0-9]{2})-(0[1-9]|[12][0-9]|3[01])$'); }\n    function srOk"),
+ X('SV2a date: day 32+ allowed', "(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$'); }\n    function srOk", "(0[1-9]|1[0-2])-([0-9]{2})$'); }\n    function srOk"),
+ X('SV2a date: any century allowed', "'^20[0-9]{2}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$'); }\n    function srOk", "'^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$'); }\n    function srOk"),
+ X('EQUIV SV2a date: anchors removed (Firestore matches() must match the WHOLE string, so anchors are redundant)', "'^20[0-9]{2}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$'); }\n    function srOk", "'20[0-9]{2}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])'); }\n    function srOk"),
+ X('SV2a months: type not checked', "d.months is int && d.months >= 1", "d.months >= 1"),
+ X('SV2a months: zero or negative allowed', "d.months is int && d.months >= 1 && d.months <= 24", "d.months is int && d.months <= 24"),
+ X('SV2a months: no upper limit', "d.months is int && d.months >= 1 && d.months <= 24", "d.months is int && d.months >= 1"),
+ X('SV2a status: anything allowed', "        && d.status in ['active','done','skipped']\n", ""),
+ X('SV2a status: deleted state allowed', "d.status in ['active','done','skipped']", "d.status in ['active','done','skipped','deleted']"),
+ X('EQUIV SV2a snooze: type not checked (srDate checks is string itself)', "d.snoozedUntil is string && (d.snoozedUntil == '' || srDate(d.snoozedUntil))", "(d.snoozedUntil == '' || srDate(d.snoozedUntil))"),
+ X('SV2a snooze: free text allowed', "(d.snoozedUntil == '' || srDate(d.snoozedUntil))", "true"),
+ X('SV2a time: updatedAt may be forged', "        && d.updatedAt == request.time;\n    }\n    match /surveyReminders", "        && d.updatedAt is timestamp;\n    }\n    match /surveyReminders"),
+ X('SV2a time: updatedAt not required to be the server time', "        && d.updatedAt == request.time;\n    }\n    match /surveyReminders", "        && true;\n    }\n    match /surveyReminders"),
+]

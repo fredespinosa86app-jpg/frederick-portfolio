@@ -133,3 +133,30 @@ test('testimonialFromResponse: only a Google Drive video link is carried over (Y
   for (const v of ['', 'https://youtu.be/dQw4w9WgXcQ', 'https://www.loom.com/share/abcdef1234567890', 'javascript:alert(1)', 'http://drive.google.com/x', 'https://evil.com/drive.google.com/x'])
     assert.ok(!('video' in S.testimonialFromResponse(good({ videoUrl: v }), 'i')), v);
 });
+test('SV2a dates: addMonths clamps to month end, leap years, year roll-over, bad input', () => {
+  assert.equal(S.addMonths('2026-08-31', 6), '2027-02-28'); assert.equal(S.addMonths('2027-08-31', 6), '2028-02-29');
+  assert.equal(S.addMonths('2026-11-15', 3), '2027-02-15'); assert.equal(S.addMonths('2026-01-31', 1), '2026-02-28'); assert.equal(S.addMonths('2026-12-31', 12), '2027-12-31');
+  for (const b of ['', 'x', '2026-02-30', '2026-13-01', '1999-01-01', null, 20260101]) { assert.equal(S.addMonths(b, 3), ''); assert.equal(S.validDate(b), false, String(b)); }
+  assert.equal(S.addDays('2026-12-28', 7), '2027-01-04');
+});
+test('SV2a todayManila uses UTC+8', () => { assert.equal(S.todayManila(Date.parse('2026-11-06T16:30:00Z')), '2026-11-07'); assert.equal(S.todayManila(Date.parse('2026-11-06T15:59:00Z')), '2026-11-06'); });
+test('SV2a validReminder: needs a real date and 1-24 whole months; always active, no snooze', () => {
+  assert.deepEqual(S.validReminder({ startDate: '2026-02-01', months: 3 }), { ok: true, data: { startDate: '2026-02-01', months: 3, status: 'active', snoozedUntil: '' } });
+  assert.ok(S.validReminder({ startDate: '2026-02-01', months: '6' }).ok);
+  for (const m of [0, 25, 1.5, 'x', null]) assert.ok(S.validReminder({ startDate: '2026-02-01', months: m }).errors.months, String(m));
+  assert.ok(S.validReminder({ startDate: '2026-02-31', months: 3 }).errors.startDate); assert.ok(S.validReminder(null).errors.startDate);
+});
+test('SV2a isDue: due on the day, not before, not when snoozed, done or skipped', () => {
+  const r = { startDate: '2026-08-07', months: 3, status: 'active', snoozedUntil: '' };
+  assert.equal(S.dueDate(r), '2026-11-07'); assert.equal(S.isDue(r, '2026-11-06'), false); assert.equal(S.isDue(r, '2026-11-07'), true); assert.equal(S.isDue(r, '2027-03-01'), true);
+  assert.equal(S.isDue({ ...r, snoozedUntil: '2026-11-14' }, '2026-11-10'), false); assert.equal(S.isDue({ ...r, snoozedUntil: '2026-11-14' }, '2026-11-14'), true);
+  assert.equal(S.isDue({ ...r, status: 'done' }, '2027-01-01'), false); assert.equal(S.isDue({ ...r, status: 'skipped' }, '2027-01-01'), false);
+  assert.equal(S.isDue({ ...r, snoozedUntil: 'garbage' }, '2026-11-07'), true); assert.equal(S.isDue(null, '2026-11-07'), false); assert.equal(S.snoozeTo('2026-11-07'), '2026-11-14');
+});
+test('SV2a cleanable: only never-answered sent/revoked invites past the 30-day grace; answered are never cleanable', () => {
+  const now = Date.parse('2026-11-07T00:00:00Z'), D = 864e5;
+  assert.equal(S.cleanable({ status: 'sent', expiresAt: now - 31 * D }, now), true); assert.equal(S.cleanable({ status: 'sent', expiresAt: now - 29 * D }, now), false);
+  assert.equal(S.cleanable({ status: 'sent', expiresAt: now + D }, now), false); assert.equal(S.cleanable({ status: 'revoked', expiresAt: now - 31 * D }, now), true);
+  assert.equal(S.cleanable({ status: 'revoked', expiresAt: now + 20 * D }, now), false);
+  assert.equal(S.cleanable({ status: 'submitted', expiresAt: now - 99 * D }, now), false); assert.equal(S.cleanable(null, now), false); assert.equal(S.cleanable({ status: 'sent' }, now), false);
+});

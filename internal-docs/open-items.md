@@ -76,3 +76,9 @@ Five items recorded in `4.5.0-security-enhancement-review.md`, each needing the 
 - SV1 (employer testimonial survey, `survey.html` + Owner Panel > Employer surveys): AUTOMATED_TESTED, awaiting the owner's live test (`SV1-CHECKLIST.md`). Rules changed (new collections `surveyInvites`, `surveyInvitesPrivate`, `surveyResponses`): publish `firestore.rules.strict` BEFORE uploading the files.
 - SV2 (designed, not approved): custom surveys; 3-month reminder from a Client ID `startDate`; automatic deletion of unanswered invites (expiry + 30 days); survey data in backup export / restore; privacy-notice line.
 - Emulator test `rules-tests/emulator/survey-sv1.test.mjs` is written but has not been executed anywhere yet (it runs in GitHub Actions on the next push).
+
+## Update 2026-11-07: SV1 live-tested, SV2a built
+- SV1: MANUALLY_VERIFIED (all steps incl. 3, 16, 17). Decisions kept: YouTube/Loom links stay in the survey list; only a Google Drive link becomes "Watch Testimonial Video".
+- SV2a: reminders (`surveyReminders`, separate from the registry on purpose: the registry is shared with billing/work hours and audited), manual cleanup, survey collections in backup (export-only), privacy line. AUTOMATED_TESTED; awaiting `SV2A-CHECKLIST.md`.
+- SV2b not built: custom surveys (templates, snapshot into the invite, validated answer shape). Needs its own layout round and rules.
+- Still open from before: retention periods for rejected answers (kept until the owner deletes them), security enhancements E1-E5 (recommended order E3, E1, E5, E4, E2), optional "Build" footer label.
