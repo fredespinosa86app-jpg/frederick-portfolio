@@ -289,7 +289,7 @@
   function breakInfo() {                       // what the page and the clock show about the break that is open right now
     if (!S.st || !S.derived || !S.derived.valid) return { kind: 'none', text: '', src: '', inType: '' };
     const p = sch.pick(S.assign, S.sched ? S.sched.docs : {}), st = sch.breakStatus(S.st.state, S.derived.events, now(), p);
-    return { kind: st.kind, inType: st.inType || '', text: sch.describe(st), src: sch.sourceText(st, p), name: st.name || '', limitMin: st.limitMin, deadlineMs: st.deadlineMs || 0, err: S.sched && S.sched.err ? S.sched.err : '' };
+    return { kind: st.kind, type: st.type || '', inType: st.inType || '', outMs: st.outMs || 0, text: sch.describe(st), src: sch.sourceText(st, p), name: st.name || '', limitMin: st.limitMin, deadlineMs: st.deadlineMs || 0, err: S.sched && S.sched.err ? S.sched.err : '' };
   }
   let lastKind = 'none';
   function applyBreak() {                      // page: text, flicker class on the existing button (never rebuilt), one polite announcement when it turns late

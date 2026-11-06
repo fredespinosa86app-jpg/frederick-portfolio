@@ -1381,3 +1381,11 @@ No Firestore rules change in E4 (`ownerPrivate` is already owner only). Rules te
 - Rules change (collection `workSchedules`, owner only): republish `firestore.rules.strict`. New: `scripts/core-wtschedule.js`, `scripts/owner-wtsched.js`; tests in `rules-tests/`.
 - Status: AUTOMATED_TESTED. Live test: `W5b-CHECKLIST.md`. Details and limits: `internal-docs/4.5.0-W5b-break-schedules.md`. W5c (alarm) is next, after approval.
 
+## 4.5.0 - Phase W5c: break alarm (browser reminder)
+
+- New card WorkTrack > Alarm (this device): off by default; warning before the limit (default 5 min), sound at the limit, repeat every 1 minute (at most 10 times), four synthesised sounds, volume, optional generic notifications, Test sound, Silence. Settings stay on this device. No audio files, no database access, no rules or CSP change.
+- A browser reminder only: it cannot ring if the browser is closed, the computer is asleep or the tab is frozen. A page opened while already late plays no sound. Tab title alternates "Late: lunch" and is restored only if it is still ours (QA R7).
+- The clock gains Silence, "Tap to enable alarm sound", and a Corner button; the WorkTrack page gains Reset clock position.
+- New: `scripts/core-wtalarm.js` (+ tests), `scripts/wt-alarm.js`, `scripts/wt-alarm-worker.js`.
+- Status: AUTOMATED_TESTED. Live test: `W5c-CHECKLIST.md`. Details and limits: `internal-docs/4.5.0-W5c-break-alarm.md`. This completes the W5 plan (W5a, W5b, W5c) once the live test passes.
+

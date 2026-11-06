@@ -46,6 +46,15 @@
     return d ? { x: pos.x + d[0], y: pos.y + d[1] } : null;
   }
 
-  const api = { KEY, MARGIN, MIN_W, MIN_H, view, clamp, defaultPos, parsePrefs, serializePrefs, nudge };
+  /* the 'next corner' button: from the corner nearest to the clock now, go clockwise (top right, bottom right, bottom left, top left) */
+  function nextCorner(pos, vp, size, top) {
+    const w = Math.max(MIN_W, size && num(size.w) ? size.w : MIN_W), h = Math.max(MIN_H, size && num(size.h) ? size.h : MIN_H), t = num(top) ? top : MARGIN;
+    const right = vp.w - w - MARGIN, bottom = vp.h - h - MARGIN, cx = (pos && num(pos.x) ? pos.x : right) + w / 2, cy = (pos && num(pos.y) ? pos.y : t) + h / 2;
+    const east = cx >= vp.w / 2, south = cy >= vp.h / 2;
+    const to = east ? (south ? { x: MARGIN, y: bottom } : { x: right, y: bottom }) : (south ? { x: MARGIN, y: t } : { x: right, y: t });   // east+north -> bottom right; east+south -> bottom left; west+south -> top left; west+north -> top right   // TR -> BR -> BL -> TL -> TR
+    return clamp(to, vp, { w, h });
+  }
+
+  const api = { nextCorner, KEY, MARGIN, MIN_W, MIN_H, view, clamp, defaultPos, parsePrefs, serializePrefs, nudge };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.coreWtFloat = api;
 })(typeof window !== 'undefined' ? window : globalThis);

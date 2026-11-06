@@ -9,7 +9,7 @@
   'use strict';
   const fl = window.coreWtFloat, core = window.coreWork, tm = window.coreTime; if (!fl || !core || !tm) return;
   const $ = id => document.getElementById(id);
-  let root, bar, stat, timeEl, netEl, brkEl, srEl, lastKind = 'none', btnBox, errEl, minBtn, grip, prefs = { x: null, y: null, min: false }, timer = 0, shown = false, confirmType = '', confirmT = 0, busy = false, lastStatus = '';
+  let root, bar, stat, timeEl, netEl, brkEl, srEl, cornerBtn, chipBtn, silBtn, lastKind = 'none', btnBox, errEl, minBtn, grip, prefs = { x: null, y: null, min: false }, timer = 0, shown = false, confirmType = '', confirmT = 0, busy = false, lastStatus = '';
   const mk = (tag, cls, txt) => { const n = document.createElement(tag); if (cls) n.className = cls; if (txt != null) n.textContent = txt; return n; };
   const vp = () => ({ w: document.documentElement.clientWidth || window.innerWidth, h: document.documentElement.clientHeight || window.innerHeight });
   const size = () => { const r = root.getBoundingClientRect(); return { w: r.width, h: r.height }; };
@@ -24,15 +24,21 @@
     grip = mk('button', 'wtfl-grip', '⠿'); grip.type = 'button';
     grip.setAttribute('aria-label', 'Move the clock. Drag it, or use the arrow keys. Press Home to put it back in the top right corner.');
     stat = mk('span', 'wtfl-status'); stat.setAttribute('role', 'status'); stat.setAttribute('aria-live', 'polite');
+    cornerBtn = mk('button', 'wtfl-min wtfl-corner', 'Corner'); cornerBtn.type = 'button'; cornerBtn.setAttribute('aria-label', 'Move the clock to the next corner of the window');
     minBtn = mk('button', 'wtfl-min'); minBtn.type = 'button';
-    bar.append(grip, stat, minBtn);
+    bar.append(grip, stat, cornerBtn, minBtn);
     const body = mk('div', 'wtfl-body'); body.id = 'wtflBody';
     timeEl = mk('div', 'wtfl-time'); timeEl.setAttribute('role', 'timer'); timeEl.setAttribute('aria-label', 'Current time');
     netEl = mk('div', 'wtfl-net'); brkEl = mk('div', 'wtfl-brk'); srEl = mk('p', 'wtfl-sr'); srEl.setAttribute('role', 'status');
+    chipBtn = mk('button', 'wtfl-chip', 'Tap to enable alarm sound'); chipBtn.type = 'button'; chipBtn.hidden = true;
+    silBtn = mk('button', 'wtfl-chip wtfl-sil', 'Silence alarm'); silBtn.type = 'button'; silBtn.hidden = true;
     btnBox = mk('div', 'wtfl-btns'); errEl = mk('p', 'wtfl-err'); errEl.setAttribute('role', 'alert');
-    body.append(timeEl, netEl, brkEl, srEl, btnBox, errEl);
+    body.append(timeEl, netEl, brkEl, srEl, chipBtn, silBtn, btnBox, errEl);
     root.append(bar, body); document.body.append(root);
     minBtn.setAttribute('aria-controls', 'wtflBody');
+    cornerBtn.addEventListener('click', () => { const r = root.getBoundingClientRect(), p = place(fl.nextCorner({ x: r.left, y: r.top }, vp(), size(), topGap())); prefs.x = p.x; prefs.y = p.y; savePrefs(); });
+    chipBtn.addEventListener('click', () => { if (window.wtAlarm) window.wtAlarm.unlock(); breakLine(); });
+    silBtn.addEventListener('click', () => { if (window.wtAlarm) window.wtAlarm.silence(); breakLine(); });
     minBtn.addEventListener('click', () => { prefs.min = !prefs.min; savePrefs(); applyMin(); place(); });
     wireDrag();
   }
@@ -41,8 +47,9 @@
     minBtn.setAttribute('aria-expanded', prefs.min ? 'false' : 'true'); minBtn.setAttribute('aria-label', prefs.min ? 'Expand the clock' : 'Minimise the clock');
     $('wtflBody').hidden = prefs.min;
   }
+  const topGap = () => root.parentNode && root.parentNode.id === 'dash' ? 72 : fl.MARGIN;
   function place(p) {
-    const pos = fl.clamp(p || (prefs.x == null ? fl.defaultPos(vp(), size(), root.parentNode && root.parentNode.id === 'dash' ? 72 : fl.MARGIN) : { x: prefs.x, y: prefs.y }), vp(), size());
+    const pos = fl.clamp(p || (prefs.x == null ? fl.defaultPos(vp(), size(), topGap()) : { x: prefs.x, y: prefs.y }), vp(), size());
     root.style.left = pos.x + 'px'; root.style.top = pos.y + 'px'; return pos;
   }
 
@@ -114,6 +121,7 @@
     btnBox.querySelectorAll('[data-punch]').forEach(b => b.classList.toggle('wtfl-late', late && b.dataset.punch === bi.inType));
     if (bi.kind === 'late' && lastKind !== 'late') srEl.textContent = bi.name + ' limit passed. ' + bi.text + '.'; else if (bi.kind !== 'late') srEl.textContent = '';
     lastKind = bi.kind;
+    const w = window.wtAlarm; chipBtn.hidden = !(w && w.locked()); silBtn.hidden = !(w && w.ringing());
   }
   function startTimer() { stopTimer(); timer = setInterval(() => { if (!document.hidden) tick(); }, 1000); }
   function stopTimer() { if (timer) clearInterval(timer); timer = 0; }
@@ -121,13 +129,14 @@
   function teardown() {
     stopTimer(); clearTimeout(confirmT); confirmType = ''; busy = false; shown = false; lastStatus = ''; lastKind = 'none';
     if (!root) return;
-    root.hidden = true; stat.textContent = ''; timeEl.textContent = ''; netEl.textContent = ''; brkEl.textContent = ''; srEl.textContent = ''; errEl.textContent = ''; btnBox.replaceChildren(); delete root.dataset.state; delete root.dataset.brk;
+    chipBtn.hidden = true; silBtn.hidden = true; root.hidden = true; stat.textContent = ''; timeEl.textContent = ''; netEl.textContent = ''; brkEl.textContent = ''; srEl.textContent = ''; errEl.textContent = ''; btnBox.replaceChildren(); delete root.dataset.state; delete root.dataset.brk;
     if (root.parentNode !== document.body) document.body.append(root);
   }
 
   function init() {
     loadPrefs(); build(); applyMin();
-    document.addEventListener('wt:changed', render);
+    document.addEventListener('wt:changed', render); document.addEventListener('wtalarm:state', () => { if (shown) breakLine(); });
+    document.addEventListener('wtfl:reset', () => { prefs.x = prefs.y = null; prefs.min = false; savePrefs(); if (shown) { applyMin(); place(); } });
     document.addEventListener('own:auth', e => { if (!(e.detail && e.detail.ok)) teardown(); });
     window.addEventListener('resize', () => { if (shown) place(); });
     const dash = $('dash'); if (dash) new MutationObserver(() => { if (shown) { home(); place(); } }).observe(dash, { attributes: true, attributeFilter: ['hidden'] });

@@ -59,3 +59,11 @@ test('keyboard nudge', () => {
   assert.deepEqual(f.nudge({ x: 100, y: 100 }, 'ArrowDown', true), { x: 100, y: 150 });
   assert.equal(f.nudge({ x: 1, y: 1 }, 'a', false), null);
 });
+test('next corner goes clockwise: top right, bottom right, bottom left, top left, top right', () => {
+  const vp = { w: 1000, h: 700 }, sz = { w: 220, h: 100 }; let p = { x: 772, y: 8 }; const seen = [];
+  for (let i = 0; i < 5; i++) { p = f.nextCorner(p, vp, sz); seen.push(p.x + ',' + p.y); }
+  assert.deepEqual(seen, ['772,592', '8,592', '8,8', '772,8', '772,592']);
+  assert.deepEqual(f.nextCorner({ x: 100, y: 100 }, vp, sz, 72), { x: 772, y: 72 }, 'from the top left the next corner is the top right (below the dashboard header when top = 72)');
+  assert.deepEqual(f.nextCorner(null, vp, sz), { x: 772, y: 592 });
+  const tiny = f.nextCorner({ x: 0, y: 0 }, { w: 100, h: 50 }, sz); assert.ok(tiny.x >= 8 && tiny.y >= 8);
+});

@@ -52,3 +52,11 @@
 ## Update 2026-11-06: W5a verified, W5b built
 - W5a: MANUALLY_VERIFIED (owner live test passed).
 - W5b (schedules, lateness, flicker; R2 to R6): AUTOMATED_TESTED, awaiting rules republish and the owner's live test (`W5b-CHECKLIST.md`). Next: W5c (alarm; R7, R10) after approval.
+
+## Update 2026-11-06: W5b verified
+- W5b: MANUALLY_VERIFIED (owner live test passed: card, schedule choice, lateness, flicker, refused values not stored). GitHub emulator run passed 206/206 against `firestore.rules.strict`. Next: W5c (alarm; R7, R10), awaiting layout approval. Optional additions noted for W5c: a "next corner" move button and "Reset position" on the WorkTrack page (in the layout doc but not in W5a).
+
+## Update 2026-11-06: W5c built
+- W5c (alarm; R7, R10, Corner and Reset-position buttons): AUTOMATED_TESTED, awaiting the owner's live test (`W5c-CHECKLIST.md`). No rules, CSP or database change. After it passes the W5 plan is complete.
+- Still open (unchanged): Cloudflare 2FA, Cloudflare rate-limit rule for `portfolio-forms`, tighter CSP `connect-src`, retention policy for old meeting requests, optional custom domain move.
+

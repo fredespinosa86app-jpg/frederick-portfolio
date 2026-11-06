@@ -16,7 +16,7 @@ import { b, base, check, errs, fresh, signIn, signOut, vis, results, srv } from 
   const r = await pg.evaluate(() => { const r = document.getElementById('wtFloat').getBoundingClientRect(); return { l: r.left, r: r.right, t: r.top, b: r.bottom, sw: document.documentElement.scrollWidth, vw: innerWidth }; });
   check('phone: fits inside 375px width', r.l >= 0 && r.r <= 375 && r.sw <= 375, JSON.stringify(r));
   check('phone: buttons are at least 40px tall', await pg.$$eval('.wtfl-btn', e => e.every(x => x.getBoundingClientRect().height >= 40)));
-  await pg.click('.wtfl-min'); const m = await pg.evaluate(() => document.getElementById('wtFloat').getBoundingClientRect().width); check('phone: minimised stays inside screen', m <= 367, m);
+  await pg.click('.wtfl-min:not(.wtfl-corner)'); const m = await pg.evaluate(() => document.getElementById('wtFloat').getBoundingClientRect().width); check('phone: minimised stays inside screen', m <= 367, m);
   await pg.screenshot({ path: '/tmp/w5a-phone.png' }); await ctx.close(); }
 // ---- reduced motion + forced colors
 { const { ctx, pg } = await fresh(); await pg.emulateMedia({ reducedMotion: 'reduce', forcedColors: 'active' }); await signIn(pg); await pg.waitForTimeout(300);

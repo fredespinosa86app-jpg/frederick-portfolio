@@ -27,9 +27,9 @@ let b6 = await box(); check('after reload: same place', Math.abs(b6.x - b5.x) <=
 // Home resets
 await pg.focus('.wtfl-grip'); await pg.keyboard.press('Home'); let b7 = await box(); check('Home resets to top right', b7.y === 8 && b7.x > 800);
 // minimise
-await pg.click('.wtfl-min'); check('minimise hides buttons', await pg.evaluate(() => document.getElementById('wtflBody').hidden));
-check('minimise aria-expanded=false', (await pg.getAttribute('.wtfl-min', 'aria-expanded')) === 'false');
-await pg.click('.wtfl-min'); check('expand shows buttons', !(await pg.evaluate(() => document.getElementById('wtflBody').hidden)));
+await pg.click('.wtfl-min:not(.wtfl-corner)'); check('minimise hides buttons', await pg.evaluate(() => document.getElementById('wtflBody').hidden));
+check('minimise aria-expanded=false', (await pg.getAttribute('.wtfl-min:not(.wtfl-corner)', 'aria-expanded')) === 'false');
+await pg.click('.wtfl-min:not(.wtfl-corner)'); check('expand shows buttons', !(await pg.evaluate(() => document.getElementById('wtflBody').hidden)));
 // visible over the public site (dash closed) and in the dashboard
 check('parent is body when dashboard closed', await pg.evaluate(() => document.getElementById('wtFloat').parentNode === document.body));
 await pg.click('#dashOpen'); await pg.waitForTimeout(400);

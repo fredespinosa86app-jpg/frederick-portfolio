@@ -40,7 +40,7 @@
 <script>try{if(localStorage.getItem('portfolio-dark')==='1')document.documentElement.setAttribute('data-theme','dark')}catch(e){}</script>
 <link rel="stylesheet" href="styles/main.css?v=b3">
 <link rel="stylesheet" href="styles/components.css?v=b3">
-<link rel="stylesheet" href="styles/owner.css?v=w5b">
+<link rel="stylesheet" href="styles/owner.css?v=w5c">
 <link rel="stylesheet" href="styles/themes.css?v=b3">
 <link rel="stylesheet" href="styles/responsive.css?v=b3">
 </head>
@@ -495,6 +495,19 @@
 <div class="wtchips" id="wtChips"></div><div class="wtlist" id="wtCliHist"></div>
 <div class="ab"><button type="button" class="dbtn" id="wtCliHistBtn" hidden>Show changes to the clients</button></div><div class="wtlist" id="wtCliAudit"></div>
 <p class="dhelp">Only Client IDs are stored, never names. Manage the IDs on the Client IDs page.</p></div>
+<div class="dcard" id="waCard"><h3>Alarm (this device)</h3>
+<p class="dhelp">A <strong>browser reminder</strong>, not a guaranteed alarm: it can only sound while this page is open in a browser. It cannot ring if the browser is closed, the computer is asleep, or the system freezes the tab. It is off until you switch it on, needs one click on the page before the browser allows sound, and stops after 10 repeats. Settings stay on this device only. It uses the same deadline as the Break schedules.</p>
+<label class="chk"><input type="checkbox" id="waOn"> Alarm on</label>
+<div class="wsfields">
+<label class="fld wsf">Warn before the limit<select id="waWarn"><option value="0">No warning</option><option value="1">1 minute</option><option value="2">2 minutes</option><option value="3">3 minutes</option><option value="5">5 minutes</option><option value="10">10 minutes</option><option value="15">15 minutes</option><option value="20">20 minutes</option><option value="30">30 minutes</option></select></label>
+<label class="fld wsf">Repeat while late<select id="waRep"><option value="0">Off</option><option value="1">Every 1 minute</option><option value="2">Every 2 minutes</option><option value="3">Every 3 minutes</option><option value="5">Every 5 minutes</option><option value="10">Every 10 minutes</option></select></label>
+<label class="fld wsf">Sound<select id="waSound"><option value="chime">Chime</option><option value="bell">Bell</option><option value="beep">Beep</option><option value="urgent">Urgent</option></select></label>
+<label class="fld wsf">Volume <output id="waVolOut">60%</output><input type="range" id="waVol" min="10" max="100" step="10" value="60"></label>
+</div>
+<div class="ab"><button type="button" class="dbtn" id="waTest">Test sound</button><button type="button" class="dbtn" id="waNotify">Allow notifications</button><button type="button" class="dbtn" id="waSilence" hidden>Silence alarm</button></div>
+<p class="libmeta" id="waState" role="status"></p>
+<p class="dhelp">Notifications (if you allow them) only say "Time to come back from lunch": never a client or a time. The clock also has a Corner button to move it to the next corner.</p>
+<div class="ab"><button type="button" class="dbtn" id="waPos">Reset clock position</button></div></div>
 <div class="dcard" id="wsCard"><h3>Break schedules</h3>
 <p class="dhelp">Allowed minutes for each break. <strong>0 = no limit, never late.</strong> When a break runs past its limit, the matching "in" button flickers and the clock says "late by". A change applies from your <strong>next</strong> break, never the one already running. The schedule used is the first client added to the session; if that client has none, the Default is used; if there is no Default, the built-in 15 / 60 / 15 minutes. This only reminds you: nothing is stored on your punches.</p>
 <p class="libmeta" id="wsForce" role="status"></p>
@@ -1021,11 +1034,13 @@ function doPost(e) {
 <script src="scripts/core-time.js?v=b3"></script>
 <script src="scripts/core-worktrack.js?v=b3"></script>
 <script src="scripts/core-wtschedule.js?v=w5b"></script>
-<script src="scripts/core-wtfloat.js?v=w5a"></script>
+<script src="scripts/core-wtalarm.js?v=w5c"></script>
+<script src="scripts/core-wtfloat.js?v=w5c"></script>
 <script src="scripts/core-wtlog.js?v=b3"></script>
-<script src="scripts/owner-worktrack.js?v=w5b"></script>
+<script src="scripts/owner-worktrack.js?v=w5c"></script>
 <script src="scripts/owner-wtsched.js?v=w5b"></script>
-<script src="scripts/wt-float.js?v=w5b"></script>
+<script src="scripts/wt-float.js?v=w5c"></script>
+<script src="scripts/wt-alarm.js?v=w5c"></script>
 <script src="scripts/owner-wtlog.js?v=b3"></script>
 <script src="scripts/core-wtreport.js?v=b3"></script>
 <script src="scripts/owner-wtreport.js?v=b3"></script>

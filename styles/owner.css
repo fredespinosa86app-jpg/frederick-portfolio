@@ -289,3 +289,12 @@ button.libtile.pickable{cursor:pointer;min-height:44px}button.libtile.pickable:h
 .wtfl-sr{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0)}
 @media (prefers-reduced-motion:reduce){.wtb-late,.wtfl-late{animation:none;outline:5px solid #ff4d4d;outline-offset:2px}}
 @media (forced-colors:active){.wtb-late,.wtfl-late{outline:5px solid Highlight;animation:none}}
+
+/* W5c: alarm card and the clock's alarm controls */
+#waCard select,#waCard input[type=range]{min-height:42px;box-sizing:border-box}
+#waVolOut{margin-left:4px;font-weight:600}
+.wtfl-chip{display:block;width:100%;min-height:40px;margin:0 0 8px;padding:0 12px;border:2px dashed #ffd37a;border-radius:10px;background:transparent;color:#ffd37a;font:600 13px system-ui,sans-serif;cursor:pointer}
+.wtfl-chip[hidden]{display:none}
+.wtfl-sil{border-style:solid;border-color:#ffb4ab;color:#ffb4ab}
+.wtfl-chip:focus-visible{outline:3px solid #ffd37a;outline-offset:2px}
+@media (forced-colors:active){.wtfl-chip{border-color:ButtonText;color:ButtonText}}
