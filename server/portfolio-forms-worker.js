@@ -11,6 +11,12 @@
      CH_SECRET            Secret  long random text (40+ characters) that signs challenges and derives the codes.
      ALLOWED_ORIGINS      Text    comma list of page origins, e.g. https://fredespinosa86app-jpg.github.io  (no path, no trailing slash)
      FIREBASE_PROJECT_ID  Text    optional; default is read from the service-account key (project_id). Used only to read content/guard.
+   Rate limiter bindings (S2-B, optional; Worker > Settings > Bindings > Add > Rate limiter). Names and values:
+     RL_STATUS     limit 30  per 60 seconds   (namespace ID 1001)
+     RL_CHALLENGE  limit 5   per 60 seconds   (namespace ID 1002)
+     RL_VERIFY     limit 10  per 60 seconds   (namespace ID 1003)
+     Keyed by the visitor address. Counts are per Cloudflare location and approximate; a missing binding or an error FAILS OPEN so the form never
+     breaks, and the in-Worker limits below plus the daily cap in the rules still apply. GET /v1/status reports `rl: true` when all three are bound.
    Endpoints (all need an allowed Origin header):  GET /v1/status   POST /v1/challenge   POST /v1/verify
    (F6: status and verify also return `day`, the Worker's UTC date as YYYYMMDD.)          */
 const enc = new TextEncoder();
@@ -28,6 +34,14 @@ export const LIMITS = {
   guardCacheMs: 20 * 1000,
   mapMax: 2000
 };
+export const RL = { status: 'RL_STATUS', challenge: 'RL_CHALLENGE', verify: 'RL_VERIFY' };
+const rlBound = env => Object.values(RL).every(n => env[n] && typeof env[n].limit === 'function');
+/* true = allowed. Fails OPEN on a missing binding, an error, or an unknown address (a shared 'unknown' bucket could lock everyone out). */
+async function rateOk(env, name, ip) {
+  const b = env[name]; if (!b || typeof b.limit !== 'function' || !ip || ip === 'unknown') return true;
+  try { const r = await b.limit({ key: ip }); return !r || r.success !== false; } catch (e) { return true; }
+}
+const slow = h => J(429, { error: 'slow' }, Object.assign({}, h, { 'Retry-After': '60' }));
 const AUD = 'https://identitytoolkit.googleapis.com/google.identity.identitytoolkit.v1.IdentityToolkit';
 const triesByNonce = new Map(), byIp = new Map();      // per Worker instance (best effort; resets when the instance restarts)
 let guardCache = { at: 0, v: null }, keyCache = null, saCache = null;
@@ -105,16 +119,19 @@ export default {
     const nowMs = Date.now(), nowS = Math.floor(nowMs / 1000), ip = req.headers.get('CF-Connecting-IP') || 'unknown';
     if (!env.CH_SECRET || String(env.CH_SECRET).length < 32 || !loadSa(env)) return J(500, { error: 'config' }, h);
     if (p === '/v1/status' && req.method === 'GET') {
+      if (!await rateOk(env, RL.status, ip)) return slow(h);
       const g = await readGuard(env, nowMs);
-      return J(200, { ok: true, open: !g.paused, paused: g.paused, tokenRequired: g.tokenRequired, cap: g.cap, day: utcDay(nowMs) }, h);
+      return J(200, { ok: true, open: !g.paused, paused: g.paused, tokenRequired: g.tokenRequired, cap: g.cap, day: utcDay(nowMs), rl: rlBound(env) }, h);
     }
     if (p === '/v1/challenge' && req.method === 'POST') {
+      if (!await rateOk(env, RL.challenge, ip)) return slow(h);
       if (!hit(ip, 'c', LIMITS.ipChallenges, nowMs)) return J(429, { error: 'slow' }, h);
       const g = await readGuard(env, nowMs); if (g.paused) return J(503, { error: 'paused' }, h);
       const nonce = randId(12), exp = nowMs + LIMITS.challengeMs;
       return J(200, { challenge: nonce + '.' + exp + '.' + await chalSig(env.CH_SECRET, nonce, exp), code: await codeFor(env.CH_SECRET, nonce, exp), expiresInS: LIMITS.challengeMs / 1000 }, h);
     }
     if (p === '/v1/verify' && req.method === 'POST') {
+      if (!await rateOk(env, RL.verify, ip)) return slow(h);
       const raw = await req.text(); if (raw.length > LIMITS.bodyMax) return J(413, { error: 'big' }, h);
       let b; try { b = JSON.parse(raw); } catch (e) { return J(400, { error: 'bad' }, h); }
       if (!b || typeof b !== 'object' || typeof b.challenge !== 'string' || typeof b.code !== 'string' || !/^\d{6}$/.test(b.code)) return J(400, { error: 'bad' }, h);

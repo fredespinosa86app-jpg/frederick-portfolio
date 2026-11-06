@@ -1,7 +1,7 @@
 // Run:  node --test server/portfolio-forms-worker.test.mjs      (Node 20+; no packages needed)
 // Uses a throwaway in-memory RSA key (a fake service account, never a real credential).
 import test, { beforeEach } from 'node:test'; import assert from 'node:assert/strict'; import { generateKeyPairSync, createVerify } from 'node:crypto';
-import worker, { safeEq, LIMITS, _reset, utcDay } from './portfolio-forms-worker.js';
+import worker, { safeEq, LIMITS, _reset, utcDay, RL } from './portfolio-forms-worker.js';
 const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
 const SA = { client_email: 'portfolio-form-signer@demo-proj.iam.gserviceaccount.com', project_id: 'demo-proj', private_key: privateKey.export({ type: 'pkcs8', format: 'pem' }) };
 const env = { SA_JSON: JSON.stringify(SA), CH_SECRET: 'test-secret-'.repeat(5), ALLOWED_ORIGINS: 'https://me.github.io,https://www.example.com' };
@@ -55,9 +55,9 @@ test('per-visitor limit: many wrong codes from one address end in 429 even acros
   assert.equal(last, 429); });
 test('window resets after ten minutes', async () => { const real = Date.now; try { for (let i = 0; i < LIMITS.ipChallenges; i++) await call('/v1/challenge', 'POST', undefined, { ip: '3.3.3.9' }); assert.equal((await call('/v1/challenge', 'POST', undefined, { ip: '3.3.3.9' })).status, 429);
   Date.now = () => real() + LIMITS.ipWindowMs + 1000; assert.equal((await call('/v1/challenge', 'POST', undefined, { ip: '3.3.3.9' })).status, 200); } finally { Date.now = real; } });
-test('status: no guard document means open, switch off, cap 30', async () => { const j = await (await call('/v1/status', 'GET')).json(); assert.deepEqual({ ...j, day: undefined }, { ok: true, open: true, paused: false, tokenRequired: false, cap: 30, day: undefined }); assert.match(j.day, /^\d{8}$/); });
+test('status: no guard document means open, switch off, cap 30', async () => { const j = await (await call('/v1/status', 'GET')).json(); assert.deepEqual({ ...j, day: undefined }, { ok: true, open: true, paused: false, tokenRequired: false, cap: 30, day: undefined, rl: false }); assert.match(j.day, /^\d{8}$/); });
 test('status reads pause, tokenRequired and cap from content/guard', async () => { guardStatus = 200; guardFields = { pause: { booleanValue: true }, tokenRequired: { booleanValue: true }, cap: { integerValue: '45' } };
-  const j = await (await call('/v1/status', 'GET')).json(); assert.deepEqual({ ...j, day: undefined }, { ok: true, open: false, paused: true, tokenRequired: true, cap: 45, day: undefined }); });
+  const j = await (await call('/v1/status', 'GET')).json(); assert.deepEqual({ ...j, day: undefined }, { ok: true, open: false, paused: true, tokenRequired: true, cap: 45, day: undefined, rl: false }); });
 test('pause: challenge and verify answer 503 and no token is issued', async () => { const c = await chal(); guardStatus = 200; guardFields = { pause: { booleanValue: true } }; _guardReset();
   assert.equal((await call('/v1/challenge', 'POST')).status, 503); assert.equal((await call('/v1/verify', 'POST', { challenge: c.challenge, code: c.code })).status, 503); });
 function _guardReset() { _reset(); }
@@ -76,3 +76,33 @@ test('F6: day is the Worker UTC date (status and verify), and utcDay handles mon
   const s = await (await call('/v1/status', 'GET')).json(); assert.equal(s.day, utcDay(Date.now()));
   const c = await chal(); const v = await (await call('/v1/verify', 'POST', { challenge: c.challenge, code: c.code })).json(); assert.equal(v.day, utcDay(Date.now()));
   assert.equal(utcDay(Date.UTC(2026, 11, 31, 23, 59, 59)), '20261231'); assert.equal(utcDay(Date.UTC(2027, 0, 1, 0, 0, 0)), '20270101'); assert.equal(utcDay(Date.UTC(2026, 1, 28, 12)), '20260228'); assert.equal(utcDay(Date.UTC(2026, 8, 5)), '20260905'); });
+
+// ---- S2-B: Cloudflare rate limiter bindings (fake bindings; the real ones are configured in the dashboard)
+const fake = (fn) => { const b = { calls: [], limit: async o => { b.calls.push(o.key); return fn ? fn(o.key, b.calls.length) : { success: true }; } }; return b; };
+const withRl = (o = {}) => Object.assign({}, env, { RL_STATUS: fake(), RL_CHALLENGE: fake(), RL_VERIFY: fake() }, o);
+test('RL: names match the checklist', () => assert.deepEqual(RL, { status: 'RL_STATUS', challenge: 'RL_CHALLENGE', verify: 'RL_VERIFY' }));
+test('RL: without bindings everything works and status says rl:false', async () => { const r = await call('/v1/status', 'GET'); assert.equal((await r.json()).rl, false); assert.equal((await chal()).code.length, 6); });
+test('RL: with all three bindings status says rl:true; each route uses its own binding, keyed by the visitor address', async () => {
+  const e = withRl(); assert.equal((await (await call('/v1/status', 'GET', undefined, { ip: '9.9.9.9' }, e)).json()).rl, true);
+  const c = await (await call('/v1/challenge', 'POST', undefined, { ip: '9.9.9.9' }, e)).json(); assert.equal((await call('/v1/verify', 'POST', { challenge: c.challenge, code: c.code }, { ip: '9.9.9.9' }, e)).status, 200);
+  assert.deepEqual([e.RL_STATUS.calls, e.RL_CHALLENGE.calls, e.RL_VERIFY.calls], [['9.9.9.9'], ['9.9.9.9'], ['9.9.9.9']]); });
+test('RL: a limited visitor gets 429 "slow" with Retry-After and the CORS header, on every limited route', async () => {
+  for (const [name, path, method, body] of [['RL_STATUS', '/v1/status', 'GET'], ['RL_CHALLENGE', '/v1/challenge', 'POST'], ['RL_VERIFY', '/v1/verify', 'POST', { challenge: 'x', code: '123456' }]]) {
+    const r = await call(path, method, body, { ip: '4.4.4.4' }, withRl({ [name]: fake(() => ({ success: false })) }));
+    assert.equal(r.status, 429, path); assert.deepEqual(await r.json(), { error: 'slow' }); assert.equal(r.headers.get('Retry-After'), '60'); assert.equal(r.headers.get('Access-Control-Allow-Origin'), OK); } });
+test('RL: only the limited visitor is blocked', async () => { const e = withRl({ RL_CHALLENGE: fake(k => ({ success: k !== '5.5.5.5' })) });
+  assert.equal((await call('/v1/challenge', 'POST', undefined, { ip: '5.5.5.5' }, e)).status, 429); assert.equal((await call('/v1/challenge', 'POST', undefined, { ip: '6.6.6.6' }, e)).status, 200); });
+test('RL: a blocked verify does not use up the challenge: the same challenge still works afterwards', async () => {
+  const c = await chal({ ip: '7.7.7.7' }); const blocked = await call('/v1/verify', 'POST', { challenge: c.challenge, code: c.code }, { ip: '7.7.7.7' }, withRl({ RL_VERIFY: fake(() => ({ success: false })) }));
+  assert.equal(blocked.status, 429); assert.equal((await call('/v1/verify', 'POST', { challenge: c.challenge, code: c.code }, { ip: '7.7.7.7' })).status, 200); });
+test('RL: fails OPEN when a binding throws, returns nothing, or is missing; status then says rl:false', async () => {
+  const boom = { limit: async () => { throw new Error('rl down'); } }, none = { limit: async () => undefined };
+  assert.equal((await call('/v1/challenge', 'POST', undefined, {}, withRl({ RL_CHALLENGE: boom }))).status, 200); assert.equal((await call('/v1/challenge', 'POST', undefined, {}, withRl({ RL_CHALLENGE: none }))).status, 200);
+  const e = withRl(); delete e.RL_VERIFY; assert.equal((await (await call('/v1/status', 'GET', undefined, {}, e)).json()).rl, false); assert.equal((await call('/v1/challenge', 'POST', undefined, {}, e)).status, 200); });
+test('RL: refused origins, preflight and unknown paths never touch a binding', async () => { const e = withRl();
+  await call('/v1/status', 'GET', undefined, { headers: { Origin: 'https://evil.example' } }, e); await call('/v1/challenge', 'OPTIONS', undefined, {}, e); await call('/v1/other', 'GET', undefined, {}, e);
+  assert.deepEqual([e.RL_STATUS.calls.length, e.RL_CHALLENGE.calls.length, e.RL_VERIFY.calls.length], [0, 0, 0]); });
+test('RL: an unknown visitor address is not rate limited by the binding (no shared bucket that could lock everyone out)', async () => { const e = withRl({ RL_CHALLENGE: fake(() => ({ success: false })) });
+  const r = await worker.fetch(new Request('https://w.example/v1/challenge', { method: 'POST', headers: { Origin: OK } }), e); assert.equal(r.status, 200); assert.equal(e.RL_CHALLENGE.calls.length, 0); });
+test('RL: the in-Worker limits still apply when the binding allows everything (9th challenge from one address)', async () => { const e = withRl(); let last;
+  for (let i = 0; i < LIMITS.ipChallenges + 1; i++) last = await call('/v1/challenge', 'POST', undefined, { ip: '8.8.4.4' }, e); assert.equal(last.status, 429); });

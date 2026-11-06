@@ -41,3 +41,6 @@ A second, separate Worker (different secrets and limits from the chat proxy). It
 
 ## F7
 No Worker change. Switch-over steps are in `../F7-CHECKLIST.md`.
+
+## Rate limiter bindings (S2-B, optional)
+Add three **Rate limiter** bindings in the Worker's Settings > Bindings: `RL_STATUS` (30 per 60 s), `RL_CHALLENGE` (5 per 60 s), `RL_VERIFY` (10 per 60 s), each with its own Namespace ID. Steps and checks are in `S2B-CHECKLIST.md`. The Worker works without them (it fails open); `GET /v1/status` returns `rl: true` when all three are bound.

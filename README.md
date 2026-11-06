@@ -1427,3 +1427,10 @@ No Firestore rules change in E4 (`ownerPrivate` is already owner only). Rules te
 - **Rules and Worker:** no change. Do not republish Firestore rules.
 - **Tests:** `core-authcleanup.test.mjs` (5), `core-connlog.test.mjs` (8), `rules-tests/browser/s2-1-auth-reminder-connlog.mjs` (24 checks: banner timing and snooze, saved dates, merge writes, host-only log with a secret in the query string, same-origin ignored, signed-out gap, clear); all earlier tests rerun unchanged (298 unit tests, 2459 rules checks, 10 browser suites).
 - **Docs:** `S2A-CHECKLIST.md`, `S2C1-CHECKLIST.md`, `S2D-CHECKLIST.md`, `internal-docs/4.5.0-S2-security.md`.
+
+## 4.5.0 - Security phase S2-B: rate limit for the portfolio-forms Worker
+- **Worker change only** (`server/portfolio-forms-worker.js`): three Cloudflare Rate limiter bindings added in the dashboard (`RL_STATUS` 30, `RL_CHALLENGE` 5, `RL_VERIFY` 10, each per 60 seconds, keyed by visitor address). Over the limit the Worker answers 429 "slow" with `Retry-After: 60`; the page already shows the "Too many attempts" message. If a binding is missing or errors, the Worker lets the request through (fails open); the existing in-Worker limits and the daily cap in the rules still apply.
+- `GET /v1/status` reports `rl: true` when all three bindings are present.
+- **Setup:** `S2B-CHECKLIST.md` (add the bindings, paste the code, check `rl: true`, optional 45-call test, rollback).
+- **No rules, no page change.** Counts are approximate and per Cloudflare location (Cloudflare documents this); it is a speed bump for abuse, not an exact quota.
+- **Tests:** `server/portfolio-forms-worker.test.mjs` 10 new tests with fake bindings (each route's own binding, address keys, 429 shape, only the limited visitor blocked, a blocked verify keeps the challenge, fail-open cases, refused origins never touch a binding, unknown address skipped, in-Worker limit still applies); all earlier tests rerun unchanged.
