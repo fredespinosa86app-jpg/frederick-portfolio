@@ -17,5 +17,6 @@ W5b (schedules and flicker):
     node w5b-1-schedules.mjs
     node w5b-2-rules-of-choice.mjs
     node c1-1-discovery-call.mjs
+    node r3-1-retention.mjs
 
 Note: the stand-in database now also offers orderBy and limit, so the owner dashboard modules load without errors.

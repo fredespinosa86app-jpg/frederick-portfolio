@@ -6,7 +6,7 @@
    ========================================================================== */
 (function () {
   'use strict';
-  const kit = window.dashKit, BC = window.backupCore; if (!kit || !BC) return;
+  const kit = window.dashKit, BC = window.backupCore, RT = window.coreRetention; if (!kit || !BC || !RT) return;
   const { el, notify, confirmBox } = kit;
   const $ = id => document.getElementById(id), own = () => window.OWN;
   const DAY = 864e5;
@@ -97,7 +97,7 @@
   });
 
   /* ------------------------------------------------------------ 2. retention + cleanup */
-  const RET = [['rtVisits', 'visits', [30, 60, 90, 180, 365], 90], ['rtChat', 'chat', [30, 90, 180, 365, 730], 180], ['rtReq', 'requests', [180, 365, 730, 1095], 730], ['rtAct', 'activity', [90, 180, 365], 180]];
+  const RET = [['rtVisits', 'visits', [30, 60, 90, 180, 365], 90], ['rtChat', 'chat', [30, 90, 180, 365, 730], 180], ['rtReq', 'requests', [180, 365, 730, 1095], 730], ['rtFlag', 'reqFlag', [30, 60, 90, 180], 90], ['rtStale', 'reqStale', [180, 365, 730], 365], ['rtAct', 'activity', [90, 180, 365], 180]];
   const retVals = () => { const o = {}; RET.forEach(([id, k, , d]) => { o[k] = parseInt($(id).value, 10) || d; }); return o; };
   const lbl = n => n >= 365 && n % 365 === 0 ? (n / 365) + (n === 365 ? ' year' : ' years') : n + ' days';
   function fillRet() {
@@ -107,6 +107,7 @@
     $('pvContact').value = cfg.privacyContact || '';
   }
   $('rtSave').addEventListener('click', () => {
+    const rv = retVals(); if (rv.reqFlag >= rv.reqStale) return notify('Flag unanswered requests earlier than you delete them.', 'error');
     const c = String($('pvContact').value || '').trim().slice(0, 120);
     if (c && !/^[^\s<>]+@[^\s<>]+\.[^\s<>]+$/.test(c) && !/^https:\/\/[^\s<>]+$/.test(c)) return notify('The contact must be an email address or an https link.', 'error');
     own().save({ retention: retVals(), privacyContact: c }, 'Retention periods and notice contact saved. The privacy notice shows them.');
@@ -114,42 +115,89 @@
   const RULES = [
     ['visits', 'Visit records', () => retVals().visits, () => true],
     ['chatUnanswered', 'Chatbot questions', () => retVals().chat, () => true],
-    ['meetingRequests', 'Finished discovery call requests (completed or cancelled)', () => retVals().requests, d => d.status === 'completed' || d.status === 'cancelled'],
     ['activity', 'Activity log entries', () => retVals().activity, () => true]
   ];
   const ms = t => t && t.toMillis ? t.toMillis() : (t instanceof Date ? t.getTime() : +t || 0);
   async function due(c, days, keep) {
-    const o = own(), f = o.fs, cut = new Date(Date.now() - days * DAY), out = [];
+    const o = own(), f = o.fs, cut = new Date(Date.now() - days * DAY), out = []; let last = null;
     for (let i = 0; i < 6; i++) {
-      const s = await f.getDocs(f.query(f.collection(o.db, c), f.where('createdAt', '<', cut), f.orderBy('createdAt'), f.limit(400)));
+      const base = [f.collection(o.db, c), f.where('createdAt', '<', cut), f.orderBy('createdAt')];
+      const s = await f.getDocs(f.query(...base, ...(last ? [f.startAfter(last)] : []), f.limit(400)));
       s.docs.forEach(d => { if (keep(d.data())) out.push(d); });
       if (s.docs.length < 400) break;
+      last = s.docs[s.docs.length - 1];
       if (out.length >= 2000) break;
     }
     return out;
   }
-  let dueSets = null;
+  /* Discovery Call requests: decided by core-retention.js (finished / unanswered / confirmed long past). Paged with a cursor, newest-first stops at the cutoff. */
+  const PAGE = 400, MAXPAGES = 6;
+  async function scanRequests() {
+    const o = own(), f = o.fs, now = Date.now(), set = RT.settings(retVals()), cut = new Date(RT.queryCutoff(now, set)), out = { due: [], flag: [], capped: false, set, now };
+    let last = null;
+    for (let i = 0; i < MAXPAGES; i++) {
+      const q = last ? f.query(f.collection(o.db, 'meetingRequests'), f.where('createdAt', '<', cut), f.orderBy('createdAt'), f.startAfter(last), f.limit(PAGE)) : f.query(f.collection(o.db, 'meetingRequests'), f.where('createdAt', '<', cut), f.orderBy('createdAt'), f.limit(PAGE));
+      const sn = await f.getDocs(q);
+      sn.docs.forEach(d => { const r = RT.classify(d.data(), now, set); if (r.act === 'due') out.due.push({ doc: d, why: r.why }); else if (r.act === 'flag') out.flag.push({ doc: d, why: r.why }); });
+      if (sn.docs.length < PAGE) return out;
+      last = sn.docs[sn.docs.length - 1];
+    }
+    out.capped = true; return out;
+  }
+  const sampleRow = x => { const d = x.doc.data(), c = ms(d.createdAt); return RT.mask(d.email) + ' · ' + (d.status || '?') + ' · received ' + (c ? new Date(c).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '?') + ' · ' + x.why; };
+  let dueSets = null, reqScan = null;
   $('rtCheck').addEventListener('click', async () => {
     $('rtState').textContent = 'Checking…'; $('rtDel').disabled = true;
     try {
       dueSets = []; const rows = [];
       for (const [c, name, days, keep] of RULES) { const d = await due(c, days(), keep); dueSets.push([c, name, d]); rows.push(el('li', {}, name + ': ' + d.length + ' older than ' + lbl(days()))); }
+      reqScan = await scanRequests();
+      const by = w => reqScan.due.filter(x => x.why === w).length, set = reqScan.set;
+      rows.push(el('li', {}, 'Discovery call requests to delete: ' + reqScan.due.length + ' (finished ' + by('finished') + ', unanswered ' + by('unanswered') + ', confirmed meetings long past ' + by('confirmed, meeting long past') + ')'));
+      rows.push(el('li', {}, 'Discovery call requests to review (not deleted): ' + reqScan.flag.length + ' (unanswered over ' + lbl(set.flagDays) + ' or a confirmed meeting that is over: open the Inbox and set a status)'));
+      reqScan.due.slice(0, 5).forEach(x => rows.push(el('li', { class: 'dhelp' }, 'e.g. ' + sampleRow(x))));
+      if (reqScan.capped) rows.push(el('li', { class: 'dhelp' }, 'More records may be due: delete these, then check again.'));
       $('rtList').replaceChildren(...rows);
-      const tot = dueSets.reduce((a, x) => a + x[2].length, 0);
+      const tot = dueSets.reduce((a, x) => a + x[2].length, 0) + reqScan.due.length;
       $('rtState').textContent = tot ? tot + ' records are past their retention period.' : 'Nothing is due. Everything is within the retention periods.';
       $('rtDel').disabled = !tot;
     } catch (e) { $('rtState').textContent = 'Could not check. ' + errText(e); }
   });
   $('rtDel').addEventListener('click', async () => {
-    if (!dueSets) return; const tot = dueSets.reduce((a, x) => a + x[2].length, 0); if (!tot) return;
-    if (!await confirmBox('Delete ' + tot + ' old records?', 'They are permanently deleted. A backup first is wise (Backup above). Clients are never deleted automatically.', 'Delete')) return;
-    $('rtDel').disabled = true; const o = own(), f = o.fs; let n = 0;
+    if (!dueSets || !reqScan) return; const tot = dueSets.reduce((a, x) => a + x[2].length, 0) + reqScan.due.length; if (!tot) return;
+    const lb = priv.lastBackupAt, bk = lb ? 'Your last backup was ' + Math.max(0, Math.floor((Date.now() - lb) / DAY)) + ' day(s) ago.' : 'You have no backup yet.';
+    if (!await confirmBox('Delete ' + tot + ' old records?', 'They are permanently deleted. ' + bk + ' A fresh backup first is wise (Backup above); press Delete anyway to continue without one. Clients are never deleted automatically.', 'Delete anyway')) return;
+    $('rtDel').disabled = true; const o = own(), f = o.fs; let n = 0, skipped = 0;
     try {
       for (const [c, , d] of dueSets) for (const x of d) { await f.deleteDoc(f.doc(o.db, c, x.id)); n++; }
+      /* a request is read again right before it is deleted: if you changed its status meanwhile it is no longer due and is kept */
+      let k = 0;
+      for (const x of reqScan.due) {
+        const ref = f.doc(o.db, 'meetingRequests', x.doc.id), cur = await f.getDoc(ref);
+        if (!cur.exists()) continue;
+        if (RT.classify(cur.data(), Date.now(), reqScan.set).act !== 'due') { skipped++; continue; }
+        await f.deleteDoc(ref); n++;
+        if (++k % 25 === 0) $('rtState').textContent = 'Deleting… ' + n + ' so far';
+      }
       await savePriv({ lastPurgeAt: Date.now() }); o.log('Old personal data deleted (' + n + ' records)'); fillRet();
-      $('rtState').textContent = n + ' records deleted.'; $('rtList').replaceChildren(); dueSets = null; notify(n + ' old records deleted.', 'success');
-    } catch (e) { $('rtState').textContent = 'Stopped after ' + n + ' deletions. ' + errText(e); }
+      $('rtState').textContent = n + ' records deleted' + (skipped ? ', ' + skipped + ' kept because they changed since the check' : '') + '.'; $('rtList').replaceChildren(); dueSets = null; reqScan = null; notify(n + ' old records deleted.', 'success');
+    } catch (e) { $('rtState').textContent = 'Stopped after ' + n + ' deletions. Press Check again to continue. ' + errText(e); }
   });
+
+  /* weekly reminder on the dashboard: counts only, never deletes */
+  const banner = $('retBanner');
+  async function maybeBanner() {
+    if (!banner || !RT.bannerDue(priv.retBannerAt, Date.now())) return;
+    try {
+      const r = await scanRequests(); if (!r.due.length && !r.flag.length) return;
+      $('retBannerTxt').textContent = (r.due.length ? r.due.length + ' request' + (r.due.length === 1 ? ' is' : 's are') + ' past the retention period. ' : '') + (r.flag.length ? r.flag.length + ' need' + (r.flag.length === 1 ? 's' : '') + ' your attention (unanswered, or a confirmed meeting that is over). ' : '') + 'Nothing is deleted until you review and confirm.';
+      banner.hidden = false; await savePriv({ retBannerAt: Date.now() });
+    } catch (e) { /* the banner is a convenience; the Privacy page still works */ }
+  }
+  if (banner) {
+    $('retLater').addEventListener('click', () => { banner.hidden = true; });
+    $('retReview').addEventListener('click', () => { banner.hidden = true; const b = document.querySelector('.dnav [data-page="privacy"]'); if (b) b.click(); });
+  }
 
   /* ------------------------------------------------------------ 3. one person's data */
   let found = [];
@@ -201,7 +249,7 @@
   document.addEventListener('own:auth', async e => {
     if (!(e.detail && e.detail.ok)) { priv = {}; return; }
     await loadPriv(); cfg = window.__lastCfg || cfg;
-    flagNav();
+    flagNav(); maybeBanner();
   });
   fillRet(); backupAge();
 })();

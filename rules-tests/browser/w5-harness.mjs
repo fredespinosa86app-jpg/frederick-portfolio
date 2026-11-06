@@ -10,12 +10,17 @@ const stub = () => {
   const ts = () => ({ __ts: true, ms: Date.now(), toMillis() { return this.ms; } });
   const get = p => store[p]; 
   const OWN = {
-    db: {}, uid: () => 'u1',
+    db: {}, uid: () => 'u1', log: () => {}, save: async (patch, msg) => { store['settings/site'] = Object.assign({}, store['settings/site'], patch); },
     fs: {
       doc: (db, ...p) => ({ path: p.join('/'), id: p[p.length - 1] }), collection: (db, ...p) => ({ col: p.join('/') }),
-      where: (f, op, v) => ({ f, op, v }), orderBy: (f, d) => ({ ob: f, d }), limit: n => ({ lim: n }), query: (c, ...w) => ({ col: c.col, w }), serverTimestamp: ts,
+      where: (f, op, v) => ({ f, op, v }), orderBy: (f, d) => ({ ob: f, d }), limit: n => ({ lim: n }), startAfter: d => ({ sa: d }), query: (c, ...w) => ({ col: c.col, w: w.filter(x => x && x.f), ob: w.find(x => x && x.ob), lim: w.find(x => x && x.lim), sa: w.find(x => x && x.sa) }), serverTimestamp: ts,
       getDoc: async ref => { reads++; const d = get(ref.path); return { exists: () => !!d, data: () => d, id: ref.id }; },
-      getDocs: async q => { reads++; const docs = Object.keys(store).filter(k => k.startsWith(q.col + '/') && !k.slice(q.col.length + 1).includes('/')).filter(k => (q.w || []).every(w => store[k][w.f] === w.v)).map(k => ({ id: k.split('/').pop(), data: () => store[k] })); return { docs, empty: !docs.length, size: docs.length }; },
+      getDocs: async q => { reads++; const num = x => x == null ? NaN : (x.toMillis ? x.toMillis() : (x instanceof Date ? x.getTime() : +x)); const test = (v, w) => w.op === '<' ? num(v) < num(w.v) : w.op === '>=' ? num(v) >= num(w.v) : v === w.v;
+        let docs = Object.keys(store).filter(k => k.startsWith(q.col + '/') && !k.slice(q.col.length + 1).includes('/')).filter(k => (q.w || []).every(w => test(store[k][w.f], w))).map(k => ({ id: k.split('/').pop(), data: () => store[k] }));
+        if (q.ob) docs.sort((a, b) => num(a.data()[q.ob.ob]) - num(b.data()[q.ob.ob]) || (a.id < b.id ? -1 : 1));
+        if (q.sa) { const i = docs.findIndex(d => d.id === q.sa.sa.id); if (i >= 0) docs = docs.slice(i + 1); }
+        if (q.lim) docs = docs.slice(0, q.lim.lim);
+        return { docs, empty: !docs.length, size: docs.length, forEach: fn => docs.forEach(fn) }; },
       setDoc: async (ref, d) => { store[ref.path] = d; }, deleteDoc: async ref => { delete store[ref.path]; },
       onSnapshot: () => () => {},
       runTransaction: async (db, fn) => { const pend = []; const tx = { get: async ref => { reads++; const d = get(ref.path); return { exists: () => !!d, data: () => d }; }, set: (ref, d) => pend.push([ref.path, d]) }; await fn(tx); pend.forEach(([k, d]) => { store[k] = d; }); }

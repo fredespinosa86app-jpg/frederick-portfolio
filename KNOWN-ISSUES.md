@@ -3,7 +3,9 @@
 No open defects.
 
 ## Verification status (4.5.0)
-- **C1 Discovery Call / outside calendar: AUTOMATED_TESTED.** Needs the live checks in `C1-CHECKLIST.md`. Providers can change their embed rules; if a calendar shows blank, use the "Open the calendar in a new tab" link and tell me which provider.
+- **R3 retention for Discovery Call requests: AUTOMATED_TESTED.** Needs the live checks in `R3-CHECKLIST.md`. Cleanup is still a button press plus a weekly reminder (no scheduled jobs on the free plan). Copies in Google Sheets, backup files and calendars are not deleted by it.
+- **C1 Discovery Call / outside calendar: MANUALLY_VERIFIED** with Calendly (owner live test). Other providers are tested only automatically.
+- (C1 detail) Providers can change their embed rules; if a calendar shows blank, use the "Open the calendar in a new tab" link and tell me which provider.
 - **P0 Client IDs: VERIFIED.** The real-engine emulator tests (workflow "Firestore rules (emulator)") passed 24 of 24, and the live Client IDs page was tested by the owner (add, custom ID, notes, archive and restore with reasons, history, two tabs).
 - **W1 WorkTrack: VERIFIED.** Emulator 39 of 39 passed; offline disables the punch buttons; the two-tab "changed in another tab" message works.
 - (history) W1-E was: `rules-tests/emulator/worktrack.test.mjs` was written but could not be executed in the build environment (no emulator download). Run the workflow "Firestore rules (emulator)" from the Actions tab. All tests, including the 108-case state-machine comparison and the concurrent clock-in test, must pass.

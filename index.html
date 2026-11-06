@@ -290,7 +290,7 @@
 <p><strong>Private copies.</strong> The site owner may keep a copy of meeting requests, client records and visit totals in a private Google Sheet that only the owner can open.</p>
 <p><strong>Chatbot.</strong> Questions the chatbot cannot answer are saved with a random chat ID (no name or email) so answers can be improved. If an AI service is connected, your message is sent to it through a private relay to produce a reply.</p>
 <h3>Why and how long</h3>
-<p>Only to run the site, answer you and improve it; nothing is sold or used for advertising. Visit records are kept up to <span id="pvVisits">90 days</span>, chatbot questions up to <span id="pvChat">180 days</span>, and finished meeting requests up to <span id="pvReq">2 years</span>. Details of people who become clients are kept for as long as the working relationship and legal record keeping need.</p>
+<p>Only to run the site, answer you and improve it; nothing is sold or used for advertising. Visit records are kept up to <span id="pvVisits">90 days</span>, chatbot questions up to <span id="pvChat">180 days</span>, finished discovery call requests up to <span id="pvReq">2 years</span> (confirmed meetings count as finished 30 days after their date), and requests that were never answered up to <span id="pvStale">1 year</span>. Details of people who become clients are kept for as long as the working relationship and legal record keeping need.</p>
 <h3>Who can see it</h3>
 <p>Only the owner, in a private database (Google Firebase) that visitors cannot read. The website is hosted on GitHub Pages. No data is shared with advertisers.</p>
 <h3>Your rights</h3>
@@ -383,6 +383,7 @@
 <div class="dbody" id="dbody">
 
 <section class="dpage" id="dp-dashboard">
+<div class="dcard" id="retBanner" hidden role="status"><h2>Old discovery call requests</h2><p class="dhelp" id="retBannerTxt"></p><div class="dact-row"><button type="button" class="dbtn primary" id="retReview">Review in Privacy &amp; backup</button><button type="button" class="dbtn" id="retLater">Remind me next week</button></div></div>
 <div class="dstats" id="dstats"></div>
 <div class="dcard"><h2>Recent activity</h2><p class="dhelp">Latest events from your inbox, chatbot and settings.</p><ul class="dact" id="dActivity"></ul></div>
 </section>
@@ -915,8 +916,8 @@ function doPost(e) {
 <div id="rsConfirmW" hidden><label class="fld">Type RESTORE to confirm<input type="text" id="rsConfirm" autocomplete="off" spellcheck="false"></label></div>
 <div class="ab"><button type="button" class="dbtn danger" id="rsGo" disabled>Restore selected</button></div></div>
 <div class="dcard"><h2>How long personal data is kept</h2>
-<p class="dhelp">There is no background job on the free plan, so cleanup runs when you press the button below. The periods you choose are shown to visitors in the privacy notice. Clients are never deleted automatically.</p>
-<div class="ab"><label class="fld">Visit records<select id="rtVisits"></select></label><label class="fld">Chatbot questions<select id="rtChat"></select></label><label class="fld">Finished meeting requests<select id="rtReq"></select></label><label class="fld">Activity log<select id="rtAct"></select></label></div>
+<p class="dhelp">Discovery call requests: finished ones (completed or cancelled) are deleted after the first period. Unanswered ones (new or pending) are flagged after the second and deleted after the third. A confirmed meeting is never touched while it is ahead; 30 days after its date it counts as finished. There is no background job on the free plan, so cleanup runs when you press the button below, and a reminder appears on your dashboard once a week when something is due. The periods you choose are shown to visitors in the privacy notice. Clients are never deleted automatically.</p>
+<div class="ab"><label class="fld">Visit records<select id="rtVisits"></select></label><label class="fld">Chatbot questions<select id="rtChat"></select></label><label class="fld">Delete finished discovery call requests after<select id="rtReq"></select></label><label class="fld">Flag unanswered requests after<select id="rtFlag"></select></label><label class="fld">Delete unanswered requests after<select id="rtStale"></select></label><label class="fld">Activity log<select id="rtAct"></select></label></div>
 <label class="fld">Contact for privacy requests, shown in the notice (optional email or https link)<input type="text" id="pvContact" maxlength="120" autocomplete="off" placeholder="you@example.com"></label>
 <div class="ab"><button type="button" class="dbtn primary" id="rtSave">Save periods and contact</button><button type="button" class="dbtn" id="rtCheck">Check what is due</button><button type="button" class="dbtn danger" id="rtDel" disabled>Delete due records</button></div>
 <ul id="rtList" class="seclist"></ul><p class="dstate-line" id="rtState" role="status"></p><p class="dhelp" id="rtLast"></p></div>
@@ -1022,6 +1023,7 @@ function doPost(e) {
 <script src="scripts/availability.js?v=b3"></script>
 <script src="scripts/capacity.js?v=b3"></script>
 <script src="scripts/core-booking.js?v=c1"></script>
+<script src="scripts/core-retention.js?v=r3"></script>
 <script src="scripts/service-forms.js?v=c1"></script>
 <script src="scripts/form-guard.js?v=f6"></script>
 <script src="scripts/meeting-form.js?v=c1"></script>
@@ -1038,7 +1040,7 @@ function doPost(e) {
 <script src="scripts/owner-phase7.js?v=b3"></script>
 <script src="scripts/owner-security.js?v=f6"></script>
 <script src="scripts/backup-core.js?v=c1"></script>
-<script src="scripts/owner-privacy.js?v=c1"></script>
+<script src="scripts/owner-privacy.js?v=r3"></script>
 <script src="scripts/owner-library.js?v=b3"></script>
 <script src="scripts/core-ids.js?v=b3"></script>
 <script src="scripts/owner-clientids.js?v=b3"></script>
@@ -1066,10 +1068,10 @@ function doPost(e) {
 <script src="scripts/core-schedule.js?v=b3"></script>
 <script src="scripts/owner-due.js?v=b3"></script>
 <script src="scripts/owner-google.js?v=b3"></script>
-<script src="scripts/privacy-notice.js?v=b3"></script>
+<script src="scripts/privacy-notice.js?v=r3"></script>
 <script src="scripts/owner-entry.js?v=b3"></script>
 <script src="scripts/owner-seo.js?v=b3"></script>
 <script src="scripts/content-cache.js?v=r1"></script>
-<script type="module" src="scripts/owner-panel.js?v=r1"></script>
+<script type="module" src="scripts/owner-panel.js?v=r3"></script>
 </body>
 </html>
