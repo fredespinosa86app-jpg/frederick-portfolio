@@ -391,6 +391,7 @@
 <div class="dbody" id="dbody">
 
 <section class="dpage" id="dp-dashboard">
+<div class="dcard" id="authBanner" hidden role="status"><h2>Monthly cleanup due: form sign-in users</h2><p class="dhelp" id="authBannerTxt"></p><div class="dact-row"><button type="button" class="dbtn primary" id="authOpen">Open the checklist</button><button type="button" class="dbtn" id="authLater">Remind me next week</button></div></div>
 <div class="dcard" id="retBanner" hidden role="status"><h2>Old discovery call requests</h2><p class="dhelp" id="retBannerTxt"></p><div class="dact-row"><button type="button" class="dbtn primary" id="retReview">Review in Privacy &amp; backup</button><button type="button" class="dbtn" id="retLater">Remind me next week</button></div></div>
 <div class="dstats" id="dstats"></div>
 <div class="dcard"><h2>Recent activity</h2><p class="dhelp">Latest events from your inbox, chatbot and settings.</p><ul class="dact" id="dActivity"></ul></div>
@@ -978,6 +979,21 @@ function doPost(e) {
 <div class="ab"><button type="button" class="dbtn" id="vfSwitch">Turn verification ON</button></div>
 <p class="dhelp" id="vfState" role="status"></p>
 <p class="dhelp"><strong>Leave verification OFF until the switch-over checklist says to turn it on.</strong> While it is off the form works as before. When it is on, the old direct form is refused by the database. Turning it off again is the instant rollback. Counts use the UTC day (it changes at 8:00 AM Philippine time).</p></div>
+<div class="dcard" id="authCard"><h2>Monthly cleanup: form sign-in users (m_)</h2>
+<p class="dhelp">Each verified form attempt creates a Firebase sign-in user whose ID starts with <strong>m_</strong>. They hold no name, email or phone, but they pile up, so delete them about once a month. This page only reminds you; you delete them in the Firebase Console.</p>
+<p class="dhelp" id="authLast" role="status"></p>
+<ol class="seclist">
+<li>Firebase Console > your project > <strong>Authentication</strong> > <strong>Users</strong>.</li>
+<li>Type <strong>m_</strong> in the search box. If the list does not filter by ID, sort by <strong>Created</strong> and look at rows whose identifier column is empty.</li>
+<li>Check every row you are about to delete: it must have <strong>no email and no Google icon</strong>. Keep users from the last 24 hours (a visitor may be mid-form).</li>
+<li>Select the <strong>m_</strong> rows (one page at a time), choose Delete, repeat until none older than a day remain.</li>
+<li>Come back and press the button below.</li></ol>
+<p class="dhelp"><strong>Never delete your own row</strong> (it shows your email and the Google icon). The database rules are tied to your sign-in ID: if it is deleted, signing in again creates a new ID and the panel locks you out.</p>
+<div class="dact-row"><button type="button" class="dbtn primary" id="authDone">I did the cleanup today</button></div></div>
+<div class="dcard" id="clCard"><h2>Connection log (this device only)</h2>
+<p class="dhelp">While you are signed in, this lists the websites the page contacted (host names only, never addresses, paths or content). It is kept on this device and sent nowhere. Use each feature once, then press <strong>Copy list</strong> and send it to me: it is the real list I need before tightening the connection rules.</p>
+<div class="dact-row"><button type="button" class="dbtn" id="clRefresh">Refresh</button><button type="button" class="dbtn primary" id="clCopy">Copy list</button><button type="button" class="dbtn danger" id="clClear">Clear log</button></div>
+<div class="mlist" id="clList"></div><p class="dhelp" id="clState" role="status"></p></div>
 </section>
 <section class="dpage" id="dp-general" hidden>
 <div class="dcard"><h2>Loading screen</h2><p class="dhelp">A screen with moving dots covers the page until your saved settings are applied, so visitors never see the default page first. It also appears briefly when a visitor clicks Hire Me. Changes reach a visitor on their <strong>next</strong> visit; a first-time visitor sees the standard values.</p>
@@ -1048,6 +1064,9 @@ function doPost(e) {
 <script src="scripts/owner-phase3.js?v=b3"></script>
 <script src="scripts/owner-phase5.js?v=c1"></script>
 <script src="scripts/owner-phase6.js?v=c1"></script>
+<script src="scripts/core-authcleanup.js?v=s2"></script>
+<script src="scripts/core-connlog.js?v=s2"></script>
+<script src="scripts/owner-s2.js?v=s2"></script>
 <script src="scripts/owner-phase7.js?v=b3"></script>
 <script src="scripts/owner-security.js?v=f6"></script>
 <script src="scripts/backup-core.js?v=c1"></script>

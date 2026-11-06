@@ -1418,3 +1418,12 @@ No Firestore rules change in E4 (`ownerPrivate` is already owner only). Rules te
 - **Rules and Worker:** no change. Do not republish Firestore rules.
 - **Tests:** `scripts/core-trainingcats.test.mjs` (13 tests); `rules-tests/browser/t1-1-training-cats.mjs` (38 checks: icons and names, 7 of 7 limits, delete with linked videos/FAQs, discard, add, copy, copy without images, zero categories hides the section, restore, keyboard use); all earlier tests rerun unchanged (285 unit tests, 2459 rules checks, 9 browser suites).
 - **Docs:** `T1-CHECKLIST.md`, `internal-docs/4.5.0-T1-training-categories.md`.
+
+## 4.5.0 - Security phase S2, part 1 (2-step verification checklist, `m_` cleanup reminder, connection log)
+- **S2-A:** `S2A-CHECKLIST.md`: turn on 2-step verification for Cloudflare, GitHub and your Google account (owner action; nothing to upload), plus a 5-minute pre-check that decides how the rate limit (S2-B) will be done.
+- **S2-D:** Owner Panel > Security > **Monthly cleanup: form sign-in users (m_)** card (steps, warning never to delete your own row, "I did the cleanup today") and a dashboard banner every 30 days ("Remind me next week" snoozes 7 days). The reminder never deletes anything. Stored in `ownerPrivate/config` (`authCleanupAt`, `authSnoozeAt`).
+- **S2-C1:** Owner Panel > Security > **Connection log (this device only)**: while you are signed in it records the host names the page contacts (no addresses, paths or content; stored only in this browser). Expected hosts are marked, unknown ones flagged. Use each feature once, press **Copy list**, send it to me: it becomes the exact list for the tightened `connect-src` (S2-C2). Nothing is blocked yet.
+- **Not in this part:** S2-B (rate limit) and S2-C2 (tightened `connect-src`); they wait for your answers and the log. See `internal-docs/4.5.0-S2-security.md`.
+- **Rules and Worker:** no change. Do not republish Firestore rules.
+- **Tests:** `core-authcleanup.test.mjs` (5), `core-connlog.test.mjs` (8), `rules-tests/browser/s2-1-auth-reminder-connlog.mjs` (24 checks: banner timing and snooze, saved dates, merge writes, host-only log with a secret in the query string, same-origin ignored, signed-out gap, clear); all earlier tests rerun unchanged (298 unit tests, 2459 rules checks, 10 browser suites).
+- **Docs:** `S2A-CHECKLIST.md`, `S2C1-CHECKLIST.md`, `S2D-CHECKLIST.md`, `internal-docs/4.5.0-S2-security.md`.

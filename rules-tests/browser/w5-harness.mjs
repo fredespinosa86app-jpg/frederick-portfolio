@@ -21,7 +21,7 @@ const stub = () => {
         if (q.sa) { const i = docs.findIndex(d => d.id === q.sa.sa.id); if (i >= 0) docs = docs.slice(i + 1); }
         if (q.lim) docs = docs.slice(0, q.lim.lim);
         return { docs, empty: !docs.length, size: docs.length, forEach: fn => docs.forEach(fn) }; },
-      setDoc: async (ref, d) => { store[ref.path] = d; }, deleteDoc: async ref => { delete store[ref.path]; },
+      setDoc: async (ref, d, o) => { store[ref.path] = o && o.merge ? Object.assign({}, store[ref.path], d) : d; }, deleteDoc: async ref => { delete store[ref.path]; },
       onSnapshot: () => () => {},
       runTransaction: async (db, fn) => { const pend = []; const tx = { get: async ref => { reads++; const d = get(ref.path); return { exists: () => !!d, data: () => d }; }, set: (ref, d) => pend.push([ref.path, d]) }; await fn(tx); pend.forEach(([k, d]) => { store[k] = d; }); }
     }

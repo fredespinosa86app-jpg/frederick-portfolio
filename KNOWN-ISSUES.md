@@ -3,7 +3,9 @@
 No open defects.
 
 ## Verification status (4.5.0)
-- **T1 Training categories add/copy/delete + icons: AUTOMATED_TESTED.** Needs the live checks in `T1-CHECKLIST.md`. Icons are on this page only; the other dashboard pages still use text buttons until the follow-up phase.
+- **S2 part 1 (m_ cleanup reminder, connection log): AUTOMATED_TESTED.** Needs the live checks in `S2D-CHECKLIST.md` and `S2C1-CHECKLIST.md`; S2-A is your own account setting (`S2A-CHECKLIST.md`). **S2-B (rate limit) and S2-C2 (tightened connect-src) are not built yet.** The connection log cannot see requests inside background workers or iframes.
+- **T1 Training categories add/copy/delete + icons: MANUALLY_VERIFIED** (owner live test).
+- (T1 detail) Icons are on the Training page only; the other dashboard pages still use text buttons until the follow-up phase.
 - **R3 retention for Discovery Call requests: AUTOMATED_TESTED.** Needs the live checks in `R3-CHECKLIST.md`. Cleanup is still a button press plus a weekly reminder (no scheduled jobs on the free plan). Copies in Google Sheets, backup files and calendars are not deleted by it.
 - **C1 Discovery Call / outside calendar: MANUALLY_VERIFIED** with Calendly (owner live test). Other providers are tested only automatically.
 - (C1 detail) Providers can change their embed rules; if a calendar shows blank, use the "Open the calendar in a new tab" link and tell me which provider.
