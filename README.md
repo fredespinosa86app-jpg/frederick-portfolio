@@ -1389,3 +1389,11 @@ No Firestore rules change in E4 (`ownerPrivate` is already owner only). Rules te
 - New: `scripts/core-wtalarm.js` (+ tests), `scripts/wt-alarm.js`, `scripts/wt-alarm-worker.js`.
 - Status: AUTOMATED_TESTED. Live test: `W5c-CHECKLIST.md`. Details and limits: `internal-docs/4.5.0-W5c-break-alarm.md`. This completes the W5 plan (W5a, W5b, W5c) once the live test passes.
 
+
+## 4.5.0 - Phase C1: Discovery Call and outside calendar
+- **Owner Panel > Service forms > Booking method:** choose the built-in form (default) or an outside calendar. Paste an embed code or a booking link from Calendly, GoHighLevel, Cal.com, TidyCal, Acuity Scheduling, SavvyCal or a Google Calendar appointment page. Only the web address is read (`scripts/core-booking.js`); scripts and other code you paste are ignored, and the page builds its own sandboxed frame. Any other provider is refused with a message.
+- **Public section:** with an outside calendar on, the built-in form is hidden (the fields, date picker, quick check and send button) and the calendar frame plus an "Open the calendar in a new tab" link and a third-party notice are shown. A missing or invalid saved address falls back to the built-in form. "Hiring closed" still hides everything. Saved service forms are kept.
+- **Rename:** "Meeting Request" is now "Discovery Call" in the visitor text (heading "Book a Discovery Call", button "Send Discovery Call Request", messages, privacy text) and the owner dashboard (drawer, inbox, dialog, form verification, backup and retention labels). Internal names (`meetingRequests`, element ids, file names) are unchanged, so old requests, backups and rules still work.
+- **Security:** the page's CSP `frame-src` gains exactly the approved provider hosts and nothing else. The setting is stored in `content/serviceForms.booking` (`{mode, url}`; public read, owner write: no rules change, **do not republish rules**).
+- **Tests:** `node --test scripts/core-booking.test.mjs` (9 tests: every provider, Calendly and GoHighLevel code, 23 refused inputs, saved-value cleaning, CSP list); `rules-tests/browser/c1-1-discovery-call.mjs` (public and owner flows, 33 checks); earlier browser tests, `node --test scripts/*.test.mjs` (260) and `attack_cases.py` (2459) rerun with no change.
+- **Docs:** `C1-CHECKLIST.md`, `internal-docs/4.5.0-C1-discovery-call.md`.

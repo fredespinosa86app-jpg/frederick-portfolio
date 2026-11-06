@@ -1,6 +1,6 @@
 /* ==========================================================================
    service-forms.js - service-specific qualifying questions for the meeting request form (Phase 6)
-   Data: content/serviceForms { enabled, services[{id,name}], forms[{id,name,serviceId,description,active,fields[]}] }
+   Data: content/serviceForms { enabled, services[{id,name}], forms[{id,name,serviceId,description,active,fields[]}], booking{mode:'native'|'embed',url} }
    (public read, owner write: it holds questions only, never visitor answers).
    The master switch is off by default, so nothing changes until the owner turns it on.
    ========================================================================== */
@@ -32,7 +32,8 @@
       }).filter(q => q.label && (!HAS_OPTS.has(q.type) || q.options.length) && !ids.has(q.id) && ids.add(q.id));
       return { id: id(f && f.id, 'form' + (i + 1)), name: txt(f && f.name, 100), serviceId: id(f && f.serviceId, ''), description: txt(f && f.description, 400), active: !!(f && f.active), fields };
     }).filter(f => f.name && !fseen.has(f.id) && fseen.add(f.id));
-    return { enabled: r.enabled === true, services, forms };
+    const cb = window.coreBooking;
+    return { enabled: r.enabled === true, services, forms, booking: cb ? cb.clean(r.booking) : { mode: 'native', url: '' } };
   }
   let state = clean(null);
   const save = () => { try { localStorage.setItem(CACHE, JSON.stringify(state)); } catch (e) { /* ignore */ } };

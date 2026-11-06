@@ -2,7 +2,7 @@
 <html lang="en" data-theme="gold-silver">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-fGX5IcsLgeneh8q3k50FD0Z3izvKrJM1aduFLTysApk=' https://www.gstatic.com https://apis.google.com https://accounts.google.com https://www.google.com/recaptcha/; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; font-src 'self'; img-src 'self' data: blob: https:; media-src 'self' blob: https:; connect-src 'self' https:; frame-src https://www.youtube-nocookie.com https://www.youtube.com https://www.loom.com https://www.google.com https://recaptcha.google.com https://accounts.google.com https://apis.google.com https://*.firebaseapp.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-fGX5IcsLgeneh8q3k50FD0Z3izvKrJM1aduFLTysApk=' https://www.gstatic.com https://apis.google.com https://accounts.google.com https://www.google.com/recaptcha/; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; font-src 'self'; img-src 'self' data: blob: https:; media-src 'self' blob: https:; connect-src 'self' https:; frame-src https://www.youtube-nocookie.com https://www.youtube.com https://www.loom.com https://www.google.com https://recaptcha.google.com https://accounts.google.com https://apis.google.com https://*.firebaseapp.com https://calendly.com https://*.leadconnectorhq.com https://leadconnectorhq.com https://*.msgsndr.com https://msgsndr.com https://*.gohighlevel.com https://gohighlevel.com https://*.cal.com https://cal.com https://tidycal.com https://*.acuityscheduling.com https://acuityscheduling.com https://*.as.me https://as.me https://savvycal.com https://calendar.google.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <script src="scripts/frame-guard.js?v=b3"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -242,8 +242,9 @@
 <main id="schedule" hidden>
 <section><div class="wrap sched">
 <a class="back" href="#home">← Back to portfolio</a>
-<div class="head"><h2>Schedule a Meeting</h2><p>Tell me a little about what you need and when you are available. I will review your request and reply to you by email.</p></div>
-<p class="closedMsg note">Meeting requests are not being accepted right now. Please check back later.</p>
+<div class="head"><h2>Book a Discovery Call</h2><p class="mHeadNative">Tell me a little about what you need and when you are available. I will review your request and reply to you by email.</p><p class="mHeadEmbed">Choose a time that suits you in the calendar below.</p></div>
+<p class="closedMsg note">Discovery call requests are not being accepted right now. Please check back later.</p>
+<div id="mEmbed" class="mEmbed" hidden></div>
 <form id="mForm" class="mform" novalidate>
 <label>Full name <input type="text" name="name" autocomplete="name" maxlength="100" required></label>
 <label>Email <input type="email" name="email" autocomplete="email" maxlength="120" required></label>
@@ -269,10 +270,10 @@
 <p class="gmsg" id="gMsg" role="status" aria-live="polite"></p>
 </fieldset>
 <p class="fine">By sending this request you agree that Frederick may contact you by email about it.</p>
-<button class="btn navy full" type="submit" id="mBtn">Send Meeting Request</button>
+<button class="btn navy full" type="submit" id="mBtn">Send Discovery Call Request</button>
 <p id="mStatus" role="status" aria-live="polite"></p>
 </form>
-<div class="done" id="mDone" hidden><h3>Request sent</h3><p>Thank you! Your meeting request has been received. I will review it and reply to you by email.</p><a class="btn navy" href="#home">Back to portfolio</a></div>
+<div class="done" id="mDone" hidden><h3>Request sent</h3><p>Thank you! Your discovery call request has been received. I will review it and reply to you by email.</p><a class="btn navy" href="#home">Back to portfolio</a></div>
 </div></section>
 </main>
 
@@ -281,10 +282,11 @@
 <ul class="icons" aria-label="Footer contact links" data-contacts></ul>
 </div></footer>
 <dialog id="privacyDlg" class="pdlg" aria-labelledby="privT"><div><h2 id="privT">Privacy notice</h2>
-<p>This site is run by Frederick Espinosa (Philippines). It follows the Data Privacy Act of 2012 (Republic Act 10173). <span id="pvContactLine">To ask about your data, send a meeting request through the form on this page and say it is a privacy request.</span></p>
+<p>This site is run by Frederick Espinosa (Philippines). It follows the Data Privacy Act of 2012 (Republic Act 10173). <span id="pvContactLine">To ask about your data, send a discovery call request through the form on this page and say it is a privacy request.</span></p>
 <h3>What is collected</h3>
 <p><strong>Visits.</strong> The site counts visits <strong>without cookies</strong> and without your name, email, IP address or exact location. Each record has a random anonymous ID kept in your browser, the sections viewed (saved together as one short list when you leave), the website you came from (host name only), device type, browser name and the time. You can switch this off below, and the site respects Do Not Track and Global Privacy Control.</p>
-<p><strong>Meeting requests.</strong> If you send one, the name, email, company, preferred date and time, time zone, platform, message and any answers you give are stored so the owner can reply to you.</p>
+<p><strong>Discovery call requests.</strong> If you send one, the name, email, company, preferred date and time, time zone, platform, message and any answers you give are stored so the owner can reply to you.</p>
+<p><strong>Outside booking calendar.</strong> If the owner uses a third-party booking calendar on the Discovery Call page, the details you enter there are collected by that provider under its own privacy policy, not stored on this site.</p>
 <p><strong>Private copies.</strong> The site owner may keep a copy of meeting requests, client records and visit totals in a private Google Sheet that only the owner can open.</p>
 <p><strong>Chatbot.</strong> Questions the chatbot cannot answer are saved with a random chat ID (no name or email) so answers can be improved. If an AI service is connected, your message is sent to it through a private relay to produce a reply.</p>
 <h3>Why and how long</h3>
@@ -325,7 +327,7 @@
 <h2>Overview</h2>
 <button type="button" data-page="dashboard"><svg aria-hidden="true"><use href="#ic-home"/></svg><span class="dlabel">Dashboard</span></button>
 <h2>Inbox</h2>
-<button type="button" data-page="inbox"><svg aria-hidden="true"><use href="#ic-inbox"/></svg><span class="dlabel">Meeting requests</span><span class="nbadge" id="nbInbox" hidden>0</span></button>
+<button type="button" data-page="inbox"><svg aria-hidden="true"><use href="#ic-inbox"/></svg><span class="dlabel">Discovery call requests</span><span class="nbadge" id="nbInbox" hidden>0</span></button>
 <h2>Chatbot</h2>
 <button type="button" data-page="questions"><svg aria-hidden="true"><use href="#ic-help"/></svg><span class="dlabel">Question history</span><span class="nbadge" id="nbQ" hidden>0</span></button>
 <button type="button" data-page="marcus"><svg aria-hidden="true"><use href="#ic-chat"/></svg><span class="dlabel">Chatbot configuration</span></button>
@@ -387,7 +389,7 @@
 
 <section class="dpage" id="dp-inbox" hidden>
 <div class="dstats" id="inboxStats"></div>
-<div class="dcard"><h2>Meeting requests</h2><p class="dhelp">Requests are saved to your database first, so they appear here even if an automation is down. Only you can confirm a meeting.</p>
+<div class="dcard"><h2>Discovery call requests</h2><p class="dhelp">Requests are saved to your database first, so they appear here even if an automation is down. Only you can confirm a meeting.</p>
 <div class="dfilters">
 <label class="fld">Search name or email<input type="search" id="inSearch" placeholder="Search…" autocomplete="off"></label>
 <label class="fld">Status<select id="inStatus"><option value="all">All statuses</option><option value="new">New (unread)</option><option value="pending">Pending</option><option value="confirmed">Confirmed</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></label>
@@ -852,13 +854,22 @@ function doPost(e) {
 <div class="dcard"><h3>DNS records to add</h3><div id="dmDns"><p class="dhelp">Save a domain to see the records.</p></div></div>
 <div class="dcard"><h3>Then</h3><ol class="dhelp"><li>In GitHub: repository <em>Settings &gt; Pages &gt; Custom domain</em>, enter the domain and Save (or commit a file named <code>CNAME</code> containing it).</li><li>Wait for DNS to propagate (minutes to 48 hours), then tick <em>Enforce HTTPS</em> once GitHub finishes issuing the certificate.</li><li>In Firebase: <em>Authentication &gt; Settings &gt; Authorized domains</em> &rarr; add the domain, or owner sign-in will fail on it.</li><li>Update the canonical address in <em>SEO &amp; social preview</em>, <code>robots.txt</code> and <code>sitemap.xml</code>.</li><li>Press Verify here.</li></ol><div class="dact-row"><button type="button" class="dbtn" id="dmCname" disabled>Download CNAME file</button></div></div></section>
 <section class="dpage" id="dp-svcforms" hidden>
+<div class="dcard" id="bkMethod"><h2>Booking method</h2>
+<p class="dhelp">Choose how visitors book a Discovery Call. You can use the built-in form, or paste the embedded calendar from another provider.</p>
+<label class="tog"><input type="radio" name="bkMode" id="bkNative" value="native"> Use my built-in form</label>
+<label class="tog"><input type="radio" name="bkMode" id="bkEmbed" value="embed"> Use an outside calendar (Calendly, GoHighLevel and similar)</label>
+<div id="bkEmbedBox" hidden>
+<label class="fld">Paste the embed code or booking link<textarea id="bkCode" rows="4" maxlength="4000" autocomplete="off" spellcheck="false" placeholder="https://calendly.com/your-name/30min"></textarea></label>
+<p class="dhelp" id="bkInfo" role="status" aria-live="polite"></p>
+<div id="bkPrev"></div>
+<p class="dhelp">Approved providers: Calendly, GoHighLevel, Cal.com, TidyCal, Acuity Scheduling, SavvyCal and Google Calendar appointment pages. Only the web address is used; scripts or other code you paste are ignored. While this is on, the built-in form is hidden and the visitor books with the provider, who collects their details. Your saved service forms are kept.</p></div></div>
 <div class="dcard"><h2>Service-specific contact forms</h2>
-<p class="dhelp">Ask different qualifying questions depending on the service a visitor is interested in. The meeting request form stays the same; the questions you set up appear inside it when the matching service is chosen.</p>
+<p class="dhelp">Ask different qualifying questions depending on the service a visitor is interested in. The discovery call request form stays the same; the questions you set up appear inside it when the matching service is chosen.</p>
 <label class="tog"><input type="checkbox" id="sfEnabled"> Enable service-specific forms</label>
-<p class="dhelp">Off: visitors only see the normal meeting request form (no service dropdown). Turning it off never deletes your forms or past inquiries.</p></div>
+<p class="dhelp">Off: visitors only see the normal discovery call request form (no service dropdown). Turning it off never deletes your forms or past inquiries.</p></div>
 <div class="dcard"><h2>Service options</h2><p class="dhelp">The choices in the “Service type” dropdown.</p>
 <div class="dact-row"><button type="button" class="dbtn primary" id="sfSvcAdd">Add service</button></div><div class="mlist" id="sfSvcList"></div></div>
-<div class="dcard"><div id="sfListView"><h2>Service forms</h2><p class="dhelp">One active form per service. Services without an active form use the normal meeting request form. File uploads are not available because Firebase Storage needs a paid plan.</p>
+<div class="dcard"><div id="sfListView"><h2>Service forms</h2><p class="dhelp">One active form per service. Services without an active form use the normal discovery call request form. File uploads are not available because Firebase Storage needs a paid plan.</p>
 <div class="dact-row"><button type="button" class="dbtn primary" id="sfFormAdd">Add form</button></div><div class="mlist" id="sfList"></div></div>
 <div id="sfEdit" hidden></div></div>
 <div class="dcard"><p class="dhelp" id="sfState" role="status"></p>
@@ -892,7 +903,7 @@ function doPost(e) {
 <p class="dhelp">Your content lives only in the database. Download a backup file now and then, and before any big change. The file contains private details (clients, visitors’ messages): keep it somewhere safe, not in a shared folder.</p>
 <p class="dstate-line" id="bkLast" role="status"></p>
 <div class="ab"><label class="tog"><input type="checkbox" id="bk_settings" checked> Site settings</label><label class="tog"><input type="checkbox" id="bk_content" checked> Site content</label><label class="tog"><input type="checkbox" id="bk_ownerPrivate" checked> Private settings (rates, capacity)</label><label class="tog"><input type="checkbox" id="bk_clients" checked> Clients</label></div>
-<div class="ab"><label class="tog"><input type="checkbox" id="bk_meetingRequests"> Meeting requests</label><label class="tog"><input type="checkbox" id="bk_chatUnanswered"> Chatbot questions</label><label class="tog"><input type="checkbox" id="bk_activity"> Activity log</label><label class="tog"><input type="checkbox" id="bk_visits"> Visit records (large)</label><label class="tog"><input type="checkbox" id="bk_clientRegistry"> Client IDs</label><label class="tog"><input type="checkbox" id="bk_clientRegistryAudit"> Client ID history</label><label class="tog"><input type="checkbox" id="bk_workState"> WorkTrack position</label><label class="tog"><input type="checkbox" id="bk_workSessions"> WorkTrack sessions</label><label class="tog"><input type="checkbox" id="bk_workEvents"> WorkTrack punches</label><label class="tog"><input type="checkbox" id="bk_workAssign"> WorkTrack clients</label><label class="tog"><input type="checkbox" id="bk_workAssignAudit"> WorkTrack client history</label><label class="tog"><input type="checkbox" id="bk_workCorrections"> WorkTrack corrections</label><label class="tog"><input type="checkbox" id="bk_workSeals"> WorkTrack log seals</label><label class="tog"><input type="checkbox" id="bk_workChain"> WorkTrack log chain head</label><label class="tog"><input type="checkbox" id="bk_workSettings"> WorkTrack settings</label><label class="tog"><input type="checkbox" id="bk_billingProfiles"> Billing profiles</label><label class="tog"><input type="checkbox" id="bk_billingProfileAudit"> Billing profile history</label><label class="tog"><input type="checkbox" id="bk_billableEntries"> Billable hours</label><label class="tog"><input type="checkbox" id="bk_billableEntryAudit"> Billable hours history</label><label class="tog"><input type="checkbox" id="bk_billingMigration"> Client migration records</label><label class="tog"><input type="checkbox" id="bk_invoices"> Invoices</label><label class="tog"><input type="checkbox" id="bk_invoiceAudit"> Invoice history</label><label class="tog"><input type="checkbox" id="bk_payments"> Payments and credits</label><label class="tog"><input type="checkbox" id="bk_paymentReversals"> Payment reversals</label><label class="tog"><input type="checkbox" id="bk_invoiceAdjustments"> Invoice adjustments</label><label class="tog"><input type="checkbox" id="bk_invoiceDueDates"> Due-date changes</label><label class="tog"><input type="checkbox" id="bk_periodSkips"> Skipped billing periods</label><label class="tog"><input type="checkbox" id="bk_reqCounters"> Daily request counters</label><label class="tog"><input type="checkbox" id="bk_ownerDocs"> Owner documents (private notes)</label></div>
+<div class="ab"><label class="tog"><input type="checkbox" id="bk_meetingRequests"> Discovery call requests</label><label class="tog"><input type="checkbox" id="bk_chatUnanswered"> Chatbot questions</label><label class="tog"><input type="checkbox" id="bk_activity"> Activity log</label><label class="tog"><input type="checkbox" id="bk_visits"> Visit records (large)</label><label class="tog"><input type="checkbox" id="bk_clientRegistry"> Client IDs</label><label class="tog"><input type="checkbox" id="bk_clientRegistryAudit"> Client ID history</label><label class="tog"><input type="checkbox" id="bk_workState"> WorkTrack position</label><label class="tog"><input type="checkbox" id="bk_workSessions"> WorkTrack sessions</label><label class="tog"><input type="checkbox" id="bk_workEvents"> WorkTrack punches</label><label class="tog"><input type="checkbox" id="bk_workAssign"> WorkTrack clients</label><label class="tog"><input type="checkbox" id="bk_workAssignAudit"> WorkTrack client history</label><label class="tog"><input type="checkbox" id="bk_workCorrections"> WorkTrack corrections</label><label class="tog"><input type="checkbox" id="bk_workSeals"> WorkTrack log seals</label><label class="tog"><input type="checkbox" id="bk_workChain"> WorkTrack log chain head</label><label class="tog"><input type="checkbox" id="bk_workSettings"> WorkTrack settings</label><label class="tog"><input type="checkbox" id="bk_billingProfiles"> Billing profiles</label><label class="tog"><input type="checkbox" id="bk_billingProfileAudit"> Billing profile history</label><label class="tog"><input type="checkbox" id="bk_billableEntries"> Billable hours</label><label class="tog"><input type="checkbox" id="bk_billableEntryAudit"> Billable hours history</label><label class="tog"><input type="checkbox" id="bk_billingMigration"> Client migration records</label><label class="tog"><input type="checkbox" id="bk_invoices"> Invoices</label><label class="tog"><input type="checkbox" id="bk_invoiceAudit"> Invoice history</label><label class="tog"><input type="checkbox" id="bk_payments"> Payments and credits</label><label class="tog"><input type="checkbox" id="bk_paymentReversals"> Payment reversals</label><label class="tog"><input type="checkbox" id="bk_invoiceAdjustments"> Invoice adjustments</label><label class="tog"><input type="checkbox" id="bk_invoiceDueDates"> Due-date changes</label><label class="tog"><input type="checkbox" id="bk_periodSkips"> Skipped billing periods</label><label class="tog"><input type="checkbox" id="bk_reqCounters"> Daily request counters</label><label class="tog"><input type="checkbox" id="bk_ownerDocs"> Owner documents (private notes)</label></div>
 <p class="dhelp">The last four are saved for your records only: the database lets visitors create them but not you, so they cannot be restored.</p>
 <div class="ab"><button type="button" class="dbtn primary" id="bkGo">Download backup</button></div>
 <p class="dhelp" id="bkpState" role="status"></p></div>
@@ -948,7 +959,7 @@ function doPost(e) {
 <div class="ab"><button type="button" class="dbtn" id="secCheck">Check now</button><button type="button" class="dbtn" id="secPause">Pause public submissions</button></div>
 <p class="dhelp" id="secGuard" role="status"></p>
 <p class="dhelp">Pausing makes the database refuse new visits, meeting requests and chatbot questions from visitors until you resume. Your own panel keeps working. There is no background monitor on the free plan, so this only watches while the panel is open.</p></div>
-<div class="dcard"><h2>Form verification (Meeting Request form)</h2>
+<div class="dcard"><h2>Form verification (Discovery Call request form)</h2>
 <p class="dhelp">Visitors type a six-digit code, then a one-time pass lets the form save one request. The database refuses anything beyond your <strong>daily limit</strong>. The code is a speed bump, not a CAPTCHA.</p>
 <p class="dhelp" id="vfToday" role="status">Requests counted today: checking…</p>
 <div class="ab"><label class="fld">Daily limit (1 to 200)<input type="number" id="vfCap" min="1" max="200" step="1" inputmode="numeric"></label><button type="button" class="dbtn" id="vfCapSave">Save daily limit</button></div>
@@ -981,7 +992,7 @@ function doPost(e) {
 </section>
 
 </div></div></div>
-<dialog class="dmodal" id="dDetail" aria-labelledby="ddT"><div><h2 id="ddT">Meeting request</h2><div id="ddBody"></div><div class="dact-row" id="ddActs"></div><div class="dact-row"><button type="button" class="dbtn" id="ddClose">Close</button></div></div></dialog>
+<dialog class="dmodal" id="dDetail" aria-labelledby="ddT"><div><h2 id="ddT">Discovery call request</h2><div id="ddBody"></div><div class="dact-row" id="ddActs"></div><div class="dact-row"><button type="button" class="dbtn" id="ddClose">Close</button></div></div></dialog>
 <dialog class="dmodal" id="dConfirm" aria-labelledby="dcTitle"><div><h2 id="dcTitle"></h2><p id="dcMsg"></p><div class="dact-row"><button type="button" class="dbtn danger" id="dcOk">Delete</button><button type="button" class="dbtn" id="dcNo">Cancel</button></div></div></dialog>
 
 <button type="button" class="chat-btn" id="chatBtn" aria-label="Open Chatbot - Assistant chat" aria-expanded="false" aria-controls="chat"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3h16a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H9l-5 4v-4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/></svg></button>
@@ -1010,27 +1021,29 @@ function doPost(e) {
 <script src="scripts/site-settings.js?v=b3"></script>
 <script src="scripts/availability.js?v=b3"></script>
 <script src="scripts/capacity.js?v=b3"></script>
-<script src="scripts/service-forms.js?v=b3"></script>
+<script src="scripts/core-booking.js?v=c1"></script>
+<script src="scripts/service-forms.js?v=c1"></script>
 <script src="scripts/form-guard.js?v=f6"></script>
-<script src="scripts/meeting-form.js?v=f6"></script>
+<script src="scripts/meeting-form.js?v=c1"></script>
+<script src="scripts/booking-embed.js?v=c1"></script>
 <script src="scripts/owner-ui.js?v=b3"></script>
-<script src="scripts/owner-dashboard.js?v=d1"></script>
+<script src="scripts/owner-dashboard.js?v=c1"></script>
 <script src="scripts/owner-content.js?v=b3"></script>
 <script src="scripts/owner-phase1.js?v=c1"></script>
 <script src="scripts/owner-phase2.js?v=b3"></script>
 <script src="scripts/analytics.js?v=b3"></script>
 <script src="scripts/owner-phase3.js?v=b3"></script>
 <script src="scripts/owner-phase5.js?v=c1"></script>
-<script src="scripts/owner-phase6.js?v=b3"></script>
+<script src="scripts/owner-phase6.js?v=c1"></script>
 <script src="scripts/owner-phase7.js?v=b3"></script>
 <script src="scripts/owner-security.js?v=f6"></script>
-<script src="scripts/backup-core.js?v=d1"></script>
-<script src="scripts/owner-privacy.js?v=d1"></script>
+<script src="scripts/backup-core.js?v=c1"></script>
+<script src="scripts/owner-privacy.js?v=c1"></script>
 <script src="scripts/owner-library.js?v=b3"></script>
 <script src="scripts/core-ids.js?v=b3"></script>
 <script src="scripts/owner-clientids.js?v=b3"></script>
-<script src="scripts/owner-docs-core.js?v=d1b"></script>
-<script src="scripts/owner-docs.js?v=d1"></script>
+<script src="scripts/owner-docs-core.js?v=c1b"></script>
+<script src="scripts/owner-docs.js?v=c1"></script>
 <script src="scripts/core-time.js?v=b3"></script>
 <script src="scripts/core-worktrack.js?v=b3"></script>
 <script src="scripts/core-wtschedule.js?v=w5b"></script>

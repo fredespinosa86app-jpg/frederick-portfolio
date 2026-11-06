@@ -16,5 +16,6 @@ W5b (schedules and flicker):
 
     node w5b-1-schedules.mjs
     node w5b-2-rules-of-choice.mjs
+    node c1-1-discovery-call.mjs
 
-Note: a line "fs.orderBy is not a function" can appear from unrelated owner-panel modules because the stand-in database is minimal; it is filtered out of the page-error check.
+Note: the stand-in database now also offers orderBy and limit, so the owner dashboard modules load without errors.

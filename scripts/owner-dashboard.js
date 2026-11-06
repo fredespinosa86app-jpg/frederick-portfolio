@@ -121,7 +121,7 @@
       if (!first) snap.docChanges().forEach(c => {
         if (c.type !== 'added' || (c.doc.metadata && c.doc.metadata.hasPendingWrites)) return;
         const r = c.doc.data();
-        if (key === 'req') notify('New meeting request from ' + (r.name || 'a client'), 'info', 'inbox');
+        if (key === 'req') notify('New discovery call request from ' + (r.name || 'a client'), 'info', 'inbox');
         if (key === 'q') notify('New unanswered chatbot question recorded', 'info', 'questions');
       });
       first = false; renderAll();
@@ -173,8 +173,8 @@
     const pub = { svc: document.querySelectorAll('#services .row').length, tools: document.querySelectorAll('#toolkit .badges span').length,
       testi: (() => { const s = $('testimonials'); return s && !s.hidden ? document.querySelectorAll('#tGrid .tcard').length : 0; })() };
     const cards = [
-      ['Total meeting requests', ld('req') ? S.req.length : '…', 'inbox'],
-      ['New meeting requests', ld('req') ? S.req.filter(r => normReq(r.status) === 'new').length : '…', 'inbox'],
+      ['Total discovery call requests', ld('req') ? S.req.length : '…', 'inbox'],
+      ['New discovery call requests', ld('req') ? S.req.filter(r => normReq(r.status) === 'new').length : '…', 'inbox'],
       ['Unanswered chatbot questions', ld('q') ? S.q.filter(q => normQ(q.status) !== 'archived').length : '…', 'questions'],
       ['Questions awaiting review', ld('q') ? S.q.filter(q => normQ(q.status) === 'new').length : '…', 'questions'],
       ['Published services', pub.svc], ['Active toolkit items', pub.tools], ['Published testimonials', pub.testi]];
@@ -182,7 +182,7 @@
       el('span', { class: 'stat-n' }, n), el('span', { class: 'stat-l' }, l))));
     const items = [].concat(
       S.act.map(a => ({ t: toDate(a.createdAt), text: a.text })),
-      S.req.slice(0, 15).map(r => ({ t: toDate(r.createdAt), text: 'New meeting request received from ' + (r.name || 'a client') })),
+      S.req.slice(0, 15).map(r => ({ t: toDate(r.createdAt), text: 'New discovery call request received from ' + (r.name || 'a client') })),
       S.q.slice(0, 15).map(q => ({ t: toDate(q.createdAt), text: 'New unanswered chatbot question recorded: “' + String(q.question || '').slice(0, 70) + '”' }))
     ).filter(i => i.t).sort((a, b) => b.t - a.t).slice(0, 12);
     const box = $('dActivity');
@@ -195,7 +195,7 @@
     S.req.forEach(r => { const s = normReq(r.status); if (s in c) c[s]++; });
     $('inboxStats').replaceChildren(...[['Total requests', S.req.length], ['New', c.new], ['Pending', c.pending], ['Confirmed', c.confirmed], ['Completed', c.completed]]
       .map(([l, n]) => el('div', { class: 'stat' }, el('span', { class: 'stat-n' }, S.loaded.req ? n : '…'), el('span', { class: 'stat-l' }, l))));
-    const root = $('inboxList'), st = stateFor('req', S.req.length, 'No meeting requests yet. New client inquiries will appear here.');
+    const root = $('inboxList'), st = stateFor('req', S.req.length, 'No discovery call requests yet. New client inquiries will appear here.');
     if (st) return root.replaceChildren(st);
     const rows = filterList(S.req, F.req, r => [r.name, r.email, r.company, r.service], normReq);
     if (!rows.length) return root.replaceChildren(el('p', { class: 'dstate' }, 'No requests match your filters.'));
@@ -226,7 +226,7 @@
     if (status === 'confirmed' && window.calendarApi) window.calendarApi.onConfirmed(r);
     return res;
   };
-  const setReq0 = (r, status) => update(r.ref, { status }, 'Meeting request from ' + (r.name || 'a client') + ' marked ' + REQ_STATUS[status], 'Request marked ' + REQ_STATUS[status] + '.');
+  const setReq0 = (r, status) => update(r.ref, { status }, 'Discovery call request from ' + (r.name || 'a client') + ' marked ' + REQ_STATUS[status], 'Request marked ' + REQ_STATUS[status] + '.');
 
   /* answers to a service-specific form are stored as a JSON text; parse defensively and show as plain text only */
   function answerRows(r) {
@@ -246,7 +246,7 @@
         el('button', { type: 'button', class: 'dbtn' + (k === 'confirmed' ? ' primary' : ''), disabled: s === k, onclick: async e => { e.currentTarget.disabled = true; await setReq(r, k); d.close(); } }, l)),
       el('button', { type: 'button', class: 'dbtn danger', onclick: async () => {
         if (await confirmBox('Delete this request?', 'This permanently deletes the request from ' + (r.name || 'this client') + '. This cannot be undone.')) {
-          if (await remove(r.ref, 'Meeting request from ' + (r.name || 'a client') + ' deleted')) d.close();
+          if (await remove(r.ref, 'Discovery call request from ' + (r.name || 'a client') + ' deleted')) d.close();
         } } }, 'Delete Request'));
     d.showModal();
   }

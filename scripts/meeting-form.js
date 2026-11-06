@@ -109,6 +109,6 @@ nw.onclick=()=>fin({renew:true});no.onclick=()=>fin(null);
 inp.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();ok.onclick()}else if(e.key==='Escape'){e.preventDefault();no.onclick()}};
 if(o.fresh||o.error)setTimeout(()=>inp.focus(),0);else{box.scrollIntoView({block:'center'});inp.focus()}})}}}}
 function route(){if(location.hash==='#schedule'&&window.capacityApi&&!window.capacityApi.open())history.replaceState(null,'',location.pathname+location.search+'#home');const s=location.hash==='#schedule';document.getElementById('page').hidden=s;document.getElementById('schedule').hidden=!s;
-if(s){mf.hidden=false;document.getElementById('mDone').hidden=true;window.scrollTo(0,0);document.title='Schedule a Meeting · Frederick Espinosa'}
+if(s){mf.hidden=false;document.getElementById('mDone').hidden=true;window.scrollTo(0,0);document.title='Book a Discovery Call · Frederick Espinosa'}
 else{document.title=ORIG;if(location.hash.length>1){const t=document.getElementById(location.hash.slice(1));if(t)t.scrollIntoView()}}}
 addEventListener('hashchange',route);route();

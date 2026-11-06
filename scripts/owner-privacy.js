@@ -114,7 +114,7 @@
   const RULES = [
     ['visits', 'Visit records', () => retVals().visits, () => true],
     ['chatUnanswered', 'Chatbot questions', () => retVals().chat, () => true],
-    ['meetingRequests', 'Finished meeting requests (completed or cancelled)', () => retVals().requests, d => d.status === 'completed' || d.status === 'cancelled'],
+    ['meetingRequests', 'Finished discovery call requests (completed or cancelled)', () => retVals().requests, d => d.status === 'completed' || d.status === 'cancelled'],
     ['activity', 'Activity log entries', () => retVals().activity, () => true]
   ];
   const ms = t => t && t.toMillis ? t.toMillis() : (t instanceof Date ? t.getTime() : +t || 0);

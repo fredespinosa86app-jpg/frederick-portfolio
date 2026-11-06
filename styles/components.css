@@ -338,3 +338,13 @@ dialog.vplayer{width:min(960px,96vw);background:#0b1020;border-radius:16px;overf
 .mform .guard :focus-visible,#mStatus .gfb:focus-visible{outline:3px solid #1a5fd0;outline-offset:2px}
 .gbtns .btn.gsec{background:transparent;color:var(--navy);border:2px solid var(--navy)}
 .gbtns .btn.gsec:hover{background:rgba(20,33,61,.08)}
+
+/* D1: outside calendar replaces the built-in form */
+.mHeadEmbed{display:none}
+#schedule.embedmode .mHeadNative{display:none}
+#schedule.embedmode .mHeadEmbed{display:block}
+#schedule.embedmode .mform,#schedule.embedmode .done{display:none!important}
+#schedule.closed .mEmbed{display:none!important}
+.mEmbed{display:grid;gap:14px}
+.mEmbedFrame{width:100%;min-height:720px;border:1px solid var(--line);border-radius:16px;background:#fff}
+.mEmbedLink{justify-self:start}

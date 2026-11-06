@@ -4,17 +4,19 @@
    ========================================================================== */
 (function () {
   'use strict';
-  const kit = window.dashKit, K = window.ownKit, SF = window.serviceFormsApi;
-  if (!kit || !K || !SF) return;
+  const kit = window.dashKit, K = window.ownKit, SF = window.serviceFormsApi, CB = window.coreBooking;
+  if (!kit || !K || !SF || !CB) return;
   const { el, notify, confirmBox } = kit;
   const { makeStore, editDialog, ctl, uid, clone, move } = K;
   const $ = id => document.getElementById(id);
 
   const sf = makeStore({
-    get: () => clone(SF.get().forms), meta: { get: () => ({ enabled: SF.get().enabled, services: clone(SF.get().services) }) },
+    get: () => clone(SF.get().forms), meta: { get: () => ({ enabled: SF.get().enabled, booking: clone(SF.get().booking), services: clone(SF.get().services) }) },
     preview: () => {}, pub: 'sfPublish', disc: 'sfDiscard', state: 'sfState', doc: 'serviceForms', label: 'Service forms',
-    payload: (l, m) => ({ enabled: !!m.enabled, services: m.services, forms: l }),
+    payload: (l, m) => ({ enabled: !!m.enabled, services: m.services, forms: l, booking: CB.clean(m.booking) }),
     validate: l => {
+      const bk = sf.draftM.booking || {};
+      if (bk.mode === 'embed' && !CB.clean(bk).url) return 'Paste a valid calendar embed code or link from an approved provider, or switch back to the built-in form.';
       const names = new Set(sf.draftM.services.map(s => s.id)), active = {};
       for (const f of l) {
         if (!f.name.trim()) return 'Every form needs a name.';
@@ -28,6 +30,32 @@
   let editing = null; const open = new Set();
   const svcName = id => (sf.draftM.services.find(s => s.id === id) || { name: '(missing service)' }).name;
   const typeLabel = t => (SF.TYPES.find(x => x[0] === t) || [0, t])[1];
+
+  /* ---- booking method (built-in form or outside calendar) ---- */
+  let bkRaw = '';
+  function renderBooking() {
+    const b = sf.draftM.booking || (sf.draftM.booking = { mode: 'native', url: '' }), emb = b.mode === 'embed';
+    $('bkNative').checked = !emb; $('bkEmbed').checked = emb; $('bkEmbedBox').hidden = !emb;
+    const code = $('bkCode'); if (document.activeElement !== code) { bkRaw = b.url || bkRaw; code.value = bkRaw; }
+    const r = emb ? CB.parse(bkRaw) : null, info = $('bkInfo'), pv = $('bkPrev'); pv.replaceChildren();
+    if (!emb) { info.textContent = ''; return; }
+    if (!bkRaw.trim()) info.textContent = 'Nothing pasted yet.';
+    else if (!r.ok) info.textContent = r.error;
+    else {
+      info.textContent = 'Detected: ' + r.name + '. The built-in form will be hidden once you publish.';
+      const f = el('iframe', { src: r.url, title: 'Calendar preview', loading: 'lazy', referrerpolicy: 'no-referrer', class: 'mEmbedFrame', sandbox: 'allow-scripts allow-forms allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation' });
+      pv.append(f);
+    }
+  }
+  function setBooking(mode, raw) {
+    bkRaw = raw;
+    const r = mode === 'embed' ? CB.parse(raw) : null;
+    sf.draftM.booking = { mode, url: r && r.ok ? r.url : '' }; sf.touch();
+  }
+  $('bkNative').addEventListener('change', () => setBooking('native', bkRaw));
+  $('bkEmbed').addEventListener('change', () => setBooking('embed', bkRaw));
+  $('bkCode').addEventListener('input', e => setBooking('embed', e.target.value));
+  $('bkCode').addEventListener('blur', () => { const r = CB.parse(bkRaw); if (r.ok) { bkRaw = r.url; $('bkCode').value = r.url; } });
 
   function renderServices() {
     const S = sf.draftM.services; $('sfEnabled').checked = !!sf.draftM.enabled;
@@ -66,7 +94,7 @@
     box.append(el('button', { type: 'button', class: 'dbtn sm', onclick: () => { const r = h.validate(); notify(r.ok ? 'Looks good: ' + r.answers.length + ' answer(s) would be saved.' : r.error, r.ok ? 'success' : 'warning'); } }, 'Check validation'));
     return box;
   }
-  function render() { renderServices(); if (editing) { renderQuestions(); sf.sync(); } else { renderForms(); sf.sync(); } }
+  function render() { renderBooking(); renderServices(); if (editing) { renderQuestions(); sf.sync(); } else { renderForms(); sf.sync(); } }
 
   /* ---- form editor ---- */
   const qFields = () => [
@@ -117,6 +145,6 @@
     const f = { id: uid('form'), name: 'New form', serviceId: sf.draftM.services[0].id, description: '', active: false, fields: [] };
     sf.draft.push(f); sf.touch(); startEdit(f);
   });
-  document.addEventListener('dash:page', e => { if (e.detail === 'svcforms') { if (editing) endEdit(); sf.reset(); render(); } });
+  document.addEventListener('dash:page', e => { if (e.detail === 'svcforms') { if (editing) endEdit(); sf.reset(); if (!sf.dirty) bkRaw = ''; render(); } });
   document.addEventListener('dash:closed', () => { editing = null; });
 })();

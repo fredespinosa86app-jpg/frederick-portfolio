@@ -13,7 +13,7 @@ const stub = () => {
     db: {}, uid: () => 'u1',
     fs: {
       doc: (db, ...p) => ({ path: p.join('/'), id: p[p.length - 1] }), collection: (db, ...p) => ({ col: p.join('/') }),
-      where: (f, op, v) => ({ f, op, v }), query: (c, ...w) => ({ col: c.col, w }), serverTimestamp: ts,
+      where: (f, op, v) => ({ f, op, v }), orderBy: (f, d) => ({ ob: f, d }), limit: n => ({ lim: n }), query: (c, ...w) => ({ col: c.col, w }), serverTimestamp: ts,
       getDoc: async ref => { reads++; const d = get(ref.path); return { exists: () => !!d, data: () => d, id: ref.id }; },
       getDocs: async q => { reads++; const docs = Object.keys(store).filter(k => k.startsWith(q.col + '/') && !k.slice(q.col.length + 1).includes('/')).filter(k => (q.w || []).every(w => store[k][w.f] === w.v)).map(k => ({ id: k.split('/').pop(), data: () => store[k] })); return { docs, empty: !docs.length, size: docs.length }; },
       setDoc: async (ref, d) => { store[ref.path] = d; }, deleteDoc: async ref => { delete store[ref.path]; },
