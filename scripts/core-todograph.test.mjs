@@ -155,3 +155,69 @@ test('EN-1A other zones: the New York clock-change day keeps every second (25-ho
   const start = Date.parse('2026-11-01T03:00:00Z'), s = [S({ start, secs: 86400 })], d = G.dailyBuckets(s, ['2026-10-31', '2026-11-01', '2026-11-02'], 'America/New_York');
   const total = Object.values(d).reduce((a, x) => a + (x.taskAAAA1 || 0), 0); assert.equal(total, 86400);
 });
+
+/* ---------------- EN-1C: weekly summary ---------------- */
+const mkRows = (today, tot, plan) => { const days = G.dayList(today, 60), b = Object.fromEntries(days.map(d => [d, tot[d] ? { taskAAAA1: tot[d] } : {}])); return G.stackModel(days, b, [T()], days[0], plan, today).rows; };
+const WK = { '2026-10-26': 3600, '2026-10-27': 7200, '2026-10-28': 11400, '2026-10-29': 0, '2026-10-30': 3600, '2026-10-31': 0, '2026-11-01': 3600 };   // Mon..Sun
+test('EN-1C lastCompletedWeek: the week before the one that holds today, Monday to Sunday', () => {
+  assert.deepEqual(G.lastCompletedWeek('2026-11-08'), { start: '2026-10-26', end: '2026-11-01' });   // today is Sunday: this week (2 Nov) is NOT complete
+  assert.deepEqual(G.lastCompletedWeek('2026-11-02'), { start: '2026-10-26', end: '2026-11-01' });   // Monday
+  assert.deepEqual(G.lastCompletedWeek('2026-11-05'), { start: '2026-10-26', end: '2026-11-01' });
+  assert.deepEqual(G.lastCompletedWeek('2026-01-01'), { start: '2025-12-22', end: '2025-12-28' });   // across a year end
+  assert.deepEqual(G.lastCompletedWeek('2026-03-02'), { start: '2026-02-23', end: '2026-03-01' });   // across a month end
+});
+test('EN-1C weeklySummary: focus time, best day, goal days (rest days not counted), streak at week end, tasks', () => {
+  const plan = G.goalPlan(60, [null, null, null, null, null, 0, null]);   // Saturday is a rest day
+  const rows = mkRows('2026-11-08', WK, plan), weeks = [{ weekStart: '2026-10-26', count: 3, ids: [] }], s = G.weeklySummary(rows, '2026-11-08', weeks, { todo: 4, doing: 2, done: 9, archived: 1 });
+  assert.equal(s.noData, false); assert.equal(s.focusSecs, 3600 + 7200 + 11400 + 3600 + 3600); assert.deepEqual(s.best, { day: '2026-10-28', total: 11400 });
+  assert.deepEqual(s.goal, { met: 5, of: 6 }); assert.equal(s.restDays, 1);   // Thursday missed; Saturday (rest) is not counted
+  assert.equal(s.streak, 2); assert.equal(s.completed, 3); assert.equal(s.open, 6); assert.equal(s.daysWithoutData, 0);   // Sunday and Friday count; the rest-day Saturday is skipped; the missed Thursday ends it
+});
+test('EN-1C weeklySummary: the streak is the streak AT THE END of that week, and a missed Sunday counts as missed', () => {
+  const plan = G.goalPlan(60, null), met = Object.fromEntries(Object.keys(WK).map(d => [d, 3600]));
+  assert.equal(G.weeklySummary(mkRows('2026-11-08', met, plan), '2026-11-08', [], {}).streak, 7 + 0 >= 7 ? G.streak(mkRows('2026-11-08', met, plan).filter(r => r.day <= '2026-11-01'), 0, '2026-11-02', 60).current : -1);
+  const missSun = Object.assign({}, met, { '2026-11-01': 0 }), s = G.weeklySummary(mkRows('2026-11-08', missSun, plan), '2026-11-08', [], {});
+  assert.equal(s.streak, 0);
+  const noGoal = G.weeklySummary(mkRows('2026-11-08', WK, G.goalPlan(0, null)), '2026-11-08', [], {}); assert.equal(noGoal.goal, null); assert.equal(noGoal.streak, null);
+});
+test('EN-1C weeklySummary: no data before the first record; a partly covered week says how many days are not counted', () => {
+  const days = G.dayList('2026-11-08', 60), b = { '2026-10-30': { taskAAAA1: 3600 } };
+  const rowsLate = G.stackModel(days, b, [T({ createdAt: M('2026-11-05T09:00:00+08:00') })], '2026-11-05', G.goalPlan(60, null), '2026-11-08').rows;
+  assert.equal(G.weeklySummary(rowsLate, '2026-11-08', [], {}).noData, true);                   // the whole week is before the first record
+  const rowsMid = G.stackModel(days, b, [T()], '2026-10-29', G.goalPlan(60, null), '2026-11-08').rows, s = G.weeklySummary(rowsMid, '2026-11-08', [], {});
+  assert.equal(s.noData, false); assert.equal(s.daysWithoutData, 3);   // Mon 26, Tue 27, Wed 28 come before 29 Oct
+  assert.equal(s.goal.of, 4);                                           // only the 4 days with data are judged
+  assert.equal(G.weeklySummary([], '2026-11-08', [], {}).noData, true);
+});
+test('EN-1C weeklySummary: other zones cut the week differently (Manila vs New York near midnight)', () => {
+  const ses = [S({ start: Date.parse('2026-11-01T17:00:00Z'), secs: 1800, day: '2026-11-02' })];   // Mon 2 Nov 01:00 in Manila; Sun 1 Nov 12:00 in New York
+  const calc = (tz, today) => { const days = G.dayList(today, 60), b = G.dailyBuckets(ses, days, tz); return G.weeklySummary(G.stackModel(days, b, [T({ createdAt: M('2026-10-20T09:00:00+08:00') })], '2026-10-20', 0, today).rows, '2026-11-09', [], {}); };
+  assert.equal(calc('Asia/Manila', '2026-11-09').focusSecs, 1800);     // Mon 2 Nov in Manila: inside the last completed week (2 to 8 Nov)
+  assert.equal(calc('America/New_York', '2026-11-09').focusSecs, 0);   // Sun 1 Nov in New York: that is the week BEFORE the last completed one
+});
+test('EN-1C summaryText: numbers and dates only, rest-day note only when there was one, no goal line without goals', () => {
+  const plan = G.goalPlan(60, [null, null, null, null, null, 0, null]), s = G.weeklySummary(mkRows('2026-11-08', WK, plan), '2026-11-08', [{ weekStart: '2026-10-26', count: 3, ids: [] }], { todo: 4, doing: 2 });
+  const tx = G.summaryText(s, { tz: 'Asia/Manila', takenDay: '2026-11-08' }).split('\n');
+  assert.equal(tx[0], 'Focus summary, Mon 26 Oct to Sun 1 Nov (Asia/Manila)'); assert.equal(tx[1], 'Focus time: 26 h 00 m'.replace('26 h 00 m', G.fmtHm(s.focusSecs))); assert.equal(tx[2], 'Goal days met: 5 of 6 (rest days not counted)');
+  assert.equal(tx[3], 'Best day: Wed 28 Oct, 3 h 10 m'); assert.equal(tx[4], 'Streak at week end: 2 days'); assert.equal(tx[5], 'Tasks completed: 3, open now: 6'); assert.equal(tx[tx.length - 1], 'This is a snapshot taken on Sun 8 Nov.');
+  const none = G.summaryText(G.weeklySummary(mkRows('2026-11-08', WK, G.goalPlan(0, null)), '2026-11-08', [], {}), {}); assert.ok(!/Goal days|Streak/.test(none));
+  assert.match(G.summaryText({ noData: true, start: '2026-10-26', end: '2026-11-01' }, {}), /no focus data/);
+});
+test('EN-1C summaryText never contains task names or an address; a share link line only when a real https link is given', () => {
+  const rows = mkRows('2026-11-08', WK, G.goalPlan(60, null)), s = G.weeklySummary(rows, '2026-11-08', [], {});
+  const tx = G.summaryText(s, { tz: 'Asia/Manila', takenDay: '2026-11-08' }); assert.ok(!/Write report|@/.test(tx)); assert.ok(!/Link/.test(tx));
+  assert.match(G.summaryText(s, { link: { url: 'https://example.com/s/abc#secret', expiresLabel: 'Sun 8 Nov 14:00' } }), /Link \(expires Sun 8 Nov 14:00\): https:\/\/example\.com\/s\/abc#secret/);
+  for (const bad of ['http://x.com', 'javascript:alert(1)', 'https://a b', 'https://a\nb', 5, null]) assert.ok(!/Link/.test(G.summaryText(s, { link: { url: bad } })), String(bad));
+});
+test('EN-1C cleanAddress: empty or one plain address only', () => {
+  assert.deepEqual(G.cleanAddress(''), { ok: true, address: '' }); assert.deepEqual(G.cleanAddress('  a.b+c@example.co.uk '), { ok: true, address: 'a.b+c@example.co.uk' }); assert.deepEqual(G.cleanAddress(undefined), { ok: true, address: '' }); assert.deepEqual(G.cleanAddress('a@b.com\r\n'), { ok: true, address: 'a@b.com' });   // only outer spaces and line ends are trimmed away; nothing inside is kept
+  for (const bad of ['a@b', 'a@@b.com', 'a b@c.com', 'a@b.com, c@d.com', 'a@b.com;c@d.com', 'a@b.com\nBcc: x@y.com', '<a@b.com>', '"a"@b.com', 'a@b.com?subject=x', 'x'.repeat(250) + '@b.com', 5]) assert.equal(G.cleanAddress(bad).ok === true && bad !== '', false, String(bad).slice(0, 30));
+});
+test('EN-1C mailtoUrl: encodes everything, uses CRLF line breaks, refuses a bad address or an over-long link', () => {
+  const r = G.mailtoUrl('a@b.com', 'Focus summary & more', 'l1\nl2 100% & done=1'); assert.equal(r.ok, true);
+  assert.equal(r.url, 'mailto:a%40b.com?subject=Focus%20summary%20%26%20more&body=l1%0D%0Al2%20100%25%20%26%20done%3D1');
+  assert.equal(G.mailtoUrl('', 'S', 'B').url, 'mailto:?subject=S&body=B');
+  assert.equal(G.mailtoUrl('a@b.com\nBcc: x@y.com', 'S', 'B').ok, false); assert.equal(G.mailtoUrl('a@b.com,c@d.com', 'S', 'B').reason, 'address');
+  assert.equal(G.mailtoUrl('a@b.com', 'S\r\nBcc: x@y.com', 'B').url.includes('%0D'), false);   // line breaks in the subject become spaces
+  const long = G.mailtoUrl('a@b.com', 'S', 'x'.repeat(2000)); assert.equal(long.ok, false); assert.equal(long.reason, 'long'); assert.ok(G.mailtoUrl('a@b.com', 'S', 'x'.repeat(500)).url.length < G.MAILTO_MAX);
+});

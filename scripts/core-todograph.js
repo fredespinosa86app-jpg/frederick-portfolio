@@ -133,6 +133,54 @@
     const byId = {}; (tasks || []).forEach(t => { byId[t.id] = t; }); const order = {}; let k = 0;
     return id => { if (!anon) return (byId[id] && byId[id].name) || 'Deleted task'; if (!(id in order)) order[id] = k++; return 'Task ' + letter(order[id]); };
   }
-  const api = { COLORS, PATTERNS, RANGES, WINDOW_DAYS, WEEKS, TOP, dayList, dailyBuckets, firstDay, weekdayIndex, cleanWeekday, goalPlan, stackModel, streak, weekStart, weeklyCompleted, usedVsAllotted, statusCounts, csvCell, dailyCsv, weeklyCsv, nameMap, letter };
+  /* ---------------------------------------------------------------- EN-1C: weekly summary (numbers only, built from the same rows as the graphs) */
+  const fmtHm = secs => { const m = Math.round(secs / 60), h = Math.floor(m / 60); return h ? h + ' h ' + String(m % 60).padStart(2, '0') + ' m' : m + ' m'; };
+  const fmtDay = d => { const p = d.split('-').map(Number); return new Intl.DateTimeFormat('en-GB', { timeZone: 'UTC', weekday: 'short', day: 'numeric', month: 'short' }).format(new Date(Date.UTC(p[0], p[1] - 1, p[2]))); };
+  /* the last COMPLETED Monday-to-Sunday week before the week that contains today (the current week is never used) */
+  function lastCompletedWeek(today) { const cur = weekStart(today), start = tm.addDaysIso(cur, -7); return { start, end: tm.addDaysIso(start, 6) }; }
+  /* rows = the 60-day stack rows (stackModel); weeks = weeklyCompleted(); counts = statusCounts(). Returns { noData, ... } */
+  function weeklySummary(rows, today, weeks, counts) {
+    const wk = lastCompletedWeek(today), inWeek = (rows || []).filter(r => r.day >= wk.start && r.day <= wk.end);
+    const real = inWeek.filter(r => r.state === 'data' || r.state === 'zero');
+    if (inWeek.length !== 7 || !real.length) return { noData: true, start: wk.start, end: wk.end };
+    const focusSecs = real.reduce((a, r) => a + r.total, 0);
+    const goalRows = real.filter(r => r.goalSecs > 0 && !r.rest), goal = goalRows.length ? { met: goalRows.filter(r => r.goalMet).length, of: goalRows.length } : null;
+    const restDays = real.filter(r => r.rest).length;
+    let best = null; real.forEach(r => { if (r.total > 0 && (!best || r.total > best.total)) best = { day: r.day, total: r.total }; });
+    const upTo = (rows || []).filter(r => r.day <= wk.end), st = streak(upTo, 0, tm.addDaysIso(wk.end, 1), WINDOW_DAYS);   // "today" is after the week, so a missed Sunday counts as missed
+    const w = (weeks || []).find(x => x.weekStart === wk.start), c = counts || {};
+    return { noData: false, start: wk.start, end: wk.end, focusSecs, goal, restDays, best, streak: st.on ? st.current : null, completed: w ? w.count : null, open: (c.todo || 0) + (c.doing || 0), daysWithoutData: 7 - real.length };
+  }
+  /* the message: numbers and dates only. No task names, no e-mail address. opts: { tz, takenDay, link: {url, expiresLabel} | null } */
+  function summaryText(s, opts) {
+    const o = opts || {}, head = 'Focus summary, ' + fmtDay(s.start) + ' to ' + fmtDay(s.end) + (o.tz ? ' (' + o.tz + ')' : '');
+    if (s.noData) return head + '\nThere is no focus data for this week yet.' + (o.takenDay ? '\nThis is a snapshot taken on ' + fmtDay(o.takenDay) + '.' : '');
+    const L = [head, 'Focus time: ' + fmtHm(s.focusSecs)];
+    if (s.goal) L.push('Goal days met: ' + s.goal.met + ' of ' + s.goal.of + (s.restDays ? ' (rest days not counted)' : ''));
+    if (s.best) L.push('Best day: ' + fmtDay(s.best.day) + ', ' + fmtHm(s.best.total));
+    if (s.streak !== null) L.push('Streak at week end: ' + s.streak + ' day' + (s.streak === 1 ? '' : 's'));
+    if (s.completed !== null) L.push('Tasks completed: ' + s.completed + ', open now: ' + s.open);
+    if (s.daysWithoutData) L.push('Note: ' + s.daysWithoutData + ' day' + (s.daysWithoutData === 1 ? '' : 's') + ' of this week came before the first record and are not counted.');
+    if (o.link && typeof o.link.url === 'string' && /^https:\/\/[^\s]+$/.test(o.link.url)) L.push('Link' + (o.link.expiresLabel ? ' (expires ' + o.link.expiresLabel + ')' : '') + ': ' + o.link.url);
+    if (o.takenDay) L.push('This is a snapshot taken on ' + fmtDay(o.takenDay) + '.');
+    return L.join('\n');
+  }
+  /* one plain address (or none). No line breaks, no list, no angle brackets or quotes: nothing that could add a header or a second recipient. */
+  function cleanAddress(raw) {
+    if (raw === undefined || raw === null) return { ok: true, address: '' };
+    if (typeof raw !== 'string') return { ok: false, error: 'Type one e-mail address, for example name@example.com, or leave the box empty.' };
+    const a = raw.trim();
+    if (!a) return { ok: true, address: '' };
+    if (a.length > 254 || /[\s,;<>"'()?&#=%\/\\\u0000-\u001f]/.test(a) || !/^[^@]+@[^@]+\.[^@]+$/.test(a)) return { ok: false, error: 'Type one e-mail address, for example name@example.com, or leave the box empty.' };
+    return { ok: true, address: a };
+  }
+  const MAILTO_MAX = 1900;   // many mail apps and browsers cut a longer link
+  function mailtoUrl(to, subject, body) {
+    const c = cleanAddress(to); if (!c.ok) return { ok: false, reason: 'address', error: c.error };
+    const url = 'mailto:' + encodeURIComponent(c.address) + '?subject=' + encodeURIComponent(String(subject).replace(/[\r\n]+/g, ' ')) + '&body=' + encodeURIComponent(String(body).replace(/\r?\n/g, '\r\n'));
+    if (url.length > MAILTO_MAX) return { ok: false, reason: 'long', error: 'This message is too long for a mail link. Use "Copy text" and paste it into your mail.' };
+    return { ok: true, url };
+  }
+  const api = { COLORS, PATTERNS, RANGES, WINDOW_DAYS, WEEKS, TOP, dayList, dailyBuckets, firstDay, lastCompletedWeek, weeklySummary, summaryText, cleanAddress, mailtoUrl, MAILTO_MAX, fmtHm, fmtDay, weekdayIndex, cleanWeekday, goalPlan, stackModel, streak, weekStart, weeklyCompleted, usedVsAllotted, statusCounts, csvCell, dailyCsv, weeklyCsv, nameMap, letter };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.coreTodoGraph = api;
 })(typeof window !== 'undefined' ? window : globalThis);

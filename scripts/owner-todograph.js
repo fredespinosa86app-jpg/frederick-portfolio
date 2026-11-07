@@ -10,7 +10,7 @@
   'use strict';
   const G = window.coreTodoGraph, C = window.coreTodo, tm = window.coreTime, kit = window.dashKit; if (!G || !C || !tm || !kit) return;
   const { el, notify } = kit; const $ = id => document.getElementById(id), TZ = () => (window.ownerTz ? window.ownerTz.get() : 'Asia/Manila');   // EN-1A
-  let range = matchMedia('(max-width:600px)').matches ? 7 : 14, includeManual = true, anon = true, loaded = 0, data = null, goalMin = 0, weekGoals = null, showTbl = { daily: false, weekly: false }, busy = false, active = false;
+  let range = matchMedia('(max-width:600px)').matches ? 7 : 14, includeManual = true, anon = true, loaded = 0, data = null, goalMin = 0, weekGoals = null, sumTo = '', sumText = '', sumDirty = false, showTbl = { daily: false, weekly: false }, busy = false, active = false;
   const api = () => window.todoApi;
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const hm = secs => { const m = Math.round(secs / 60), h = Math.floor(m / 60); return h ? h + ' h ' + String(m % 60).padStart(2, '0') + ' m' : m + ' m'; };
@@ -113,12 +113,47 @@
     acc.append(el('h3', { id: 'tdGH2' }, 'Accomplishment'), el('h4', {}, 'Tasks completed per week (last ' + G.WEEKS + ' weeks, Monday to Sunday)'), el('p', { class: 'dhelp' }, 'A task counts once in each week it was completed. A reopened task that you finish again counts again in that later week.'));
     const w2 = el('div', { class: 'td-chart', id: 'tdChart2' }); w2.innerHTML = weeklySvg(M.weeks);
     acc.append(w2, el('p', { class: 'td-ginfo', id: 'tdGInfo2', role: 'status', 'aria-live': 'polite' }, 'Select a week to see its details.'), tblBtn('weekly', 'Show as table'), weeklyTable(M.weeks), weeklyActions(M));
+    acc.append(summaryCard(M));
     acc.append(el('h4', {}, 'Hours used vs allotted'));
     if (!M.used.length) acc.append(el('p', { class: 'dhelp' }, 'No task has allotted hours yet.'));
     else { const ul = el('ul', { class: 'td-uva' }); M.used.forEach(u => ul.append(el('li', {}, el('span', { class: 'td-uvn' }, u.name), el('div', { class: 'td-bar' + (u.over ? ' over' : ''), role: 'img', 'aria-label': u.name + ': ' + hm(u.usedSecs) + ' used of ' + hm(u.planSecs) }, el('span', { style: 'width:' + u.pct + '%' })), el('span', { class: 'td-uvt' }, hm(u.usedSecs) + ' of ' + hm(u.planSecs) + (u.over ? ' · OVER by ' + hm(u.over) : ' · ' + hm(u.left) + ' left'))))); acc.append(ul); }
     acc.append(el('h4', {}, 'Done vs open'), el('p', { class: 'td-counts' }, 'Done ' + done.done + ' · In progress ' + done.doing + ' · To do ' + done.todo + ' · Archived ' + done.archived));
     const tot = done.done + done.doing + done.todo; if (tot) acc.append(el('div', { class: 'td-seg', role: 'img', 'aria-label': 'Done ' + done.done + ' of ' + tot + ' open or done tasks' }, el('span', { class: 'sd', style: 'width:' + Math.round(done.done / tot * 100) + '%' }), el('span', { class: 'sg', style: 'width:' + Math.round(done.doing / tot * 100) + '%' })));
     box.append(acc);
+  }
+  /* EN-1C: weekly summary. Numbers only. Sent by the owner from their own mail app, or copied. The address typed here lives in memory only and is cleared when the page is left. */
+  function clearSummary() { sumTo = ''; sumText = ''; sumDirty = false; }
+  async function copyText(text) {
+    try { if (navigator.clipboard && navigator.clipboard.writeText) { await navigator.clipboard.writeText(text); return true; } } catch (e) { /* fall through */ }
+    try { const ta = document.createElement('textarea'); ta.value = text; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;left:-9999px;top:0'; document.body.append(ta); ta.select(); const ok = document.execCommand('copy'); ta.remove(); return ok; } catch (e) { return false; }
+  }
+  function summaryCard(M) {
+    const s = G.weeklySummary(M.m60.rows, M.today, M.weeks, M.counts), auto = G.summaryText(s, { tz: TZ(), takenDay: M.today, link: null });
+    if (!sumDirty) sumText = auto;
+    const subject = 'Focus summary, ' + G.fmtDay(s.start) + ' to ' + G.fmtDay(s.end);
+    const card = el('div', { class: 'td-wsum', id: 'tdWSum' }, el('h4', {}, 'Weekly summary'), el('p', { class: 'dhelp' }, G.fmtDay(s.start) + ' to ' + G.fmtDay(s.end) + ' (' + TZ() + '), the last completed week, Monday to Sunday.'));
+    if (s.noData) { card.append(el('p', { class: 'dhelp', id: 'tdWSNo' }, 'There is no focus data for this week yet: it is before your first record.')); return card; }
+    const rows = [['Focus time', G.fmtHm(s.focusSecs)]];
+    if (s.goal) rows.push(['Goal days met', s.goal.met + ' of ' + s.goal.of + (s.restDays ? ' (rest days not counted)' : '')]);
+    if (s.best) rows.push(['Best day', G.fmtDay(s.best.day) + ', ' + G.fmtHm(s.best.total)]);
+    if (s.streak !== null) rows.push(['Streak at week end', s.streak + ' day' + (s.streak === 1 ? '' : 's')]);
+    if (s.completed !== null) rows.push(['Tasks completed', s.completed + ' (open now: ' + s.open + ')']);
+    const dl = el('dl', { class: 'td-wsum-facts' }); rows.forEach(r => dl.append(el('dt', {}, r[0]), el('dd', {}, r[1]))); card.append(dl);
+    if (s.daysWithoutData) card.append(el('p', { class: 'dhelp' }, s.daysWithoutData + ' day' + (s.daysWithoutData === 1 ? '' : 's') + ' of this week came before your first record and are not counted.'));
+    card.append(el('label', { class: 'fld', for: 'tdWSText' }, 'Message (you can edit it before sending)'),
+      el('textarea', { id: 'tdWSText', rows: 8, maxlength: 1500, spellcheck: 'false', oninput: e => { sumText = e.target.value; sumDirty = true; } }, sumText),
+      el('div', { class: 'td-gwk-act' }, el('button', { type: 'button', class: 'dbtn sm', id: 'tdWSReset', onclick: () => { sumDirty = false; sumText = auto; $('tdWSText').value = auto; } }, 'Reset text')),
+      el('label', { class: 'fld', for: 'tdWSTo' }, 'To (optional): used only to open the draft, never saved'),
+      el('input', { type: 'text', id: 'tdWSTo', inputmode: 'email', autocomplete: 'off', autocapitalize: 'off', spellcheck: 'false', maxlength: 254, placeholder: 'name@example.com', value: sumTo, oninput: e => { sumTo = e.target.value; } }),
+      el('p', { class: 'ferr', id: 'tdWSErr', role: 'alert' }),
+      el('div', { class: 'td-gwk-act' },
+        el('button', { type: 'button', class: 'dbtn sm primary', id: 'tdWSMail', onclick: () => {
+          const text = $('tdWSText').value; sumText = text; const r = G.mailtoUrl($('tdWSTo').value, subject, text); $('tdWSErr').textContent = r.ok ? '' : r.error; if (!r.ok) return;
+          const a = document.createElement('a'); a.href = r.url; a.rel = 'noopener'; document.body.append(a); a.click(); a.remove();
+        } }, 'Open in my mail app'),
+        el('button', { type: 'button', class: 'dbtn sm', id: 'tdWSCopy', onclick: async () => { const ok = await copyText($('tdWSText').value); if (ok) { $('tdWSErr').textContent = ''; notify('Text copied.', 'success'); } else $('tdWSErr').textContent = 'Your browser did not allow copying. Select the text and copy it by hand.'; } }, 'Copy text')),
+      el('p', { class: 'dhelp' }, 'Nothing is sent by this site. Your own mail app opens a draft, or you paste the copied text. The message has numbers only: no task names.'));
+    return card;
   }
   function legend(m) { const ul = el('ul', { class: 'td-legend', 'aria-label': 'Tasks in the chart' }); m.series.forEach((s, i) => { const li = el('li', {}); li.innerHTML = `<svg width="18" height="14" aria-hidden="true"><defs>${patDef('lg' + i, s.color, s.pattern)}</defs><rect width="18" height="14" rx="2" fill="${s.pattern === 'solid' ? s.color : 'url(#lg' + i + ')'}"/></svg>`; li.append(el('strong', {}, ' ' + s.letter + ' '), document.createTextNode(s.name + ' · ' + hm(s.total))); ul.append(li); }); if (!m.series.length) ul.append(el('li', {}, 'No time recorded in this range.')); return ul; }
   function tblBtn(k, label) { return el('button', { type: 'button', class: 'dbtn sm', 'aria-expanded': String(showTbl[k]), 'aria-controls': 'tdTbl_' + k, onclick: () => { showTbl[k] = !showTbl[k]; draw(); } }, showTbl[k] ? 'Hide table' : label); }
@@ -189,7 +224,8 @@
     root.append(el('div', { class: 'td-gtop' }, rangeBar, man, el('button', { type: 'button', class: 'dbtn sm', id: 'tdGRefresh', onclick: () => load(true) }, 'Refresh'), el('span', { class: 'dhelp', id: 'tdGMsg', role: 'status' })), goal, wk, el('p', { class: 'td-streak', id: 'tdGStreak', role: 'status' }), anonL,
       el('p', { class: 'dhelp' }, 'Downloads are created in your browser and nothing is uploaded or shared by this page. You choose where a file goes. There is no public link on purpose, because your task names are private.'), el('div', { id: 'tdGBody' }));
   }
-  document.addEventListener('td:view', e => { active = e.detail === 'graphs'; if (active) load(false); if (e.detail === 'off') { data = null; loaded = 0; goalMin = 0; weekGoals = null; const b = $('tdGBody'); if (b) b.replaceChildren(); const m = $('tdGMsg'); if (m) m.textContent = ''; } });
+  document.addEventListener('td:view', e => { active = e.detail === 'graphs'; if (active) load(false); if (e.detail !== 'graphs') clearSummary(); if (e.detail === 'off') { data = null; loaded = 0; goalMin = 0; weekGoals = null; const b = $('tdGBody'); if (b) b.replaceChildren(); const m = $('tdGMsg'); if (m) m.textContent = ''; } });
+  document.addEventListener('dash:page', e => { if (e.detail !== 'todo') clearSummary(); });   // EN-1C: the typed address and edited text are forgotten when the page is left
   document.addEventListener('owner:tz', () => { data = null; loaded = 0; if (active) load(true); });   // EN-1A: the days are cut in the new zone
   window.__todoGraphTest = { get data() { return data; }, load, dailySvg, weeklySvg };
 })();

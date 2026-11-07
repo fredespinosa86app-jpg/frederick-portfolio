@@ -45,4 +45,4 @@ There IS a database rules change (two new kinds of saved settings), so the order
 - Your data stays in the database; with the old rules the new settings are simply not reachable and the old single daily goal keeps working.
 
 ## Result
-(not tested yet)
+LIVE-TESTED 2026-11-08: steps 1-19 all passed after two fixes (steps 13 and 14 were fixed and re-tested: a rest day now shows in the table even before your first record, and the streak line ends with "(rest days skipped)"). Emulator run green and strict rules published.
