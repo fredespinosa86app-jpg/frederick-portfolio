@@ -7,4 +7,4 @@ Nothing visible changes on your live site after F5. The new switch stays OFF unt
 3. **Emulator run.** Upload this ZIP's files to your GitHub repository (as for B3), then Actions > "Firestore rules (emulator)" > Run workflow. Send me the result (expected 164 of 164).
 4. **Only after step 3 passes:** publish `firestore.rules.strict` (Firebase Console > Firestore Database > Rules). Then send ONE test meeting request from your live page; it must still work exactly as before.
 
-Rollback: publish `firestore.rules.strict` from `CodeFlow-Portfolio-4.5.0-F5-rollback.zip`. Details: `internal-docs/4.5.0-F5-form-verification.md`.
+Rollback: publish `firestore.rules.strict` from `CodeFlow-Portfolio-4.5.0-F5-rollback.zip`. Details are in the private design notes.

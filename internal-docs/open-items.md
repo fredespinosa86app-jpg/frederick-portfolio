@@ -114,5 +114,5 @@ Five items recorded in `4.5.0-security-enhancement-review.md`, each needing the 
 ## Update 2026-11-07: SE-E2 recorded as an open item
 SE-E2 (real security headers via Cloudflare in front of a custom domain). Needs a domain the owner buys or already has (about $10-15 a year); cannot work on github.io. Layout was shown; the owner has not approved it. Recommendation: do it only if a custom domain is wanted anyway, otherwise skip. Order if approved: domain and Cloudflare DNS, GitHub Pages custom domain, update every allowed-origin list (Worker, Turnstile, Firebase auth, OAuth, App Check), Report-Only CSP trial, live test, rescan.
 
-## Update 2026-11-07: R4 built (rejected survey answer retention + drawer search), awaiting live test
+## Update 2026-11-07: R4 built and LIVE-TESTED (rejected survey answer retention + drawer search)
 `R4-CHECKLIST.md`. Item 9 of the open list is done once the owner picks a period (the owner's decision). Still open: F-02, F-01, `unsafe-inline` styles, private documents out of the public repo, SE-E4, SE-E2 (needs a domain), SDK upgrade, Part B2, App Check numbers on 2026-11-14 (reminder set).

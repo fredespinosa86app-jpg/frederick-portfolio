@@ -22,4 +22,4 @@
 - Restore the files from the rollback ZIP and delete: `scripts/core-navsearch.js`, `scripts/core-navsearch.test.mjs`, `scripts/owner-navsearch.js`, `rules-tests/browser/r4-1-survey-retention-navsearch.mjs`, `R4-CHECKLIST.md`. Saved settings stay valid (an unknown `svRejected` value is ignored by the old page).
 
 ## Result
-(to fill in after your live test)
+2026-11-07, owner's live test: steps 1 to 11 passed. Privacy notice wording approved by the owner.

@@ -25,4 +25,4 @@ Owner Panel > Privacy & backup: the export has a new checkbox "Owner documents (
 Never put keys, tokens, passwords or webhook addresses in a document. They stay only in the Cloudflare secrets.
 
 ## F. What this phase did NOT do
-It did not move or delete any file in your public GitHub repo. `internal-docs/` and the root checklists are still public. Tell me which of them should become private and I will move them in a separate step (the old versions stay in GitHub's history).
+It did not move or delete any file in your public GitHub repo. The design notes (`internal-docs/`) were later moved to a private place (SE-P1); the checklists stay public (the old versions stay in GitHub's history).
