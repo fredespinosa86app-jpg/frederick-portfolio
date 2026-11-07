@@ -28,3 +28,7 @@ Note: the stand-in database now also offers orderBy and limit, so the owner dash
 
 ## SV1 (employer survey)
 `node sv1-1-survey.mjs` runs the real `survey.html` (real CSP, fake Firebase SDK) and the Owner Panel surveys page, and records the page's writes in `/tmp/sv/captured.json`. Copy that file to `../attack/sv1_captured.json` and run `python3 ../attack/sv1_replay.py ../..` to check the page's writes against the real rules text.
+
+TD1 (To-do & focus and its floating focus clock):
+
+    node td1-1-todo-focus.mjs

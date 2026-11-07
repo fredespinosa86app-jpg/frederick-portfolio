@@ -2,9 +2,9 @@ import { b, base, check, errs, fresh, signIn, signOut, vis, results, srv } from 
 // ---- cross-device refresh
 { const { ctx, pg } = await fresh(); await signIn(pg); await pg.waitForTimeout(300);
   await pg.evaluate(() => window.wtApi.punch('CLOCK_IN')); await pg.waitForTimeout(400);
-  await pg.evaluate(() => { window.__r1 = window.__reads(); const o = Date.now; Date.now = () => o() + 61000; window.dispatchEvent(new Event('focus')); });
+  await pg.evaluate(() => { window.__tdr = 0; { const g = window.OWN.fs.getDoc; window.OWN.fs.getDoc = async r => { if (/^todo/.test(r.path)) window.__tdr++; return g(r); }; } window.__r1 = window.__reads(); const o = Date.now; Date.now = () => o() + 61000; window.dispatchEvent(new Event('focus')); });
   await pg.waitForTimeout(500);
-  const unchanged = await pg.evaluate(() => window.__reads() - window.__r1); check('same revision: exactly 1 read, no full reload', unchanged === 1, unchanged);
+  const unchanged = await pg.evaluate(() => window.__reads() - window.__r1 - window.__tdr);   /* TD1: the to-do timer check is its own read and is not counted here */ check('same revision: exactly 1 read, no full reload', unchanged === 1, unchanged);
   await pg.evaluate(() => { const s = window.__store, m = s['workState/main']; const sid = m.sid; s['workState/main'] = Object.assign({}, m, { state: 'FIRST_BREAK', fb: true, n: 2, rev: m.rev + 1, lastEid: sid + '__2' }); s['workEvents/' + sid + '__2'] = { sid, n: 2, type: 'FIRST_BREAK_OUT', at: { toMillis: () => Date.now() - 1000 }, by: 'u1' }; });
   await pg.evaluate(() => { const o = Date.now; Date.now = () => o() + 61000; window.dispatchEvent(new Event('focus')); });
   await pg.waitForTimeout(700);

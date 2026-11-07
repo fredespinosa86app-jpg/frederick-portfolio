@@ -518,6 +518,95 @@ service cloud.firestore {
         && request.resource.data.prevTz == resource.data.tz && request.resource.data.prevWeekStart == resource.data.weekStart
         && request.resource.data.rev is number && request.resource.data.rev == resource.data.rev + 1 && request.resource.data.updatedAt == request.time;
     }
+    // TD1 (4.5.0): personal to-do and focus tracker. OWNER ONLY, never public.
+    // todoState/main is the ONE running timer (a single record, so two timers cannot exist; a second device that starts at the same time loses the revision race).
+    // Every stop or switch writes the finished session in the SAME batch (lastSid), so tracked time is never lost. The task total (secs) is a cached convenience that the page can rebuild from the sessions.
+    function tdId(i) { return i is string && i.matches('^[A-Za-z0-9]{8,40}$'); }
+    function tdSessDoc(i) { return /databases/$(database)/documents/todoSessions/$(i); }
+    function tdStateDoc() { return /databases/$(database)/documents/todoState/main; }
+    function tdDay(s) { return s is string && s.matches('^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$'); }
+    function tdTaskOk(d) {
+      return d.keys().hasOnly(['name','desc','due','hours','focusMin','status','secs','doneAt','color','createdAt','updatedAt'])
+        && d.keys().hasAll(['name','desc','due','hours','focusMin','status','secs','doneAt','color','createdAt','updatedAt'])
+        && d.name is string && d.name.size() >= 1 && d.name.size() <= 120
+        && d.desc is string && d.desc.size() <= 2000
+        && d.due is string && (d.due == '' || tdDay(d.due))
+        && d.hours is number && d.hours >= 0 && d.hours <= 1000
+        && d.focusMin is int && d.focusMin >= 1 && d.focusMin <= 240
+        && d.status in ['todo','doing','done','archived']
+        && d.secs is int && d.secs >= 0 && d.secs <= 3600000
+        && d.color is int && d.color >= 0 && d.color <= 11
+        && ((d.status == 'done') == (d.doneAt is timestamp)) && (d.doneAt == null || d.doneAt is timestamp)
+        && d.updatedAt == request.time;
+    }
+    match /todoTasks/{id} {
+      allow read: if isOwner();
+      allow create: if isOwner() && tdId(id) && tdTaskOk(request.resource.data)
+        && request.resource.data.status != 'done' && request.resource.data.secs == 0 && request.resource.data.createdAt == request.time;
+      allow update: if isOwner() && tdTaskOk(request.resource.data) && request.resource.data.createdAt == resource.data.createdAt
+        && (request.resource.data.status != 'done'
+            || (resource.data.status == 'done' && request.resource.data.doneAt == resource.data.doneAt)
+            || (resource.data.status != 'done' && request.resource.data.doneAt == request.time));
+      allow delete: if isOwner();
+    }
+    function tdSessOk(d) {
+      return d.keys().hasOnly(['taskId','start','secs','day','kind','createdAt'])
+        && d.keys().hasAll(['taskId','start','secs','day','kind','createdAt'])
+        && tdId(d.taskId) && d.start is timestamp
+        && d.secs is int && d.secs >= 1 && d.secs <= 86400
+        && tdDay(d.day) && d.kind in ['timer','manual'];
+    }
+    match /todoSessions/{id} {
+      allow read: if isOwner();
+      allow create: if isOwner() && tdId(id) && tdSessOk(request.resource.data) && request.resource.data.createdAt == request.time
+        && (request.resource.data.kind == 'manual'
+            || (exists(tdStateDoc()) && get(tdStateDoc()).data.taskId == request.resource.data.taskId && get(tdStateDoc()).data.startedAt == request.resource.data.start
+                && existsAfter(tdStateDoc()) && getAfter(tdStateDoc()).data.lastSid == id));
+      allow update: if isOwner() && tdSessOk(request.resource.data)
+        && request.resource.data.taskId == resource.data.taskId && request.resource.data.start == resource.data.start && request.resource.data.day == resource.data.day
+        && request.resource.data.kind == resource.data.kind && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.secs <= resource.data.secs;
+      allow delete: if isOwner();
+    }
+    function tdNoteOk(d) {
+      return d.keys().hasOnly(['taskId','text','sessionId','createdAt','editedAt'])
+        && d.keys().hasAll(['taskId','text','sessionId','createdAt','editedAt'])
+        && tdId(d.taskId) && d.text is string && d.text.size() >= 1 && d.text.size() <= 2000
+        && d.sessionId is string && (d.sessionId == '' || tdId(d.sessionId));
+    }
+    match /todoNotes/{id} {
+      allow read: if isOwner();
+      allow create: if isOwner() && tdId(id) && tdNoteOk(request.resource.data) && request.resource.data.createdAt == request.time && request.resource.data.editedAt == null;
+      allow update: if isOwner() && tdNoteOk(request.resource.data) && request.resource.data.taskId == resource.data.taskId && request.resource.data.sessionId == resource.data.sessionId
+        && request.resource.data.createdAt == resource.data.createdAt && request.resource.data.editedAt == request.time;
+      allow delete: if isOwner();
+    }
+    match /todoState/{id} {
+      allow read: if isOwner();
+      allow create: if isOwner() && id == 'main'
+        && request.resource.data.keys().hasOnly(['taskId','startedAt','goalMin','lastSid','rev','updatedAt'])
+        && request.resource.data.keys().hasAll(['taskId','startedAt','goalMin','lastSid','rev','updatedAt'])
+        && request.resource.data.taskId == '' && request.resource.data.startedAt == null && request.resource.data.goalMin == 0 && request.resource.data.lastSid == ''
+        && request.resource.data.rev == 1 && request.resource.data.updatedAt == request.time;
+      allow update: if isOwner() && id == 'main'
+        && request.resource.data.keys().hasOnly(['taskId','startedAt','goalMin','lastSid','rev','updatedAt'])
+        && request.resource.data.keys().hasAll(['taskId','startedAt','goalMin','lastSid','rev','updatedAt'])
+        && request.resource.data.rev is number && request.resource.data.rev == resource.data.rev + 1 && request.resource.data.updatedAt == request.time
+        && request.resource.data.lastSid is string
+        && ((request.resource.data.taskId == ''
+             // STOP (or pause): a timer must be running; its finished session is created in this same batch
+             && resource.data.taskId != '' && request.resource.data.startedAt == null && request.resource.data.goalMin == 0
+             && tdId(request.resource.data.lastSid) && !exists(tdSessDoc(request.resource.data.lastSid)) && existsAfter(tdSessDoc(request.resource.data.lastSid))
+             && getAfter(tdSessDoc(request.resource.data.lastSid)).data.taskId == resource.data.taskId && getAfter(tdSessDoc(request.resource.data.lastSid)).data.start == resource.data.startedAt)
+            // START (from idle) or SWITCH (running -> another task, which also ends the running one in this batch)
+            || (request.resource.data.taskId != '' && tdId(request.resource.data.taskId) && request.resource.data.startedAt == request.time
+                && request.resource.data.goalMin is int && request.resource.data.goalMin >= 1 && request.resource.data.goalMin <= 240
+                && ((resource.data.taskId == '' && request.resource.data.lastSid == resource.data.lastSid)
+                    || (resource.data.taskId != '' && request.resource.data.taskId != resource.data.taskId && tdId(request.resource.data.lastSid)
+                        && !exists(tdSessDoc(request.resource.data.lastSid)) && existsAfter(tdSessDoc(request.resource.data.lastSid))
+                        && getAfter(tdSessDoc(request.resource.data.lastSid)).data.taskId == resource.data.taskId
+                        && getAfter(tdSessDoc(request.resource.data.lastSid)).data.start == resource.data.startedAt))));
+    }
     // B1 (4.5.0): billing profile, one per Client ID (the document ID IS the Client ID, which must exist in the registry). Never a name or contact detail.
     // Every create and change is ONE batch with a brand-new audit record (revision +1). No delete. A currency change affects new invoices only (there are none yet).
     match /billingProfiles/{id} {

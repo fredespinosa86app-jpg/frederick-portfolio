@@ -341,3 +341,45 @@ dialog.svtpl{max-width:min(720px,94vw);max-height:92vh;overflow:auto}
 .dsmsg{margin:4px 2px 0;min-height:16px;font-size:12px;color:#9fb0cf}.dnav .ns-hide{display:none!important}
 .dash.collapsed .dsearch{display:none}
 @media(max-width:900px){.dash.collapsed .dsearch{display:revert}}
+
+/* TD1: To-do & focus page (td-*) and its floating focus clock (tdfl-*, built on the wtfl- look) */
+.td-now{margin:12px 0;padding:10px 12px;border:1px solid var(--dline,#cfd6e6);border-radius:12px}
+.td-nowrow{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.td-clock{font:650 18px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.td-bar-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:8px 0 12px}
+.td-filters{display:flex;flex-wrap:wrap;gap:6px}
+.td-filters button[aria-pressed="true"]{background:#2f4fb3;color:#fff;border-color:#2f4fb3}
+.td-list{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.td-card{border:1px solid var(--dline,#cfd6e6);border-left:6px solid var(--tdc,#2f4fb3);border-radius:12px;padding:12px;background:var(--dcard,transparent)}
+.td-card.running{outline:3px solid #2f8f5b;outline-offset:1px}
+.td-card.closed{opacity:.8}
+.td-head{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.td-head h3{margin:0;font-size:1.05rem;flex:1 1 200px;overflow-wrap:anywhere}
+.td-dot{width:12px;height:12px;border-radius:50%;background:var(--tdc,#2f4fb3);flex:none}
+.td-chip{display:inline-block;padding:2px 9px;border-radius:999px;border:1px solid currentColor;font-size:12px;font-weight:600}
+.td-chip.run{color:#1f7a4a}.td-chip.d-overdue{color:#b3261e}.td-chip.d-today{color:#9a5b00}
+.td-desc{margin:8px 0;white-space:pre-wrap;overflow-wrap:anywhere}
+.td-bar{height:10px;border-radius:6px;background:rgba(127,127,127,.25);overflow:hidden;margin:8px 0}
+.td-bar span{display:block;height:100%;background:#2f4fb3}.td-bar.over span{background:#b3261e}
+.td-meta{margin:0 0 8px;font-size:.9rem}
+.td-act{display:flex;flex-wrap:wrap;gap:6px}
+.td-hist{margin-top:10px;padding-top:10px;border-top:1px dashed var(--dline,#cfd6e6)}
+.td-hl{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:8px}
+.td-hl li{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.td-ht{font-size:.85rem;opacity:.8;min-width:9em}
+.td-note{flex:1 1 220px;white-space:pre-wrap;overflow-wrap:anywhere}
+.td-card[data-color="0"]{--tdc:#2f4fb3}.td-card[data-color="1"]{--tdc:#2f8f5b}.td-card[data-color="2"]{--tdc:#b3261e}.td-card[data-color="3"]{--tdc:#9a5b00}
+.td-card[data-color="4"]{--tdc:#7a3fb3}.td-card[data-color="5"]{--tdc:#0f7a8a}.td-card[data-color="6"]{--tdc:#b33f8a}.td-card[data-color="7"]{--tdc:#5b6b1f}
+.td-card[data-color="8"]{--tdc:#8a4b2a}.td-card[data-color="9"]{--tdc:#3f5f8a}.td-card[data-color="10"]{--tdc:#1f6b4f}.td-card[data-color="11"]{--tdc:#6b2f5f}
+.tdfl .tdfl-name{font-weight:650;margin-bottom:2px;overflow-wrap:anywhere}
+.tdfl[data-state="FOCUS"] .wtfl-status{color:#8fe3ae}.tdfl[data-state="DONE"] .wtfl-status{color:#ffd37a}
+.tdfl-banner{margin:0 0 8px;padding:8px 10px;border-radius:10px;background:#3a3010;color:#ffd37a;font-weight:600;font-size:13px}.tdfl-banner[hidden]{display:none}
+.tdfl-panel{margin:8px 0 0;padding:8px 12px 12px}.tdfl-panel[hidden]{display:none}
+.tdfl-panel textarea{width:100%;box-sizing:border-box;margin:6px 0;border-radius:8px;border:1px solid #3a4560;background:#0f1522;color:#fff;font:inherit;padding:8px}
+.tdfl-p{margin:0 0 6px;font-size:13px;color:#cfd6e6}
+.tdfl-sound{margin-top:8px}
+@media (forced-colors:active){.td-card{border:2px solid CanvasText}.td-bar{border:1px solid CanvasText}.tdfl-banner{border:2px solid CanvasText}}
+@media (prefers-reduced-motion:reduce){.td-card,.tdfl{transition:none;animation:none}}
+.tdfl-chip{display:block;width:100%;min-height:40px;margin:0 0 8px;padding:0 12px;border:2px dashed #ffd37a;border-radius:10px;background:transparent;color:#ffd37a;font:600 13px system-ui,sans-serif;cursor:pointer}
+.tdfl-chip:focus-visible{outline:3px solid #ffd37a;outline-offset:2px}
+@media (forced-colors:active){.tdfl-chip{border-color:ButtonText;color:ButtonText}}

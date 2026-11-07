@@ -8,6 +8,7 @@
   'use strict';
   /* hidden words: what an owner might type for a page whose name does not contain it */
   const KEYWORDS = {
+    todo: 'task tasks todo to-do planner focus timer pomodoro play pause hours notes time management personal productivity',
     dashboard: 'home overview today summary due reminders', inbox: 'meeting call booking requests leads messages',
     questions: 'chat chatbot unanswered history visitors asked', marcus: 'chatbot assistant ai bot settings webhook configuration',
     chatid: 'chatbot look appearance colors avatar filter words blocked', chatkb: 'chatbot answers knowledge base quick replies scripted',

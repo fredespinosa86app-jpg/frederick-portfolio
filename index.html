@@ -329,6 +329,9 @@
 <symbol id="ic-back" viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></symbol>
 <symbol id="ic-archive" viewBox="0 0 24 24"><path d="M3 4h18v4H3zM5 8v12h14V8M10 12h4"/></symbol>
 <symbol id="ic-eye" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+<symbol id="ic-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></symbol>
+<symbol id="ic-pause" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></symbol>
+<symbol id="ic-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
 <symbol id="ic-restore" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.5-5.8M4 4v5h5"/></symbol>
 <symbol id="ic-side" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></symbol>
 </svg>
@@ -381,6 +384,8 @@
 <button type="button" data-page="social"><svg aria-hidden="true"><use href="#ic-link"/></svg><span class="dlabel">Links &amp; contact info</span></button>
 <h2>Search &amp; sharing</h2>
 <button type="button" data-page="seo"><svg aria-hidden="true"><use href="#ic-search"/></svg><span class="dlabel">SEO &amp; social preview</span></button>
+<h2>Planner</h2>
+<button type="button" data-page="todo"><svg aria-hidden="true"><use href="#ic-check"/></svg><span class="dlabel">To-do &amp; focus</span></button>
 <h2>Settings</h2>
 <button type="button" data-page="security"><svg aria-hidden="true"><use href="#ic-shield"/></svg><span class="dlabel">Security</span></button>
 <button type="button" data-page="privacy"><svg aria-hidden="true"><use href="#ic-shield"/></svg><span class="dlabel">Privacy &amp; backup</span></button>
@@ -947,6 +952,7 @@ function doPost(e) {
 <textarea id="seoCode" rows="9" readonly aria-label="Head tags for index.html" spellcheck="false"></textarea>
 <button type="button" class="dbtn" id="seoCopy">Copy tags</button></div></div>
 </section>
+<section class="dpage" id="dp-todo" hidden></section>
 <section class="dpage" id="dp-privacy" hidden>
 <div class="dcard"><h2>Backup</h2>
 <p class="dhelp">Your content lives only in the database. Download a backup file now and then, and before any big change. The file contains private details (clients, visitors’ messages): keep it somewhere safe, not in a shared folder.</p>
@@ -1130,6 +1136,9 @@ function doPost(e) {
 <script src="scripts/owner-worktrack.js?v=w5c"></script>
 <script src="scripts/owner-wtsched.js?v=w5b"></script>
 <script src="scripts/wt-float.js?v=w5c"></script>
+<script src="scripts/core-todo.js?v=td1"></script>
+<script src="scripts/owner-todo.js?v=td1"></script>
+<script src="scripts/td-float.js?v=td1"></script>
 <script src="scripts/wt-alarm.js?v=w5c"></script>
 <script src="scripts/owner-wtlog.js?v=b3"></script>
 <script src="scripts/core-wtreport.js?v=b3"></script>
