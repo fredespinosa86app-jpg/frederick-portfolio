@@ -627,13 +627,33 @@ service cloud.firestore {
                 && existsAfter(tdTaskDoc(request.resource.data.taskId)) && getAfter(tdTaskDoc(request.resource.data.taskId)).data.status in ['todo','doing']));
       allow delete: if isOwner();
     }
+    // EN-1A (4.5.0): one goal per weekday (Monday first). Each of the 7 values is null (use the daily goal) or a whole number 0..1440 (0 = rest day). The list is optional.
+    function tdWgOk(v) { return v == null || (v is int && v >= 0 && v <= 1440); }
+    function tdWeekOk(l) {
+      return l is list && l.size() == 7 && tdWgOk(l[0]) && tdWgOk(l[1]) && tdWgOk(l[2]) && tdWgOk(l[3]) && tdWgOk(l[4]) && tdWgOk(l[5]) && tdWgOk(l[6]);
+    }
     function tdPrefsOk(d) {
-      return d.keys().hasOnly(['dailyGoalMin','updatedAt']) && d.keys().hasAll(['dailyGoalMin','updatedAt'])
-        && d.dailyGoalMin is int && d.dailyGoalMin >= 0 && d.dailyGoalMin <= 1440 && d.updatedAt == request.time;
+      return d.keys().hasOnly(['dailyGoalMin','weekdayGoalMin','updatedAt']) && d.keys().hasAll(['dailyGoalMin','updatedAt'])
+        && d.dailyGoalMin is int && d.dailyGoalMin >= 0 && d.dailyGoalMin <= 1440 && d.updatedAt == request.time
+        && (!('weekdayGoalMin' in d.keys()) || tdWeekOk(d.weekdayGoalMin));
     }
     match /todoPrefs/{id} {
       allow read: if isOwner();
       allow create, update: if isOwner() && id == 'main' && tdPrefsOk(request.resource.data);
+      allow delete: if isOwner() && id == 'main';
+    }
+
+    // EN-1A (4.5.0): the owner's default time zone for every project that has no zone of its own. One document, owner only; each change keeps the zone it replaced and raises the revision by exactly one.
+    function opOk(d) {
+      return d.keys().hasOnly(['tz','prevTz','rev','updatedAt']) && d.keys().hasAll(['tz','prevTz','rev','updatedAt'])
+        && d.tz is string && d.tz.size() >= 1 && d.tz.size() <= 60 && d.tz.matches('^[A-Za-z0-9_+/-]+$')
+        && d.prevTz is string && d.prevTz.size() <= 60 && d.prevTz.matches('^[A-Za-z0-9_+/-]*$')
+        && d.rev is int && d.updatedAt == request.time;
+    }
+    match /ownerPrefs/{id} {
+      allow read: if isOwner();
+      allow create: if isOwner() && id == 'main' && opOk(request.resource.data) && request.resource.data.prevTz == '' && request.resource.data.rev == 1;
+      allow update: if isOwner() && id == 'main' && opOk(request.resource.data) && request.resource.data.prevTz == resource.data.tz && request.resource.data.rev == resource.data.rev + 1;
       allow delete: if isOwner() && id == 'main';
     }
 

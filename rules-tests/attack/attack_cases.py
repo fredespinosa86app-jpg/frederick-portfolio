@@ -1619,6 +1619,40 @@ for nm,sim in (('transition',S),('strict',SS)):
         and TDA(sim,'get','todoPrefs/main',None,None,{'todoPrefs/main':po}) and not TDA(sim,'get','todoPrefs/main',None,None,{'todoPrefs/main':po},None,STRANGER) and TDA(sim,'delete','todoPrefs/main',None,po,{'todoPrefs/main':po})
         and not TDA(sim,'delete','todoPrefs/other',None,po,{'todoPrefs/other':po}) and not any(TDA(sim,'delete','todoPrefs/main',None,po,{'todoPrefs/main':po},None,a) for a in (None,STRANGER,TV0)))
 
+# ---------------- 8s. EN-1A (4.5.0): one goal per weekday (todoPrefs.weekdayGoalMin) and the owner's default time zone (ownerPrefs)
+for nm,sim in (('transition',S),('strict',SS)):
+    PF=lambda **k: dict({'dailyGoalMin':120,'updatedAt':TSNOW},**k)
+    pc=lambda d,i='main',au=OWN,op='create',o=None: TDA(sim,op,'todoPrefs/'+i,d,o,{} if o is None else {'todoPrefs/'+i:o},None,au)
+    W7=[60,None,180,120,None,0,None]
+    chk(f'EN-1A [{nm}] weekday goals: a list of exactly 7 values, each null or a whole number 0..1440, is accepted; the list is optional',
+        pc(PF()) and pc(PF(weekdayGoalMin=W7)) and pc(PF(weekdayGoalMin=[None]*7)) and pc(PF(weekdayGoalMin=[0]*7)) and pc(PF(weekdayGoalMin=[1440]*7)) and pc(PF(dailyGoalMin=0,weekdayGoalMin=W7))
+        and pc(PF(weekdayGoalMin=W7),'main',OWN,'update',PF(updatedAt=TS(NOW-86400000))))
+    chk(f'EN-1A [{nm}] weekday goals: a list that is too short or too long, or not a list, is refused',
+        not any(pc(PF(weekdayGoalMin=v)) for v in ([],[60],[60]*6,[60]*8,[None]*6,[None]*8,'60,60,60,60,60,60,60',60,None,{'0':60},True)))
+    chk(f'EN-1A [{nm}] weekday goals: every one of the 7 places refuses -1, 1441, a fraction, text, true and a nested list',
+        all(not pc(PF(weekdayGoalMin=[bad if j==i else 60 for j in range(7)])) for i in range(7) for bad in (-1,1441,1.5,'60',True,[60],{'a':1})))
+    chk(f'EN-1A [{nm}] weekday goals: other keys, a missing daily goal, a forged time and strangers are still refused',
+        not pc(dict(PF(weekdayGoalMin=W7),x=1)) and not pc({'weekdayGoalMin':W7,'updatedAt':TSNOW}) and not pc(PF(weekdayGoalMin=W7,updatedAt=TS(NOW-1))) and not any(pc(PF(weekdayGoalMin=W7),au=a) for a in (None,STRANGER,TV0)) and not pc(PF(weekdayGoalMin=W7),'other'))
+    # owner's time zone
+    OP=lambda **k: dict({'tz':'Asia/Manila','prevTz':'','rev':1,'updatedAt':TSNOW},**k)
+    oc=lambda d,i='main',au=OWN,op='create',o=None: TDA(sim,op,'ownerPrefs/'+i,d,o,{} if o is None else {'ownerPrefs/'+i:o},None,au)
+    chk(f'EN-1A [{nm}] owner zone: the owner creates "main" with a valid name, no previous zone and revision 1',
+        oc(OP()) and oc(OP(tz='America/Argentina/Buenos_Aires')) and oc(OP(tz='Etc/GMT+8')) and oc(OP(tz='UTC')) and oc(OP(tz='A'*60)))
+    chk(f'EN-1A [{nm}] owner zone: an empty, over-long or oddly written name, a non-text name, a previous zone or revision other than 1 on create are refused',
+        not any(oc(OP(tz=v)) for v in ('','A'*61,'Asia Manila','Asia/Manila;','Asia/Manila\n','<b>','Asia\\Manila',5,None,True,['Asia/Manila']))
+        and not oc(OP(prevTz='Asia/Manila')) and not any(oc(OP(rev=v)) for v in (0,2,-1,1.5,1.0,'1',None)))
+    chk(f'EN-1A [{nm}] owner zone: extra or missing keys, a forged time, another id and strangers are refused on create',
+        not oc(dict(OP(),x=1)) and not any(oc({k:v for k,v in OP().items() if k!=m}) for m in OP()) and not oc(OP(updatedAt=TS(NOW-1))) and not oc(OP(),i='other') and not any(oc(OP(),au=a) for a in (None,STRANGER,TV0)))
+    oo=OP(updatedAt=TS(NOW-86400000))
+    nx=OP(tz='Europe/London',prevTz='Asia/Manila',rev=2)
+    chk(f'EN-1A [{nm}] owner zone: a change keeps the zone it replaced and raises the revision by exactly one',
+        oc(nx,'main',OWN,'update',oo) and not oc(dict(nx,prevTz=''),'main',OWN,'update',oo) and not oc(dict(nx,prevTz='UTC'),'main',OWN,'update',oo) and not any(oc(dict(nx,rev=v),'main',OWN,'update',oo) for v in (1,3,0,-1,2.5,2.0,'2'))
+        and not oc(dict(nx,tz='bad name'),'main',OWN,'update',oo) and not oc(dict(nx,updatedAt=TS(NOW-1)),'main',OWN,'update',oo) and not oc(dict(nx,x=1),'main',OWN,'update',oo) and not oc(nx,'other',OWN,'update',oo)
+        and not any(oc(nx,'main',a,'update',oo) for a in (None,STRANGER,TV0)))
+    chk(f'EN-1A [{nm}] owner zone: read and delete are owner only and only on "main"; nobody else reads, lists or deletes',
+        TDA(sim,'get','ownerPrefs/main',None,None,{'ownerPrefs/main':oo}) and not any(TDA(sim,'get','ownerPrefs/main',None,None,{'ownerPrefs/main':oo},None,a) for a in (None,STRANGER,TV0)) and not TDA(sim,'list','ownerPrefs/main',None,None,{'ownerPrefs/main':oo},None,STRANGER)
+        and TDA(sim,'delete','ownerPrefs/main',None,oo,{'ownerPrefs/main':oo}) and not TDA(sim,'delete','ownerPrefs/other',None,oo,{'ownerPrefs/other':oo}) and not any(TDA(sim,'delete','ownerPrefs/main',None,oo,{'ownerPrefs/main':oo},None,a) for a in (None,STRANGER,TV0)))
+
 # ---------------- 9. cross-check: strict file equals transition file apart from the owner check
 a=re.sub(r'\s+','',TXT); b=re.sub(r'\s+','',re.sub(r'^//.*\n','',STRICT,flags=re.M))
 chk('strict rules differ from the transition rules only in the owner e-mail fallback',a.replace("&&(request.auth.uid==ownerUid()||request.auth.token.email=='fredespinosa86.app@gmail.com');","&&request.auth.uid==ownerUid();")==b,'')

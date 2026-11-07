@@ -11,11 +11,11 @@
   const kit = window.dashKit, C = window.coreTodo, tm = window.coreTime; if (!kit || !C || !tm) return;
   const { el, notify, confirmBox, iconBtn } = kit;
   const $ = id => document.getElementById(id), own = () => window.OWN;
-  const TZ = 'Asia/Manila';
+  const TZ = () => (window.ownerTz ? window.ownerTz.get() : 'Asia/Manila');   // EN-1A: the owner's default zone (General > Time zone)
   let tasks = [], st = null, loaded = false, signed = false, filter = 'open', skew = 0, skewKnown = false, busy = false, hist = {}, moreOpen = {}, openHist = '', stateRead = 0, nameCache = {}, tickT = 0, lastErr = '', deleting = '', q = '';
   const ms = t => !t ? 0 : typeof t.toMillis === 'function' ? t.toMillis() : t instanceof Date ? t.getTime() : Number(t) || 0;
   const now = () => Date.now() + skew;
-  const todayKey = () => C.dayKey(now(), TZ);
+  const todayKey = () => C.dayKey(now(), TZ());
   const say = (id, msg) => { const n = $(id); if (n) n.textContent = msg || ''; };
   const errText = e => {
     const c = e && e.code;
@@ -31,7 +31,7 @@
     const s = w.state(); return !!(s && s.state === 'WORKING');
   }
   const WORK_MSG = 'You are clocked in to WorkTrack and working. Clock out or start a break before you focus on a task.';
-  const dtFmt = (m) => new Intl.DateTimeFormat('en-GB', { timeZone: TZ, weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(m));
+  const dtFmt = (m) => new Intl.DateTimeFormat('en-GB', { timeZone: TZ(), weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(m));
   const dayFmt = d => { const p = d.split('-').map(Number); return new Intl.DateTimeFormat('en-GB', { timeZone: 'UTC', weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(Date.UTC(p[0], p[1] - 1, p[2]))); };
   const ev = (name, detail) => document.dispatchEvent(new CustomEvent(name, { detail }));
 
@@ -93,7 +93,7 @@
         const cur = sSnap.data(), p = C.playPlan(cur, taskId); if (p.kind === 'already') return { already: true };
         const nSnap = await tx.get(taskRef(taskId)); if (!nSnap.exists()) throw new Error('missing task'); const nt = nSnap.data(); if (nt.status === 'done' || nt.status === 'archived') throw new Error('closed task');
         let sess = null, oSnap = null; const nowMs = now();
-        if (p.kind === 'switch') { oSnap = await tx.get(taskRef(cur.taskId)); sess = C.stopSession(cur, nowMs, TZ); }
+        if (p.kind === 'switch') { oSnap = await tx.get(taskRef(cur.taskId)); sess = C.stopSession(cur, nowMs, TZ()); }
         const sid = sess ? rid() : '';
         if (sess) {
           tx.set(sessRef(sid), { taskId: sess.taskId, start: cur.startedAt, secs: sess.secs, day: sess.day, kind: 'timer', createdAt: f.serverTimestamp() });
@@ -118,7 +118,7 @@
     try {
       const result = await f.runTransaction(o.db, async tx => {
         const sSnap = await tx.get(stateRef()); if (!sSnap.exists()) throw new Error('no state'); const cur = sSnap.data(); if (!C.isRunning(cur)) return { none: true };
-        const tSnap = await tx.get(taskRef(cur.taskId)), sess = C.stopSession(cur, now(), TZ, opts.trimTo), sid = rid();
+        const tSnap = await tx.get(taskRef(cur.taskId)), sess = C.stopSession(cur, now(), TZ(), opts.trimTo), sid = rid();
         tx.set(sessRef(sid), { taskId: sess.taskId, start: cur.startedAt, secs: sess.secs, day: sess.day, kind: 'timer', createdAt: f.serverTimestamp() });
         if (tSnap.exists()) tx.update(taskRef(cur.taskId), { secs: C.addSecs(tSnap.data(), sess.secs), updatedAt: f.serverTimestamp() });
         const ran = C.elapsedSecs(cur, now());
@@ -180,7 +180,7 @@
   /* manual time: one batch = the session + the new cached total */
   async function addManual(id, v) {
     const o = own(), f = o.fs, t = taskOf(id); if (!t) return { ok: false, error: 'Task not found.' }; if (deleting === id) return { ok: false, error: 'This task is being deleted.' };
-    const startMs = tm.zonedToUtc(Number(v.day.slice(0, 4)), Number(v.day.slice(5, 7)), Number(v.day.slice(8, 10)), 12, 0, 0, TZ), b = f.writeBatch();
+    const startMs = tm.zonedToUtc(Number(v.day.slice(0, 4)), Number(v.day.slice(5, 7)), Number(v.day.slice(8, 10)), 12, 0, 0, TZ()), b = f.writeBatch();
     b.set(sessRef(rid()), { taskId: id, start: new Date(startMs), secs: v.secs, day: v.day, kind: 'manual', createdAt: f.serverTimestamp() });
     b.update(taskRef(id), { secs: C.addSecs(t, v.secs), updatedAt: f.serverTimestamp() }); await b.commit(); delete hist[id]; return { ok: true };
   }
@@ -374,8 +374,18 @@
   async function sessionsSince(day) { const o = own(), f = o.fs, s = await f.getDocs(f.query(f.collection(o.db, 'todoSessions'), f.where('day', '>=', day), f.limit(3000))); return s.docs.map(d => Object.assign({ id: d.id }, d.data())); }
   async function eventsSince(msFrom) { const o = own(), f = o.fs, s = await f.getDocs(f.query(f.collection(o.db, 'todoEvents'), f.where('createdAt', '>=', new Date(msFrom)), f.limit(3000))); return s.docs.map(d => Object.assign({ id: d.id }, d.data())); }
   async function getPrefs() { const o = own(), s = await o.fs.getDoc(prefRef()); return s.exists() ? s.data() : { dailyGoalMin: 0 }; }
-  async function setPrefs(min) { const f = own().fs, v = Math.round(Number(min)); if (!isFinite(v) || v < 0 || v > 1440) return { ok: false, error: 'The goal must be between 0 and 1440 minutes.' }; await f.setDoc(prefRef(), { dailyGoalMin: v, updatedAt: f.serverTimestamp() }); return { ok: true, value: v }; }
-  window.todoApi = { sessionsSince, eventsSince, getPrefs, setPrefs, tasks: () => tasks.slice(), todayKey, loaded: () => loaded, reloadTasks: async () => { await loadTasks(); draw(); }, signedIn: () => signed, state: () => st, now, running, tz: () => TZ, nameOf, focusInfo: () => C.focusInfo(st, now()), pause, start, addNote, sync, busy: () => busy,
+  async function setPrefs(min, weekday) {
+    const f = own().fs, v = Math.round(Number(min)); if (!isFinite(v) || v < 0 || v > 1440) return { ok: false, error: 'The goal must be between 0 and 1440 minutes.' };
+    let wk = null;
+    if (weekday !== undefined && weekday !== null) {   // EN-1A: 7 values, Monday first; null = use the daily goal, 0 = rest day
+      if (!Array.isArray(weekday) || weekday.length !== 7) return { ok: false, error: 'The weekday goals need exactly 7 values.' };
+      wk = []; for (let i = 0; i < 7; i++) { const x = weekday[i]; if (x === null || x === '' || x === undefined) { wk.push(null); continue; } const n = Number(x); if (!Number.isInteger(n) || n < 0 || n > 1440) return { ok: false, error: 'Each weekday goal must be a whole number from 0 to 1440, or empty.' }; wk.push(n); }
+      if (wk.every(x => x === null)) wk = null;   // nothing set: the field is left out, exactly like before
+    }
+    const doc = { dailyGoalMin: v, updatedAt: f.serverTimestamp() }; if (wk) doc.weekdayGoalMin = wk;
+    await f.setDoc(prefRef(), doc); return { ok: true, value: v, weekday: wk };
+  }
+  window.todoApi = { sessionsSince, eventsSince, getPrefs, setPrefs, tasks: () => tasks.slice(), todayKey, loaded: () => loaded, reloadTasks: async () => { await loadTasks(); draw(); }, signedIn: () => signed, state: () => st, now, running, tz: () => TZ(), nameOf, focusInfo: () => C.focusInfo(st, now()), pause, start, addNote, sync, busy: () => busy,
     task: id => { const t = taskOf(id); return t ? Object.assign({}, t) : null; } };
   async function sync(force) { if (!signed) return; if (!force && Date.now() - stateRead < 60000) return; await syncClock(); await ensureState(); if (loaded && $('dp-todo') && !$('dp-todo').hidden) { await loadTasks(); draw(); } }
   function tick() { if (!signed || !running()) return; const fi = C.focusInfo(st, now()), c = $('tdNowClock'); if (c) c.textContent = C.fmtClock(fi.elapsed) + ' / ' + C.fmtClock(fi.goal); }
@@ -387,6 +397,7 @@
       signed = true; await syncClock(); await ensureState(); clearInterval(tickT); tickT = setInterval(() => { if (!document.hidden) tick(); }, 1000);
     });
     document.addEventListener('dash:page', async e => { if (e.detail === 'todo' && signed) { build(); await syncClock(); await ensureState(); await loadTasks(); draw(); changed(); } });
+    document.addEventListener('owner:tz', () => { if (signed && loaded) draw(); });   // EN-1A: times and days follow the owner's zone
     const wake = () => { if (!document.hidden && signed) sync(); };
     document.addEventListener('visibilitychange', wake); window.addEventListener('focus', wake);
     draw();

@@ -5,7 +5,7 @@ name: Firestore rules (emulator)
 on:
   workflow_dispatch:
   push:
-    paths: ['firestore.rules', 'firestore.rules.strict', 'rules-tests/emulator/**', 'rules-tests/attack/gen_worktrack_cases.mjs', 'scripts/core-worktrack.js', 'scripts/core-todo.js', 'scripts/core-todograph.js', 'scripts/core-wtlog.js', 'scripts/core-billing.js', 'scripts/core-invoice.js', 'scripts/core-schedule.js', '.github/workflows/rules-emulator.yml']
+    paths: ['firestore.rules', 'firestore.rules.strict', 'rules-tests/emulator/**', 'rules-tests/attack/gen_worktrack_cases.mjs', 'scripts/core-worktrack.js', 'scripts/core-todo.js', 'scripts/core-todograph.js', 'scripts/core-ownertz.js', 'scripts/core-wtlog.js', 'scripts/core-billing.js', 'scripts/core-invoice.js', 'scripts/core-schedule.js', '.github/workflows/rules-emulator.yml']
 permissions:
   contents: read
 jobs:

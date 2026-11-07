@@ -4,6 +4,8 @@
    Days are calendar days in the owner's zone (Asia/Manila). Weeks run Monday to Sunday.
    A timer session is split at local midnight, so each day shows what was really done on it (task totals are not changed by this).
    A manual entry belongs to the day it was entered for. Days before the first record are "no data"; days with records but no time are 0.
+   EN-1A: the goal can differ per weekday. weekdayGoalMin = 7 values, Monday first; each is null (use the daily goal) or 0..1440 minutes. An explicit 0 is a REST DAY:
+   it has no goal, and in the streak it is skipped (it neither breaks the streak nor counts as a day). A daily goal of 0 still means "goal off" (not a rest day).
    ========================================================================== */
 (function (root) {
   'use strict';
@@ -37,8 +39,27 @@
     (sessions || []).forEach(s => take(s.day));
     return best;
   }
+  /* Monday = 0 ... Sunday = 6 for a day key (calendar maths only, so it is the same in every zone) */
+  function weekdayIndex(day) { const [y, m, d] = day.split('-').map(Number); return (new Date(Date.UTC(y, m - 1, d)).getUTCDay() + 6) % 7; }
+  /* the saved list -> 7 values (null or whole minutes 0..1440), or null when it is absent, the wrong size or has nothing set */
+  function cleanWeekday(a) {
+    if (!Array.isArray(a) || a.length !== 7) return null;
+    const out = a.map(v => (typeof v === 'number' && Number.isInteger(v) && v >= 0 && v <= 1440) ? v : null);
+    return out.some(v => v !== null) ? out : null;
+  }
+  /* day key -> { secs, rest }. secs = the goal for that day in seconds (0 = no goal); rest = the owner set 0 for that weekday on purpose */
+  function goalPlan(dailyMin, weekday) {
+    const dm = num(dailyMin) && dailyMin > 0 ? Math.min(1440, Math.round(dailyMin)) : 0, wk = cleanWeekday(weekday);
+    return day => {
+      const w = wk ? wk[weekdayIndex(day)] : null;
+      if (w === 0) return { secs: 0, rest: true };
+      if (w > 0) return { secs: w * 60, rest: false };
+      return { secs: dm * 60, rest: false };
+    };
+  }
   /* rows for the stacked chart and its table. Top tasks by time in the range, the rest grouped as "Other". */
-  function stackModel(days, buckets, tasks, first, goalSecs, today) {
+  function stackModel(days, buckets, tasks, first, goal, today) {
+    const gf = typeof goal === 'function' ? goal : () => ({ secs: num(goal) && goal > 0 ? goal : 0, rest: false });   // a plain number = the same goal every day (the old way)
     const byId = {}; (tasks || []).forEach(t => { byId[t.id] = t; });
     const tot = {}; days.forEach(d => Object.keys(buckets[d] || {}).forEach(id => { tot[id] = (tot[id] || 0) + buckets[d][id]; }));
     const ids = Object.keys(tot).sort((a, b) => tot[b] - tot[a] || (a < b ? -1 : 1)), top = ids.slice(0, TOP), rest = ids.slice(TOP);
@@ -48,21 +69,24 @@
       const b = buckets[d] || {}, parts = {}; let total = 0;
       series.forEach(s => { const v = s.key === '_other' ? s.ids.reduce((a, id) => a + (b[id] || 0), 0) : (b[s.key] || 0); if (v) parts[s.key] = v; total += v; });
       const state = first && d < first ? 'nodata' : (d > today ? 'future' : (total > 0 ? 'data' : 'zero'));
-      return { day: d, total, parts, state, goalMet: goalSecs > 0 && state !== 'nodata' && total >= goalSecs };
+      const g = gf(d), gs = num(g.secs) && g.secs > 0 ? g.secs : 0;
+      return { day: d, total, parts, state, goalSecs: gs, rest: !!g.rest, goalMet: gs > 0 && state !== 'nodata' && total >= gs };
     });
     const have = rows.filter(r => r.state === 'data' || r.state === 'zero'), sum = rows.reduce((a, r) => a + r.total, 0);
     let best = null; rows.forEach(r => { if (r.total > 0 && (!best || r.total > best.total)) best = r; });
-    return { series, rows, total: sum, avg: have.length ? Math.round(sum / have.length) : 0, best: best ? { day: best.day, total: best.total } : null, max: Math.max(goalSecs || 0, ...rows.map(r => r.total), 1) };
+    return { series, rows, total: sum, avg: have.length ? Math.round(sum / have.length) : 0, best: best ? { day: best.day, total: best.total } : null, max: Math.max(...rows.map(r => r.goalSecs), ...rows.map(r => r.total), 1), anyGoal: rows.some(r => r.goalSecs > 0 || r.rest), hasRest: rows.some(r => r.rest), sameGoal: rows.every(r => r.goalSecs === rows[0].goalSecs && r.rest === rows[0].rest) };
   }
-  /* streak of days that reached the goal. Today does not break a streak until it is over (it may still be reached). Counted inside the loaded window only. */
+  /* streak of days that reached the goal. Today does not break a streak until it is over (it may still be reached). Counted inside the loaded window only.
+     A rest day (goal set to 0 for that weekday) is skipped: it neither breaks the streak nor counts as a day. */
   function streak(rows, goalSecs, today, windowDays) {
-    if (!(goalSecs > 0)) return { on: false, current: 0, longest: 0, windowDays };
+    const on = (num(goalSecs) && goalSecs > 0) || rows.some(r => r.goalSecs > 0);
+    if (!on) return { on: false, current: 0, longest: 0, windowDays };
     let longest = 0, run = 0;
-    rows.forEach(r => { if (r.state === 'nodata' || r.state === 'future') { run = 0; return; } if (r.goalMet) { run++; longest = Math.max(longest, run); } else run = 0; });
+    rows.forEach(r => { if (r.state === 'nodata' || r.state === 'future') { run = 0; return; } if (r.rest) return; if (r.goalMet) { run++; longest = Math.max(longest, run); } else run = 0; });
     let cur = 0, i = rows.length - 1; while (i >= 0 && rows[i].state === 'future') i--;
-    if (i >= 0 && rows[i].day === today && !rows[i].goalMet) i--;
-    while (i >= 0 && rows[i].goalMet) { cur++; i--; }
-    return { on: true, current: cur, longest, windowDays, capped: cur >= rows.length };
+    if (i >= 0 && rows[i].day === today && !rows[i].goalMet && !rows[i].rest) i--;
+    while (i >= 0 && (rows[i].rest || rows[i].goalMet)) { if (!rows[i].rest) cur++; i--; }
+    return { on: true, current: cur, longest, windowDays, capped: i < 0 && cur > 0 };
   }
   /* Monday of the week that contains a day key */
   function weekStart(day) { const [y, m, d] = day.split('-').map(Number), dow = (new Date(Date.UTC(y, m - 1, d)).getUTCDay() + 6) % 7; return tm.addDaysIso(day, -dow); }
@@ -91,10 +115,12 @@
   const csvRow = a => a.map(csvCell).join(',');
   const mins = secs => Math.round(secs / 60);
   /* one line per day and task (all tasks, not only the top six) with timer and manual minutes kept apart */
-  function dailyCsv(days, sessions, tasks, tz, anon) {
+  function dailyCsv(days, sessions, tasks, tz, anon, goalFn) {
     const names = nameMap(tasks, anon), tm1 = dailyBuckets(sessions.filter(s => s.kind !== 'manual'), days, tz), mn = dailyBuckets(sessions.filter(s => s.kind === 'manual'), days, tz);
-    const lines = [csvRow(['Date', 'Task', 'Timer minutes', 'Manual minutes', 'Total minutes'])];
-    days.forEach(d => { const ids = new Set([...Object.keys(tm1[d] || {}), ...Object.keys(mn[d] || {})]); [...ids].sort().forEach(id => { const a = (tm1[d] || {})[id] || 0, b = (mn[d] || {})[id] || 0; lines.push(csvRow([d, names(id), mins(a), mins(b), mins(a + b)])); }); });
+    const gcol = typeof goalFn === 'function' && days.some(d => { const g = goalFn(d); return g.secs > 0 || g.rest; });   // the goal column is added only when some day has a goal or is a rest day
+    const goalCell = d => { const g = goalFn(d); return g.rest ? 'rest' : (g.secs > 0 ? mins(g.secs) : ''); };
+    const lines = [csvRow(['Date', 'Task', 'Timer minutes', 'Manual minutes', 'Total minutes'].concat(gcol ? ['Goal minutes'] : []))];
+    days.forEach(d => { const ids = new Set([...Object.keys(tm1[d] || {}), ...Object.keys(mn[d] || {})]); [...ids].sort().forEach(id => { const a = (tm1[d] || {})[id] || 0, b = (mn[d] || {})[id] || 0; lines.push(csvRow([d, names(id), mins(a), mins(b), mins(a + b)].concat(gcol ? [goalCell(d)] : []))); }); });
     return lines.join('\r\n') + '\r\n';
   }
   function weeklyCsv(weeks, tasks, anon) {
@@ -107,6 +133,6 @@
     const byId = {}; (tasks || []).forEach(t => { byId[t.id] = t; }); const order = {}; let k = 0;
     return id => { if (!anon) return (byId[id] && byId[id].name) || 'Deleted task'; if (!(id in order)) order[id] = k++; return 'Task ' + letter(order[id]); };
   }
-  const api = { COLORS, PATTERNS, RANGES, WINDOW_DAYS, WEEKS, TOP, dayList, dailyBuckets, firstDay, stackModel, streak, weekStart, weeklyCompleted, usedVsAllotted, statusCounts, csvCell, dailyCsv, weeklyCsv, nameMap, letter };
+  const api = { COLORS, PATTERNS, RANGES, WINDOW_DAYS, WEEKS, TOP, dayList, dailyBuckets, firstDay, weekdayIndex, cleanWeekday, goalPlan, stackModel, streak, weekStart, weeklyCompleted, usedVsAllotted, statusCounts, csvCell, dailyCsv, weeklyCsv, nameMap, letter };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.coreTodoGraph = api;
 })(typeof window !== 'undefined' ? window : globalThis);

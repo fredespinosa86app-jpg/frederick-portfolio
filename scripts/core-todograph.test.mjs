@@ -76,3 +76,82 @@ test('weeklyCsv: header and rows; anonymous names', () => {
   const w = [{ weekStart: '2026-11-02', weekEnd: '2026-11-08', count: 1, ids: ['taskAAAA1'] }];
   assert.equal(G.weeklyCsv(w, [T()], false).trim().split('\r\n')[1], '2026-11-02,2026-11-08,1,Write report'); assert.match(G.weeklyCsv(w, [T()], true), /Task A/); assert.doesNotMatch(G.weeklyCsv(w, [T()], true), /Write report/);
 });
+
+/* ---------------- EN-1A: goal per weekday, rest days, other time zones ---------------- */
+const mk = (days, tot, plan, today) => G.stackModel(days, Object.fromEntries(days.map((d, i) => [d, tot[i] ? { taskAAAA1: tot[i] } : {}])), [T()], days[0], plan, today || days[days.length - 1]);
+
+test('EN-1A weekdayIndex: Monday is 0 and Sunday is 6, also across a month end and a year end', () => {
+  assert.equal(G.weekdayIndex('2026-11-02'), 0); assert.equal(G.weekdayIndex('2026-11-08'), 6); assert.equal(G.weekdayIndex('2026-11-01'), 6); assert.equal(G.weekdayIndex('2026-10-31'), 5);
+  assert.equal(G.weekdayIndex('2026-12-31'), 3); assert.equal(G.weekdayIndex('2027-01-01'), 4); assert.equal(G.weekdayIndex('2026-03-01'), 6); assert.equal(G.weekdayIndex('2028-02-29'), 1);
+  const days = G.dayList('2026-11-08', 14); assert.deepEqual(days.map(G.weekdayIndex), [0, 1, 2, 3, 4, 5, 6, 0, 1, 2, 3, 4, 5, 6]);
+});
+test('EN-1A cleanWeekday: only a list of exactly 7 is kept; bad values become null; all-null means no list', () => {
+  assert.deepEqual(G.cleanWeekday([60, null, 180, 120, null, 0, null]), [60, null, 180, 120, null, 0, null]);
+  assert.equal(G.cleanWeekday([null, null, null, null, null, null, null]), null); assert.equal(G.cleanWeekday(null), null); assert.equal(G.cleanWeekday([60]), null); assert.equal(G.cleanWeekday(Array(8).fill(60)), null); assert.equal(G.cleanWeekday('1234567'), null);
+  assert.deepEqual(G.cleanWeekday([-1, 1441, 1.5, '60', true, undefined, 90]), [null, null, null, null, null, null, 90]);
+});
+test('EN-1A goalPlan: weekday value wins, an empty place uses the daily goal, 0 is a rest day, a daily 0 is goal off (not rest)', () => {
+  const p = G.goalPlan(120, [60, null, 180, 120, null, 0, null]);
+  assert.deepEqual(p('2026-11-02'), { secs: 3600, rest: false });   // Monday 60
+  assert.deepEqual(p('2026-11-03'), { secs: 7200, rest: false });   // Tuesday empty -> daily 120
+  assert.deepEqual(p('2026-11-04'), { secs: 10800, rest: false });  // Wednesday 180
+  assert.deepEqual(p('2026-11-07'), { secs: 0, rest: true });       // Saturday rest
+  assert.deepEqual(p('2026-11-08'), { secs: 7200, rest: false });   // Sunday empty -> daily
+  const off = G.goalPlan(0, [60, null, null, null, null, 0, null]);
+  assert.deepEqual(off('2026-11-03'), { secs: 0, rest: false }); assert.deepEqual(off('2026-11-02'), { secs: 3600, rest: false }); assert.deepEqual(off('2026-11-07'), { secs: 0, rest: true });
+  assert.deepEqual(G.goalPlan(90, null)('2026-11-05'), { secs: 5400, rest: false }); assert.deepEqual(G.goalPlan(undefined, undefined)('2026-11-05'), { secs: 0, rest: false });
+});
+test('EN-1A compatibility: no weekday goals gives exactly the old numbers (plain number and plan agree)', () => {
+  const days = G.dayList('2026-11-08', 10), tot = [0, 3600, 7200, 0, 5000, 3600, 4000, 0, 3000, 3600];
+  const a = mk(days, tot, 3600), b = mk(days, tot, G.goalPlan(60, null));
+  assert.deepEqual(b.rows.map(r => [r.day, r.total, r.state, r.goalMet]), a.rows.map(r => [r.day, r.total, r.state, r.goalMet])); assert.equal(a.max, b.max); assert.equal(b.sameGoal, true);
+  const sa = G.streak(a.rows, 3600, '2026-11-08'), sb = G.streak(b.rows, 3600, '2026-11-08'); assert.deepEqual(sa, sb);
+  const none = mk(days, tot, 0); assert.equal(none.anyGoal, false); assert.equal(none.rows.every(r => !r.goalMet && r.goalSecs === 0), true); assert.equal(G.streak(none.rows, 0, '2026-11-08').on, false);
+});
+test('EN-1A stackModel: each day is judged against its own goal; the scale includes the highest goal', () => {
+  const days = G.dayList('2026-11-08', 7);   // Mon 2 .. Sun 8
+  const m = mk(days, [3600, 3600, 3600, 0, 0, 0, 0], G.goalPlan(60, [60, 120, null, null, null, 0, null]));
+  assert.deepEqual(m.rows.map(r => r.goalMet), [true, false, true, false, false, false, false]); assert.equal(m.rows[1].goalSecs, 7200); assert.equal(m.rows[5].rest, true); assert.equal(m.hasRest, true); assert.equal(m.sameGoal, false); assert.equal(m.max, 7200);
+});
+test('EN-1A streak: a rest day is skipped - it neither breaks the streak nor counts as a day', () => {
+  const days = G.dayList('2026-11-08', 7);   // Mon..Sun, Saturday (index 5) is the rest day
+  const plan = G.goalPlan(60, [null, null, null, null, null, 0, null]);
+  const met = [3600, 3600, 3600, 3600, 3600, 0, 3600];       // all goals met, rest day empty
+  const s = G.streak(mk(days, met, plan).rows, 0, '2026-11-08'); assert.equal(s.on, true); assert.equal(s.current, 6); assert.equal(s.longest, 6);
+  const missed = [3600, 3600, 0, 3600, 3600, 0, 3600];       // Wednesday missed
+  const s2 = G.streak(mk(days, missed, plan).rows, 0, '2026-11-08'); assert.equal(s2.current, 3); assert.equal(s2.longest, 3);
+  const doneOnRest = [3600, 3600, 3600, 3600, 3600, 5000, 3600];   // time on the rest day does not add a day
+  assert.equal(G.streak(mk(days, doneOnRest, plan).rows, 0, '2026-11-08').current, 6);
+});
+test('EN-1A streak: today as a rest day does not break or count; today unmet on a goal day does not break yet', () => {
+  const days = G.dayList('2026-11-07', 7);   // Sun 1 .. Sat 7 (Saturday is today and a rest day)
+  const plan = G.goalPlan(60, [null, null, null, null, null, 0, null]);
+  assert.equal(G.streak(mk(days, [3600, 3600, 3600, 3600, 3600, 3600, 0], plan, '2026-11-07').rows, 0, '2026-11-07').current, 6);
+  const days2 = G.dayList('2026-11-08', 3);   // Fri 6, Sat 7 (rest), Sun 8 today unmet
+  assert.equal(G.streak(mk(days2, [3600, 0, 0], plan).rows, 0, '2026-11-08').current, 1);
+  assert.equal(G.streak(mk(days2, [0, 0, 0], plan).rows, 0, '2026-11-08').current, 0);
+});
+test('EN-1A streak: all days are rest days gives a streak of 0 without crashing', () => {
+  const days = G.dayList('2026-11-08', 7), s = G.streak(mk(days, [0, 0, 0, 0, 0, 0, 0], G.goalPlan(0, [0, 0, 0, 0, 0, 0, 0])).rows, 0, '2026-11-08'); assert.equal(s.current, 0); assert.equal(s.longest, 0);
+});
+test('EN-1A dailyCsv: a goal column appears only when some day has a goal or is a rest day', () => {
+  const days = G.dayList('2026-11-08', 7), ses = [S({ day: '2026-11-05' })];
+  const plain = G.dailyCsv(days, ses, [T()], TZ, false).split('\r\n')[0]; assert.equal(plain, 'Date,Task,Timer minutes,Manual minutes,Total minutes');
+  assert.equal(G.dailyCsv(days, ses, [T()], TZ, false, G.goalPlan(0, null)).split('\r\n')[0], plain);
+  const csv = G.dailyCsv(days, ses, [T()], TZ, false, G.goalPlan(60, [null, null, null, 120, null, 0, null])).split('\r\n'); assert.equal(csv[0], plain + ',Goal minutes'); assert.equal(csv[1], '2026-11-05,Write report,60,0,60,120');
+  const rest = G.dailyCsv(days, [S({ day: '2026-11-07', start: M('2026-11-07T10:00:00+08:00') })], [T()], TZ, false, G.goalPlan(60, [null, null, null, 120, null, 0, null])).split('\r\n'); assert.equal(rest[1], '2026-11-07,Write report,60,0,60,rest');
+});
+test('EN-1A other zones: the day boundary follows the zone (Manila, New York, Kathmandu, UTC)', () => {
+  const s = [S({ start: Date.parse('2026-11-05T20:00:00Z'), secs: 600, day: '2026-11-05' })], days = ['2026-11-05', '2026-11-06'];
+  const pick = z => Object.keys(G.dailyBuckets(s, days, z));
+  assert.deepEqual(pick('Asia/Manila'), ['2026-11-06']);      // 04:00 next day
+  assert.deepEqual(pick('UTC'), ['2026-11-05']);               // 20:00
+  assert.deepEqual(pick('America/New_York'), ['2026-11-05']);  // 15:00
+  assert.deepEqual(pick('Asia/Kathmandu'), ['2026-11-06']);    // 01:45 next day
+  const half = [S({ start: Date.parse('2026-11-05T18:00:00Z'), secs: 600 })]; assert.deepEqual(Object.keys(G.dailyBuckets(half, days, 'Asia/Kathmandu')), ['2026-11-05']);   // 23:45
+  const split = [S({ start: Date.parse('2026-11-05T18:10:00Z'), secs: 1200 })], d = G.dailyBuckets(split, days, 'Asia/Kathmandu'); assert.equal(d['2026-11-05'].taskAAAA1, 300); assert.equal(d['2026-11-06'].taskAAAA1, 900);   // midnight at 18:15 UTC
+});
+test('EN-1A other zones: the New York clock-change day keeps every second (25-hour day)', () => {
+  const start = Date.parse('2026-11-01T03:00:00Z'), s = [S({ start, secs: 86400 })], d = G.dailyBuckets(s, ['2026-10-31', '2026-11-01', '2026-11-02'], 'America/New_York');
+  const total = Object.values(d).reduce((a, x) => a + (x.taskAAAA1 || 0), 0); assert.equal(total, 86400);
+});

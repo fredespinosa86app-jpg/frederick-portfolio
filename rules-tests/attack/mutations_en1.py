@@ -1,0 +1,43 @@
+# EN-1A (4.5.0) mutations: each weakens ONE clause of the weekday goals (todoPrefs.weekdayGoalMin) or the owner's default time zone (ownerPrefs); attack_cases.py (section 8s) must fail for every one.
+def X(name, a, b): return (name, a, b)
+WK = "tdWgOk(l[0]) && tdWgOk(l[1]) && tdWgOk(l[2]) && tdWgOk(l[3]) && tdWgOk(l[4]) && tdWgOk(l[5]) && tdWgOk(l[6])"
+EN1 = [
+ X('EN1 weekday: list size not checked', "l is list && l.size() == 7 && " + WK, "l is list && " + WK),
+ X('EN1 weekday: list may be longer', "l.size() == 7 &&", "l.size() >= 7 &&"),
+ X('EQUIV EN1 weekday: list may be shorter', "l.size() == 7 &&", "l.size() <= 7 &&"),
+ X('EQUIV EN1 weekday: not required to be a list', "l is list && l.size() == 7", "l.size() == 7"),
+ X('EN1 weekday value: null no longer allowed', "return v == null || (v is int && v >= 0 && v <= 1440);", "return (v is int && v >= 0 && v <= 1440);"),
+ X('EN1 weekday value: fraction or text allowed', "(v is int && v >= 0 && v <= 1440)", "(v >= 0 && v <= 1440)"),
+ X('EN1 weekday value: negative allowed', "v is int && v >= 0 && v <= 1440", "v is int && v <= 1440"),
+ X('EN1 weekday value: more than a day allowed', "v is int && v >= 0 && v <= 1440", "v is int && v >= 0"),
+ X('EN1 weekday: any value allowed (null or otherwise)', "return v == null || (v is int && v >= 0 && v <= 1440);", "return true;"),
+] + [X(f'EN1 weekday: place {i} not checked', f"tdWgOk(l[{i}])" + (" && " if i < 6 else ";"), "" if i < 6 else "true;") if False else X(f'EN1 weekday: place {i} not checked', "&& " + f"tdWgOk(l[{i}])" if i > 0 else f"tdWgOk(l[0]) && ", "" ) for i in range(7)] + [
+ X('EN1 prefs: weekday list key not allowed to be absent', "&& (!('weekdayGoalMin' in d.keys()) || tdWeekOk(d.weekdayGoalMin));", "&& tdWeekOk(d.weekdayGoalMin);"),
+ X('EN1 prefs: list present but never validated', "&& (!('weekdayGoalMin' in d.keys()) || tdWeekOk(d.weekdayGoalMin));", ";"),
+ X('EN1 prefs: other keys allowed', "d.keys().hasOnly(['dailyGoalMin','weekdayGoalMin','updatedAt']) && d.keys().hasAll(['dailyGoalMin','updatedAt'])", "d.keys().hasAll(['dailyGoalMin','updatedAt'])"),
+ X('EN1 prefs: weekday list not allowed at all', "d.keys().hasOnly(['dailyGoalMin','weekdayGoalMin','updatedAt'])", "d.keys().hasOnly(['dailyGoalMin','updatedAt'])"),
+ # ownerPrefs
+ X('EN1 zone read: open to everyone', "match /ownerPrefs/{id} {\n      allow read: if isOwner();", "match /ownerPrefs/{id} {\n      allow read: if true;"),
+ X('EN1 zone create: owner check removed', "allow create: if isOwner() && id == 'main' && opOk(request.resource.data) && request.resource.data.prevTz == ''", "allow create: if id == 'main' && opOk(request.resource.data) && request.resource.data.prevTz == ''"),
+ X('EN1 zone create: any document id', "allow create: if isOwner() && id == 'main' && opOk", "allow create: if isOwner() && opOk"),
+ X('EN1 zone create: shape not checked', "allow create: if isOwner() && id == 'main' && opOk(request.resource.data) && request.resource.data.prevTz == ''", "allow create: if isOwner() && id == 'main' && request.resource.data.prevTz == ''"),
+ X('EN1 zone create: a previous zone may be invented', "opOk(request.resource.data) && request.resource.data.prevTz == '' && request.resource.data.rev == 1;", "opOk(request.resource.data) && request.resource.data.rev == 1;"),
+ X('EN1 zone create: revision may start anywhere', "request.resource.data.prevTz == '' && request.resource.data.rev == 1;", "request.resource.data.prevTz == '';"),
+ X('EN1 zone update: owner check removed', "allow update: if isOwner() && id == 'main' && opOk", "allow update: if id == 'main' && opOk"),
+ X('EN1 zone update: any document id', "allow update: if isOwner() && id == 'main' && opOk", "allow update: if isOwner() && opOk"),
+ X('EN1 zone update: shape not checked', "allow update: if isOwner() && id == 'main' && opOk(request.resource.data) && request.resource.data.prevTz == resource.data.tz", "allow update: if isOwner() && id == 'main' && request.resource.data.prevTz == resource.data.tz"),
+ X('EN1 zone update: the replaced zone need not be kept', "request.resource.data.prevTz == resource.data.tz && request.resource.data.rev == resource.data.rev + 1;", "request.resource.data.rev == resource.data.rev + 1;"),
+ X('EN1 zone update: revision may stay or jump', "request.resource.data.prevTz == resource.data.tz && request.resource.data.rev == resource.data.rev + 1;", "request.resource.data.prevTz == resource.data.tz;"),
+ X('EN1 zone delete: open to everyone', "allow delete: if isOwner() && id == 'main';\n    }\n", "allow delete: if true;\n    }\n") if False else X('EN1 zone delete: any document id', "allow delete: if isOwner() && id == 'main';\n    }\n\n    // B1", "allow delete: if isOwner();\n    }\n\n    // B1"),
+ X('EN1 zone delete: owner check removed', "allow delete: if isOwner() && id == 'main';\n    }\n\n    // B1", "allow delete: if id == 'main';\n    }\n\n    // B1"),
+ X('EN1 zone shape: extra keys allowed', "d.keys().hasOnly(['tz','prevTz','rev','updatedAt']) && d.keys().hasAll(['tz','prevTz','rev','updatedAt'])", "d.keys().hasAll(['tz','prevTz','rev','updatedAt'])"),
+ X('EQUIV EN1 zone shape: required keys not checked', "d.keys().hasOnly(['tz','prevTz','rev','updatedAt']) && d.keys().hasAll(['tz','prevTz','rev','updatedAt'])", "d.keys().hasOnly(['tz','prevTz','rev','updatedAt'])"),
+ X('EQUIV EN1 zone shape: name need not be text', "d.tz is string && d.tz.size() >= 1", "d.tz.size() >= 1"),
+ X('EQUIV EN1 zone shape: empty name allowed', "d.tz.size() >= 1 && d.tz.size() <= 60", "d.tz.size() <= 60"),
+ X('EN1 zone shape: over-long name allowed', "d.tz.size() >= 1 && d.tz.size() <= 60", "d.tz.size() >= 1"),
+ X('EN1 zone shape: odd characters allowed in the name', "d.tz.matches('^[A-Za-z0-9_+/-]+$')", "true"),
+ X('EQUIV EN1 zone shape: previous zone may be anything', "d.prevTz is string && d.prevTz.size() <= 60 && d.prevTz.matches('^[A-Za-z0-9_+/-]*$')", "true"),
+ X('EQUIV EN1 zone shape: previous zone may be over-long', "d.prevTz.size() <= 60 && d.prevTz.matches('^[A-Za-z0-9_+/-]*$')", "d.prevTz.matches('^[A-Za-z0-9_+/-]*$')"),
+ X('EN1 zone shape: revision may be a fraction or text', "d.rev is int && d.updatedAt == request.time;\n    }\n    match /ownerPrefs", "d.updatedAt == request.time;\n    }\n    match /ownerPrefs"),
+ X('EN1 zone shape: time not the server time', "d.rev is int && d.updatedAt == request.time;\n    }\n    match /ownerPrefs", "d.rev is int;\n    }\n    match /ownerPrefs"),
+]

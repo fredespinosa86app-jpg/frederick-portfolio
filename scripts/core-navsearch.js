@@ -8,7 +8,7 @@
   'use strict';
   /* hidden words: what an owner might type for a page whose name does not contain it */
   const KEYWORDS = {
-    todo: 'task tasks todo to-do planner focus timer pomodoro play pause hours notes time management personal productivity graph graphs chart streak goal csv accomplishment daily weekly',
+    todo: 'task tasks todo to-do planner focus timer pomodoro play pause hours notes time management personal productivity graph graphs chart streak goal csv accomplishment daily weekly weekday rest day',
     dashboard: 'home overview today summary due reminders', inbox: 'meeting call booking requests leads messages',
     questions: 'chat chatbot unanswered history visitors asked', marcus: 'chatbot assistant ai bot settings webhook configuration',
     chatid: 'chatbot look appearance colors avatar filter words blocked', chatkb: 'chatbot answers knowledge base quick replies scripted',
@@ -23,7 +23,7 @@
     theme: 'colors dark light fonts effects style', secbg: 'section backgrounds colors images', hero: 'banner headline top photo',
     social: 'links contact email linkedin facebook phone', seo: 'search engine google preview sharing social image title description',
     security: 'verification turnstile app check budget cap limit cloudflare protection spam rules daily', privacy: 'retention backup delete cleanup restore data privacy notice export personal',
-    ownerdocs: 'owner documents files contracts', general: 'general settings site name title language'
+    ownerdocs: 'owner documents files contracts', general: 'general settings site name title language time zone timezone clock default'
   };
   const norm = s => String(s == null ? '' : s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
   function match(query, items) {
