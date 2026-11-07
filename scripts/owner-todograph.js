@@ -44,7 +44,7 @@
 
   /* the daily chart as an SVG string. opt.names(id)->label; opt.title for the picture; opt.pre makes ids unique */
   function dailySvg(model, goalSecs, names, opt) {
-    opt = opt || {}; const W = 640, H = 270, L = 46, R = 10, T = opt.title ? 44 : 14, B = 36, pw = W - L - R, ph = H - T - B, n = model.rows.length, step = pw / n, bw = Math.max(4, step * 0.68), pre = opt.pre || 'g';
+    opt = opt || {}; const W = 640, H = 270, L = 46, R = 10, T = opt.title ? 44 : (model.sameGoal ? 14 : 28), B = 36, pw = W - L - R, ph = H - T - B, n = model.rows.length, step = pw / n, bw = Math.max(4, step * 0.68), pre = opt.pre || 'g';
     const nm = niceMax(model.max), y = v => T + ph - v / nm.max * ph; let s = '';
     s += `<defs>${model.series.map((x, i) => patDef(pre + 'p' + i, x.color, x.pattern)).join('')}<pattern id="${pre}nd" width="8" height="8" patternUnits="userSpaceOnUse"><rect width="8" height="8" fill="#e5e7eb"/><path d="M-2 10L10 -2" stroke="#9ca3af" stroke-width="1.2"/></pattern></defs>`;
     if (opt.title) s += `<rect width="${W}" height="${H + 18}" fill="#fff"/><text x="${L}" y="20" font-size="15" font-weight="700" fill="#111827">${esc(opt.title)}</text><text x="${L}" y="36" font-size="11" fill="#4b5563">${esc(opt.sub || '')}</text>`;
@@ -66,7 +66,7 @@
     if (model.sameGoal && g0 > 0) s += `<line x1="${L}" x2="${W - R}" y1="${y(g0)}" y2="${y(g0)}" stroke="#166534" stroke-width="1.5" stroke-dasharray="6 4"/><text x="${W - R}" y="${y(g0) - 4}" font-size="10" text-anchor="end" fill="#166534">goal ${esc(hm(g0))}</text>`;
     else if (!model.sameGoal) {   // EN-1A: a goal that differs by day is drawn as a short dashed mark on each day
       model.rows.forEach((r, i) => { if (r.goalSecs > 0 && r.state !== 'nodata') s += `<line x1="${L + i * step + 1}" x2="${L + (i + 1) * step - 1}" y1="${y(r.goalSecs)}" y2="${y(r.goalSecs)}" stroke="#166534" stroke-width="2" stroke-dasharray="5 3"/>`; });
-      s += `<text x="${W - R}" y="${T - 3}" font-size="10" text-anchor="end" fill="#166534">dashed mark = goal for that day</text>`;
+      s += `<text x="${W - R}" y="${opt.title ? T - 10 : 12}" font-size="10" text-anchor="end" fill="#166534">dashed mark = goal for that day</text>`;
     }
     const leg = model.series.map(x => x.letter + ' ' + names(x)).join('   ');
     if (opt.export) s += `<text x="${L}" y="${H + 12}" font-size="10" fill="#374151">${esc(leg.slice(0, 120))}</text><text x="${W - R}" y="${H + 12}" font-size="9" text-anchor="end" fill="#6b7280">${esc(TZ())}</text>`;
@@ -101,7 +101,7 @@
     $('tdGRange').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(Number(b.dataset.r) === range)));
     $('tdGGoal').value = goalMin ? String(goalMin) : '';
     for (let i = 0; i < 7; i++) { const b = $('tdGWd' + i); if (b && document.activeElement !== b) { b.value = weekGoals && weekGoals[i] !== null ? String(weekGoals[i]) : ''; b.placeholder = goalMin ? String(goalMin) : 'off'; const h = $('tdGWh' + i); if (h) h.textContent = b.value === '' ? (goalMin ? 'uses ' + goalMin : 'no goal') : (Number(b.value) === 0 ? 'rest' : ''); } }
-    $('tdGStreak').textContent = !st.on ? 'Set a daily goal, or a goal for a weekday, to see your streak.' : 'Current streak: ' + st.current + ' day' + (st.current === 1 ? '' : 's') + (st.capped ? ' (counted over the last ' + G.WINDOW_DAYS + ' days)' : '') + (M.m60.hasRest ? ' (rest days skipped)' : '') + ' · Longest in the last ' + G.WINDOW_DAYS + ' days: ' + st.longest + ' · Today: ' + hm(todayRow.total) + (todayRow.rest ? ' (rest day)' : todayRow.goalSecs > 0 ? ' of ' + hm(todayRow.goalSecs) + (todayRow.goalMet ? ' (goal reached)' : '') : ' (no goal today)');
+    $('tdGStreak').textContent = !st.on ? 'Set a daily goal, or a goal for a weekday, to see your streak.' : 'Current streak: ' + st.current + ' day' + (st.current === 1 ? '' : 's') + (st.capped ? ' (counted over the last ' + G.WINDOW_DAYS + ' days)' : '') + ' · Longest in the last ' + G.WINDOW_DAYS + ' days: ' + st.longest + ' · Today: ' + hm(todayRow.total) + (todayRow.rest ? ' (rest day)' : todayRow.goalSecs > 0 ? ' of ' + hm(todayRow.goalSecs) + (todayRow.goalMet ? ' (goal reached)' : '') : ' (no goal today)') + (M.m60.hasRest ? ' (rest days skipped)' : '');
     /* daily */
     const sum = M.m, sec = el('section', { class: 'td-gsec', 'aria-labelledby': 'tdGH1' });
     sec.append(el('h3', { id: 'tdGH1' }, 'Time per day'), el('p', { class: 'dhelp' }, 'Total ' + hm(sum.total) + ' · Daily average ' + hm(sum.avg) + (sum.best ? ' · Best day ' + dayLabel(sum.best.day) + ' (' + hm(sum.best.total) + ')' : '') + ' · Last ' + range + ' days, Asia/Manila'));
@@ -126,7 +126,7 @@
     const wrap = el('div', { id: 'tdTbl_daily', class: 'td-tbl', hidden: showTbl.daily ? null : 'hidden' }); if (!showTbl.daily) return wrap;
     const t = el('table', {}), cap = el('caption', {}, 'Time per day in minutes'), head = el('tr', {}, el('th', { scope: 'col' }, 'Day'), el('th', { scope: 'col' }, 'Total'), m.series.map(s => el('th', { scope: 'col' }, s.letter + ' ' + s.name)), m.anyGoal ? el('th', { scope: 'col' }, 'Goal') : null);
     t.append(cap, el('thead', {}, head)); const tb = el('tbody', {});
-    m.rows.slice().reverse().forEach(r => tb.append(el('tr', {}, el('th', { scope: 'row' }, dayLabel(r.day)), el('td', {}, r.state === 'nodata' ? 'no data' : hm(r.total)), m.series.map(s => el('td', {}, r.state === 'nodata' ? '' : r.parts[s.key] ? hm(r.parts[s.key]) : '0')), m.anyGoal ? el('td', {}, r.state === 'nodata' ? '' : r.rest ? 'rest day' : r.goalSecs > 0 ? hm(r.goalSecs) + (r.goalMet ? ', reached' : ', not reached') : 'no goal') : null)));
+    m.rows.slice().reverse().forEach(r => tb.append(el('tr', {}, el('th', { scope: 'row' }, dayLabel(r.day)), el('td', {}, r.state === 'nodata' ? 'no data' : hm(r.total)), m.series.map(s => el('td', {}, r.state === 'nodata' ? '' : r.parts[s.key] ? hm(r.parts[s.key]) : '0')), m.anyGoal ? el('td', {}, r.rest ? 'rest day' : r.state === 'nodata' ? '' : r.goalSecs > 0 ? hm(r.goalSecs) + (r.goalMet ? ', reached' : ', not reached') : 'no goal') : null)));
     t.append(tb); wrap.append(t); return wrap;
   }
   function weeklyTable(weeks) {

@@ -75,6 +75,17 @@ const click = (pg, id) => pg.evaluate(id => document.getElementById(id).click(),
   check('a goal on a single weekday turns the streak on even with the daily goal off', /Current streak/.test(await txt(pg, '#tdGStreak')));
   await ctx.close();
 }
+/* a new account with no records before today (the owner's live-test case) */
+{
+  const { ctx, pg } = await mk(); await signIn(pg); await pg.waitForTimeout(300);
+  await pg.evaluate(() => { window.__store['todoPrefs/main'] = { dailyGoalMin: 0, weekdayGoalMin: [60, 60, 60, 60, 60, 0, null], updatedAt: window.__ts(Date.now()) }; window.__store['todoTasks/taskAAAA1'] = { name: 'First task', desc: '', due: '', hours: 1, focusMin: 25, status: 'todo', secs: 0, doneAt: null, color: 0, createdAt: window.__ts(Date.now()), updatedAt: window.__ts(Date.now()) }; });   // the first record is today, like a new account
+  await open(pg); await pg.evaluate(() => [...document.querySelectorAll('#tdGraphs button')].find(x => /Show as table/.test(x.textContent)).click()); await pg.waitForTimeout(200);
+  check('empty account: the streak line ends with "(rest days skipped)"', /\(rest days skipped\)$/.test((await txt(pg, '#tdGStreak')).trim()), await txt(pg, '#tdGStreak'));
+  check('empty account: a Saturday with "no data" still says "rest day" in the Goal column', await pg.evaluate(() => { const rows = [...document.querySelectorAll('#tdTbl_daily tbody tr')]; const sat = rows.filter(r => /^Sat /.test(r.querySelector('th').textContent)); return sat.length >= 1 && sat.every(r => /rest day/.test(r.lastElementChild.textContent)) && sat.some(r => /no data/.test(r.children[1].textContent)); }));
+  check('empty account: other no-data days leave the Goal cell empty (nothing invented)', await pg.evaluate(() => { const rows = [...document.querySelectorAll('#tdTbl_daily tbody tr')].filter(r => /no data/.test(r.children[1].textContent) && !/^Sat /.test(r.querySelector('th').textContent)); return rows.length >= 3 && rows.every(r => r.lastElementChild.textContent === ''); }));
+  check('empty account: the per-day note does not sit on the top gridline (it has its own band above the plot)', await pg.evaluate(() => { const svg = document.querySelector('#tdChart1 svg'), tx = [...svg.querySelectorAll('text')].find(x => /dashed mark/.test(x.textContent)), top = [...svg.querySelectorAll('line')].map(l => Number(l.getAttribute('y1'))).filter(Boolean); return !!tx && Number(tx.getAttribute('y')) < Math.min(...top) - 8; }));
+  await ctx.close();
+}
 /* phone */
 {
   const { ctx, pg } = await mk({ viewport: { width: 390, height: 800 }, isMobile: true, hasTouch: true }); await signIn(pg); await pg.waitForTimeout(300); await seed(pg); await open(pg);
