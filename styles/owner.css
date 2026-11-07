@@ -383,3 +383,25 @@ dialog.svtpl{max-width:min(720px,94vw);max-height:92vh;overflow:auto}
 .tdfl-chip{display:block;width:100%;min-height:40px;margin:0 0 8px;padding:0 12px;border:2px dashed #ffd37a;border-radius:10px;background:transparent;color:#ffd37a;font:600 13px system-ui,sans-serif;cursor:pointer}
 .tdfl-chip:focus-visible{outline:3px solid #ffd37a;outline-offset:2px}
 @media (forced-colors:active){.tdfl-chip{border-color:ButtonText;color:ButtonText}}
+
+/* TD1-fix: task search, the "More actions" row, and the phone layout (one clock at a time; the focus clock becomes a bar at the bottom edge) */
+.td-search{flex:1 1 180px;min-width:0;max-width:320px;min-height:36px;padding:0 10px;border-radius:8px;border:1px solid var(--dline,#cfd6e6);font:inherit;background:transparent;color:inherit}
+.dbtn.td-morebtn{display:none;margin-top:6px}
+@media (max-width:600px){
+  #dp-todo{padding-bottom:140px}
+  .td-card .dbtn,.td-bar-row .dbtn,.td-filters button{min-height:44px}
+  .td-card .dbtn.ibtn.icon-only{width:44px}
+  .dbtn.td-morebtn{display:inline-flex;align-items:center}
+  .td-act2{display:none;margin-top:8px}.td-act2.open{display:flex}
+  .td-search{max-width:none;flex-basis:100%;min-height:44px}
+  .td-ht{min-width:0;flex-basis:100%}
+  .tdfl{left:0!important;right:0!important;top:auto!important;bottom:0;width:100%;max-width:100%;border-radius:14px 14px 0 0;border-bottom:0}
+  .tdfl .wtfl-grip,.tdfl .tdfl-corner{display:none}
+  .tdfl .wtfl-bar{padding:4px 8px}
+  .tdfl .wtfl-min,.tdfl .wtfl-btn,.tdfl .tdfl-chip{min-height:44px}
+  .tdfl .wtfl-body{display:grid;grid-template-columns:1fr auto;column-gap:10px;align-items:center;padding:2px 12px 10px}
+  .tdfl .tdfl-name,.tdfl .wtfl-time,.tdfl .wtfl-net{grid-column:1}
+  .tdfl .wtfl-btns{grid-column:2;grid-row:1 / span 3;flex-wrap:nowrap}
+  .tdfl .tdfl-banner,.tdfl .tdfl-panel,.tdfl .tdfl-sound,.tdfl .wtfl-err,.tdfl .wtfl-sr{grid-column:1 / -1}
+  .tdfl .wtfl-time{font-size:24px}
+}

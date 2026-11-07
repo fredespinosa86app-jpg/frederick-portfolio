@@ -66,7 +66,7 @@ check('note saved linked to the session', nk.length === 1 && s[nk[0]].taskId ===
 
 /* pause from the floating clock */
 await pg.evaluate(() => { const st = window.__store['todoState/main']; st.startedAt = { __ts: true, ms: Date.now() - 120000, toMillis() { return this.ms; } }; });
-await pg.evaluate(() => [...document.querySelectorAll('#tdFloat button')].find(x => x.textContent === 'Pause').click()); await pg.waitForTimeout(400);
+await pg.evaluate(() => [...document.querySelectorAll('#tdFloat button')].find(x => x.textContent === 'Pause & save').click()); await pg.waitForTimeout(400);
 s = await S();
 check('pause: idle state, 2 sessions, task 2 has its time', s['todoState/main'].taskId === '' && s['todoState/main'].startedAt === null && keys(s, 'todoSessions/').length === 2 && s['todoTasks/' + id2].secs >= 118);
 check('clock hidden but note panel still shown, then skip closes it', await pg.evaluate(() => !document.querySelector('#tdFloat .tdfl-notepanel').hidden));
@@ -101,7 +101,7 @@ check('mark done sets doneAt', s['todoTasks/' + id1].status === 'done' && s['tod
 /* delete cascade */
 await clickText('.td-filters button', 'all');
 await clickText('.td-card[data-task="' + id1 + '"] button', 'delete'); await dlgClick('delete task'); await pg.waitForTimeout(300); s = await S();
-check('delete removes task, its sessions and notes', !s['todoTasks/' + id1] && !keys(s, 'todoSessions/').some(k => s[k].taskId === id1) && keys(s, 'todoNotes/').length === 0);
+check('delete removes task, its sessions and notes', !s['todoTasks/' + id1] && !keys(s, 'todoSessions/').some(k => s[k].taskId === id1) && !keys(s, 'todoNotes/').some(k => s[k].taskId === id1));   /* the 12 h trim of task 2 left its own auto note, which must stay */
 
 /* sign out clears */
 await clickText('.td-card[data-task="' + id2 + '"] button', 'play');

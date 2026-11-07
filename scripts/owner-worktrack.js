@@ -80,6 +80,7 @@
   async function punch(type, reason) {
     if (busyPunch) return; say('wtErr', '');
     if (!signed) return;
+    if (window.tdGuard && !(await window.tdGuard.beforeWork(type))) return;   // TD1-fix: a running focus timer is paused first (with your OK)
     if (navigator.onLine === false) { say('wtErr', 'You are offline. Punches need a connection so the saved time is the database\'s time. Nothing was recorded.'); return; }
     const o = own(), f = o.fs, seen = S.st; let picks = [];
     if (type === 'CLOCK_IN' && pending.length) {          // clients picked beforehand: check they are all still active, then save them together with the clock in

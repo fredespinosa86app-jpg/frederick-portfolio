@@ -82,7 +82,7 @@
     if (!run) { if (shown) hideClock(); if (pendingNote) showNote(); return; }
     if (!shown) { shown = true; root.hidden = false; home(); applyMin(); soundLabel(); place(); startTimer(); }
     const st = a.state(); nameEl.textContent = a.nameOf(st.taskId) || 'Focus task'; root.dataset.state = 'FOCUS';
-    btnBox.replaceChildren(btn('Pause', 'wtfl-out', onPause));
+    btnBox.replaceChildren(btn('Pause & save', 'wtfl-out', onPause));
     tick(); if (pendingNote) showNote();
   }
   async function onPause() {
