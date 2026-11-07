@@ -102,11 +102,12 @@ function window0() { return { __ts: true, ms: 1700000000000 }; }
 /* ---- 5. phone layout */
 {
   const { ctx, pg } = await mkPage({ viewport: { width: 390, height: 844 } }); await signIn(pg); await pg.waitForTimeout(300);
-  await seed(pg, { 'todoTasks/taskAAAA1': seedTask('taskAAAA1') }); await openPage(pg);
+  await seed(pg, { 'todoTasks/taskAAAA1': seedTask('taskAAAA1') }); await pg.click('#dashOpen'); await pg.waitForTimeout(400); await pg.evaluate(() => document.querySelector('.dnav button[data-page="todo"]').click()); await pg.waitForTimeout(500);
+  check('phone: the task page is really on screen', await pg.evaluate(() => document.querySelector('.td-card').getBoundingClientRect().height > 50));
   check('phone: secondary actions hidden until More actions is pressed', await pg.evaluate(() => { const m = document.querySelector('.td-act2'), btn = document.querySelector('.td-morebtn'); return getComputedStyle(m).display === 'none' && getComputedStyle(btn).display !== 'none'; }));
   await pg.evaluate(() => document.querySelector('.td-morebtn').click()); await pg.waitForTimeout(100);
   check('phone: More actions shows them', await pg.evaluate(() => getComputedStyle(document.querySelector('.td-act2')).display === 'flex'));
-  check('phone: tap targets are at least 44px', await pg.evaluate(() => [...document.querySelectorAll('.td-card .dbtn')].filter(x => x.offsetParent).every(x => x.getBoundingClientRect().height >= 43.5)));
+  check('phone: tap targets are at least 44px (and there are some to measure)', await pg.evaluate(() => { const bs = [...document.querySelectorAll('.td-card .dbtn')].filter(x => x.offsetParent); return bs.length >= 4 && bs.every(x => x.getBoundingClientRect().height >= 43.5); }));
   await pg.evaluate(() => document.querySelector('.td-card button[aria-label^="Play"]').click()); await pg.waitForTimeout(500);
   const r = await pg.evaluate(() => { const e = document.getElementById('tdFloat').getBoundingClientRect(); const p = [...document.querySelectorAll('#tdFloat button')].find(x => /pause & save/i.test(x.textContent)).getBoundingClientRect(); return { l: e.left, r: e.right, b: e.bottom, w: e.width, ph: p.height, vw: innerWidth, vh: innerHeight, pw: p.width }; });
   check('phone: focus clock is a full-width bar at the bottom edge', r.l <= 1 && Math.abs(r.r - r.vw) <= 1 && Math.abs(r.b - r.vh) <= 1);

@@ -47,6 +47,8 @@
   const taskRef = id => { const o = own(); return o.fs.doc(o.db, 'todoTasks', id); };
   const sessRef = id => { const o = own(); return o.fs.doc(o.db, 'todoSessions', id); };
   const noteRef = id => { const o = own(); return o.fs.doc(o.db, 'todoNotes', id); };
+  const evRef = id => { const o = own(); return o.fs.doc(o.db, 'todoEvents', id); };
+  const prefRef = () => { const o = own(); return o.fs.doc(o.db, 'todoPrefs', 'main'); };
   const stateRef = () => { const o = own(); return o.fs.doc(o.db, 'todoState', 'main'); };
   const rid = () => { const b = new Uint32Array(20); (window.crypto || { getRandomValues: a => a.map(() => Math.random() * 4294967296) }).getRandomValues(b); let i = 0; return C.newId(() => b[i++ % 20] / 4294967296); };
   const taskOf = id => tasks.find(t => t.id === id) || null;
@@ -135,15 +137,21 @@
     const o = own(), f = o.fs;
     if (!id) {
       if (tasks.length >= C.LIMITS.tasks) return { ok: false, error: 'There are already ' + C.LIMITS.tasks + ' tasks. Delete finished ones first.' };
-      const nid = rid(); await f.setDoc(taskRef(nid), Object.assign({}, doc, { status: 'todo', secs: 0, doneAt: null, createdAt: f.serverTimestamp(), updatedAt: f.serverTimestamp() })); return { ok: true, id: nid };
+      const nid = rid(), b = f.writeBatch();      // TD2: the task and its "created" log entry are saved together
+      b.set(taskRef(nid), Object.assign({}, doc, { status: 'todo', secs: 0, doneAt: null, createdAt: f.serverTimestamp(), updatedAt: f.serverTimestamp() })); b.set(evRef(rid()), { taskId: nid, type: 'created', createdAt: f.serverTimestamp() }); await b.commit(); return { ok: true, id: nid };
     }
     await f.updateDoc(taskRef(id), Object.assign({}, doc, { updatedAt: f.serverTimestamp() })); return { ok: true, id };
   }
+  /* TD2: finishing and reopening also write a log entry in the SAME batch (the rules require it), so weekly "completed" counts stay right */
   async function setStatus(id, status) {
-    const o = own(), f = o.fs;
+    const o = own(), f = o.fs; if (deleting === id) return { ok: false, error: 'This task is being deleted.' };
     if (!C.canLeave(st, id) && status !== 'doing') return { ok: false, error: 'Pause the timer for this task first.' };
-    await f.updateDoc(taskRef(id), status === 'done' ? { status: 'done', doneAt: f.serverTimestamp(), updatedAt: f.serverTimestamp() } : { status, doneAt: null, updatedAt: f.serverTimestamp() });
-    return { ok: true };
+    const was = (taskOf(id) || {}).status, b = f.writeBatch();
+    if (status === 'done') b.update(taskRef(id), { status: 'done', doneAt: f.serverTimestamp(), updatedAt: f.serverTimestamp() });
+    else b.update(taskRef(id), { status, doneAt: null, updatedAt: f.serverTimestamp() });
+    if (status === 'done' && was !== 'done') b.set(evRef(rid()), { taskId: id, type: 'done', createdAt: f.serverTimestamp() });
+    else if (was === 'done' && (status === 'doing' || status === 'todo')) b.set(evRef(rid()), { taskId: id, type: 'reopened', createdAt: f.serverTimestamp() });
+    await b.commit(); return { ok: true };
   }
   async function readAll(col, id, lim) { const o = own(), f = o.fs, s = await f.getDocs(f.query(f.collection(o.db, col), f.where('taskId', '==', id), f.limit(lim || 1000))); return s.docs.map(d => Object.assign({ id: d.id }, d.data())); }
   async function loadHist(id, force) {
@@ -159,7 +167,7 @@
     if (!ok) return { ok: false, cancelled: true };
     deleting = id; draw();
     try {
-      for (const col of ['todoSessions', 'todoNotes']) {
+      for (const col of ['todoSessions', 'todoNotes', 'todoEvents']) {
         for (let guard = 0; guard < 500; guard++) {
           const part = await readAll(col, id, 400); if (!part.length) break;
           const b = f.writeBatch(); part.forEach(r => b.delete(f.doc(o.db, col, r.id))); await b.commit();
@@ -334,13 +342,21 @@
     if (loaded && !shown.length) list.append(el('li', { class: 'dhelp td-empty' }, tasks.length ? 'No task matches this filter or search.' : 'No tasks yet. Press “New task” to add your first one.'));
     shown.forEach(t => list.append(card(t)));
   }
+  let view = 'tasks';
+  function setView(v) {
+    view = v; const g = $('tdGraphs'), tv = $('tdTasksView'); if (!g || !tv) return; g.hidden = v !== 'graphs'; tv.hidden = v === 'graphs';
+    document.querySelectorAll('.td-tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === v ? 'true' : 'false'));
+    ev('td:view', v);
+  }
   function build() {
     const root = $('dp-todo'); if (!root || root.dataset.built) return; root.dataset.built = '1';
     const dl = el('datalist', { id: 'tdFocusList' }, C.FOCUS_CHOICES.map(n => el('option', { value: n })));
     const filters = el('div', { class: 'td-filters', id: 'tdFilters', role: 'group', 'aria-label': 'Show tasks' }, FILTERS.map(([k, l]) => el('button', { type: 'button', class: 'dbtn sm', 'data-f': k, 'aria-pressed': k === filter ? 'true' : 'false', onclick: () => { filter = k; draw(); } }, l)));
-    root.append(el('div', { class: 'dcard' }, el('h2', {}, 'To-do & focus'),
+    const tabs = el('div', { class: 'td-tabs', role: 'tablist', 'aria-label': 'To-do sections' }, [['tasks', 'Tasks'], ['graphs', 'Graphs']].map(([k, l]) => el('button', { type: 'button', role: 'tab', class: 'dbtn', id: 'tdTab_' + k, 'data-tab': k, 'aria-selected': k === 'tasks' ? 'true' : 'false', 'aria-controls': k === 'tasks' ? 'tdTasksView' : 'tdGraphs', onclick: () => setView(k) }, l)));
+    root.append(el('div', { class: 'dcard' }, el('h2', {}, 'To-do & focus'), tabs,
       el('p', { class: 'dhelp' }, 'Your personal task list and focus timer. Give a task an allotted number of hours and a focus block, then press Play: a floating clock shows your focus time. Only one task can run at a time. Pause to save the session and leave a private note for your history. Times use Asia/Manila. This page is private to you.'),
-      el('div', { id: 'tdNow', class: 'td-now', 'aria-live': 'polite' }), el('div', { class: 'td-bar-row' }, el('button', { type: 'button', class: 'dbtn primary', id: 'tdNew', onclick: () => taskForm(null) }, 'New task'), el('input', { type: 'search', id: 'tdSearch', class: 'td-search', placeholder: 'Search tasks', 'aria-label': 'Search tasks by name or description', maxlength: 60, autocomplete: 'off', oninput: e => { q = e.target.value; draw(); } }), filters, el('span', { class: 'dhelp', id: 'tdCount', role: 'status' })), el('ul', { class: 'td-list', id: 'tdList' }), dl));
+      el('div', { id: 'tdGraphs', class: 'td-graphs', role: 'tabpanel', 'aria-labelledby': 'tdTab_graphs', hidden: 'hidden' }),
+      el('div', { id: 'tdTasksView', role: 'tabpanel', 'aria-labelledby': 'tdTab_tasks' }, el('div', { id: 'tdNow', class: 'td-now', 'aria-live': 'polite' }), el('div', { class: 'td-bar-row' }, el('button', { type: 'button', class: 'dbtn primary', id: 'tdNew', onclick: () => taskForm(null) }, 'New task'), el('input', { type: 'search', id: 'tdSearch', class: 'td-search', placeholder: 'Search tasks', 'aria-label': 'Search tasks by name or description', maxlength: 60, autocomplete: 'off', oninput: e => { q = e.target.value; draw(); } }), filters, el('span', { class: 'dhelp', id: 'tdCount', role: 'status' })), el('ul', { class: 'td-list', id: 'tdList' })), dl));
   }
 
   /* ---------------------------------------------------------------- the door the floating clock uses */
@@ -354,11 +370,16 @@
     if (!r.ok) { notify(r.error || 'The focus timer could not be paused.', 'error'); return false; }
     return true;
   } };
-  window.todoApi = { signedIn: () => signed, state: () => st, now, running, tz: () => TZ, nameOf, focusInfo: () => C.focusInfo(st, now()), pause, start, addNote, sync, busy: () => busy,
+  /* TD2: what the graphs page needs. Reads are bounded: sessions from one day key on, log entries from one moment on. */
+  async function sessionsSince(day) { const o = own(), f = o.fs, s = await f.getDocs(f.query(f.collection(o.db, 'todoSessions'), f.where('day', '>=', day), f.limit(3000))); return s.docs.map(d => Object.assign({ id: d.id }, d.data())); }
+  async function eventsSince(msFrom) { const o = own(), f = o.fs, s = await f.getDocs(f.query(f.collection(o.db, 'todoEvents'), f.where('createdAt', '>=', new Date(msFrom)), f.limit(3000))); return s.docs.map(d => Object.assign({ id: d.id }, d.data())); }
+  async function getPrefs() { const o = own(), s = await o.fs.getDoc(prefRef()); return s.exists() ? s.data() : { dailyGoalMin: 0 }; }
+  async function setPrefs(min) { const f = own().fs, v = Math.round(Number(min)); if (!isFinite(v) || v < 0 || v > 1440) return { ok: false, error: 'The goal must be between 0 and 1440 minutes.' }; await f.setDoc(prefRef(), { dailyGoalMin: v, updatedAt: f.serverTimestamp() }); return { ok: true, value: v }; }
+  window.todoApi = { sessionsSince, eventsSince, getPrefs, setPrefs, tasks: () => tasks.slice(), todayKey, loaded: () => loaded, reloadTasks: async () => { await loadTasks(); draw(); }, signedIn: () => signed, state: () => st, now, running, tz: () => TZ, nameOf, focusInfo: () => C.focusInfo(st, now()), pause, start, addNote, sync, busy: () => busy,
     task: id => { const t = taskOf(id); return t ? Object.assign({}, t) : null; } };
   async function sync(force) { if (!signed) return; if (!force && Date.now() - stateRead < 60000) return; await syncClock(); await ensureState(); if (loaded && $('dp-todo') && !$('dp-todo').hidden) { await loadTasks(); draw(); } }
   function tick() { if (!signed || !running()) return; const fi = C.focusInfo(st, now()), c = $('tdNowClock'); if (c) c.textContent = C.fmtClock(fi.elapsed) + ' / ' + C.fmtClock(fi.goal); }
-  function teardown() { signed = false; tasks = []; st = null; loaded = false; hist = {}; openHist = ''; moreOpen = {}; q = ''; deleting = ''; nameCache = {}; busy = false; clearInterval(tickT); tickT = 0; const l = $('tdList'); if (l) l.replaceChildren(); const n = $('tdNow'); if (n) n.replaceChildren(); say('tdCount', ''); const si = $('tdSearch'); if (si) si.value = ''; changed(); }
+  function teardown() { signed = false; tasks = []; st = null; loaded = false; hist = {}; openHist = ''; moreOpen = {}; q = ''; deleting = ''; nameCache = {}; busy = false; ev('td:view', 'off'); clearInterval(tickT); tickT = 0; const l = $('tdList'); if (l) l.replaceChildren(); const n = $('tdNow'); if (n) n.replaceChildren(); say('tdCount', ''); const si = $('tdSearch'); if (si) si.value = ''; changed(); }
   function init() {
     build();
     document.addEventListener('own:auth', async e => {
@@ -370,6 +391,6 @@
     document.addEventListener('visibilitychange', wake); window.addEventListener('focus', wake);
     draw();
   }
-  window.__todoTest = { reload, get tasks() { return tasks.slice(); } };   // read-only test hook
+  window.__todoTest = { reload, setView, get tasks() { return tasks.slice(); } };   // read-only test hook
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();

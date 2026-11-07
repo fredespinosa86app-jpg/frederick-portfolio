@@ -607,6 +607,36 @@ service cloud.firestore {
                         && getAfter(tdSessDoc(request.resource.data.lastSid)).data.taskId == resource.data.taskId
                         && getAfter(tdSessDoc(request.resource.data.lastSid)).data.start == resource.data.startedAt))));
     }
+    // TD2 (4.5.0): the status-change log of To-do & focus (created / done / reopened) and the one to-do preference (daily goal). OWNER ONLY, never public.
+    // A log entry can only be written together with the real task change in the SAME batch, so the log cannot contain a completion that did not happen. Entries are never edited.
+    function tdTaskDoc(i) { return /databases/$(database)/documents/todoTasks/$(i); }
+    match /todoEvents/{id} {
+      allow read: if isOwner();
+      allow create: if isOwner() && tdId(id)
+        && request.resource.data.keys().hasOnly(['taskId','type','createdAt'])
+        && request.resource.data.keys().hasAll(['taskId','type','createdAt'])
+        && tdId(request.resource.data.taskId) && request.resource.data.type in ['created','done','reopened']
+        && request.resource.data.createdAt == request.time
+        && ((request.resource.data.type == 'created'
+             && !exists(tdTaskDoc(request.resource.data.taskId)) && existsAfter(tdTaskDoc(request.resource.data.taskId)))
+            || (request.resource.data.type == 'done'
+                && exists(tdTaskDoc(request.resource.data.taskId)) && get(tdTaskDoc(request.resource.data.taskId)).data.status != 'done'
+                && existsAfter(tdTaskDoc(request.resource.data.taskId)) && getAfter(tdTaskDoc(request.resource.data.taskId)).data.status == 'done')
+            || (request.resource.data.type == 'reopened'
+                && exists(tdTaskDoc(request.resource.data.taskId)) && get(tdTaskDoc(request.resource.data.taskId)).data.status == 'done'
+                && existsAfter(tdTaskDoc(request.resource.data.taskId)) && getAfter(tdTaskDoc(request.resource.data.taskId)).data.status in ['todo','doing']));
+      allow delete: if isOwner();
+    }
+    function tdPrefsOk(d) {
+      return d.keys().hasOnly(['dailyGoalMin','updatedAt']) && d.keys().hasAll(['dailyGoalMin','updatedAt'])
+        && d.dailyGoalMin is int && d.dailyGoalMin >= 0 && d.dailyGoalMin <= 1440 && d.updatedAt == request.time;
+    }
+    match /todoPrefs/{id} {
+      allow read: if isOwner();
+      allow create, update: if isOwner() && id == 'main' && tdPrefsOk(request.resource.data);
+      allow delete: if isOwner() && id == 'main';
+    }
+
     // B1 (4.5.0): billing profile, one per Client ID (the document ID IS the Client ID, which must exist in the registry). Never a name or contact detail.
     // Every create and change is ONE batch with a brand-new audit record (revision +1). No delete. A currency change affects new invoices only (there are none yet).
     match /billingProfiles/{id} {

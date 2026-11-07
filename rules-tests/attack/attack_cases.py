@@ -1584,6 +1584,41 @@ for nm,sim in (('transition',S),('strict',SS)):
     chk(f'TD1 [{nm}] state: only the record "main" can ever be changed; a stop with a malformed session id is refused',not TDA(sim,'update','todoState/other',stp,run2,{'todoState/other':run2},stpa) and not st(dict(stp,lastSid='bad id'),run2,None,{'todoSessions/bad id':SE(),'todoState/main':dict(stp,lastSid='bad id')}) and st(stp,run2,None,stpa))
     chk(f'TD1 [{nm}] state: a rule-less field (extra key), a missing key, a number lastSid or a stale revision never gets through; reading is owner only',not st(dict(stp,extra=1),run2,None,stpa) and not st({k:v for k,v in stp.items() if k!='goalMin'},run2,None,stpa)
         and not st(dict(stp,lastSid=5),run2,None,stpa) and TDA(sim,'get','todoState/main',None,None,{'todoState/main':idle}) and not TDA(sim,'get','todoState/main',None,None,{'todoState/main':idle},None,STRANGER) and not TDA(sim,'get','todoState/main',None,None,{'todoState/main':idle},None,TV0))
+# ---------------- 8r. TD2 (4.5.0): to-do status-change log (todoEvents) and the daily-goal preference (todoPrefs)
+EVID='evnt00001'; EVID2='evnt00002'
+def EV(**k): return dict({'taskId':TKID,'type':'done','createdAt':TSNOW},**k)
+TKP='todoTasks/'+TKID
+for nm,sim in (('transition',S),('strict',SS)):
+    ec=lambda e,docs=None,after=None,au=OWN,i=EVID: TDA(sim,'create','todoEvents/'+i,e,None,docs if docs is not None else {},after,au)
+    tdoing=TK(status='doing',createdAt=TS(NOW-86400000),updatedAt=TS(NOW-86400000)); tdone=TK(status='done',doneAt=TS(NOW-3600000),createdAt=TS(NOW-86400000),updatedAt=TS(NOW-86400000))
+    aDone={TKP:TK(status='done',doneAt=TSNOW,createdAt=TS(NOW-86400000))}; aNew={TKP:TK()}; aReop={TKP:TK(status='doing',createdAt=TS(NOW-86400000))}
+    chk(f'TD2 [{nm}] event: "created" is accepted only when the task does not exist yet and is created in the same batch',
+        ec(EV(type='created'),{},aNew) and not ec(EV(type='created'),{},{}) and not ec(EV(type='created'),{TKP:tdoing},aNew) and not ec(EV(type='created'),{TKP:tdoing},{TKP:tdoing}) and not ec(EV(type='created'),None,None))
+    chk(f'TD2 [{nm}] event: "done" is accepted only for a task that is not done and becomes done in the same batch',
+        ec(EV(),{TKP:tdoing},aDone) and not ec(EV(),{TKP:tdoing},{TKP:tdoing}) and not ec(EV(),{TKP:tdone},{TKP:tdone}) and not ec(EV(),{},aDone) and not ec(EV(),{TKP:tdoing},{}) and not ec(EV(),{TKP:tdoing},{TKP:TK(status='archived')}) and ec(EV(),{TKP:TK(status='todo',createdAt=TS(NOW-86400000))},aDone))
+    chk(f'TD2 [{nm}] event: "reopened" is accepted only for a done task that becomes todo or doing in the same batch (not archived, not still done)',
+        ec(EV(type='reopened'),{TKP:tdone},aReop) and ec(EV(type='reopened'),{TKP:tdone},{TKP:TK(status='todo',createdAt=TS(NOW-86400000))}) and not ec(EV(type='reopened'),{TKP:tdone},{TKP:TK(status='archived',createdAt=TS(NOW-86400000))})
+        and not ec(EV(type='reopened'),{TKP:tdone},{TKP:tdone}) and not ec(EV(type='reopened'),{TKP:tdoing},aReop) and not ec(EV(type='reopened'),{},aReop) and not ec(EV(type='reopened'),{TKP:tdone},{}))
+    chk(f'TD2 [{nm}] event: other types, extra or missing keys, a forged time, bad ids and strangers are refused',
+        not ec(EV(type='deleted'),{TKP:tdoing},aDone) and not ec(EV(type=''),{TKP:tdoing},aDone) and not ec(EV(type=None),{TKP:tdoing},aDone) and not ec(dict(EV(),x=1),{TKP:tdoing},aDone) and not ec({k:v for k,v in EV().items() if k!='type'},{TKP:tdoing},aDone)
+        and not ec({k:v for k,v in EV().items() if k!='createdAt'},{TKP:tdoing},aDone) and not ec(EV(createdAt=TS(NOW-1)),{TKP:tdoing},aDone) and not ec(EV(taskId='bad id'),{TKP:tdoing},aDone) and not any(ec(EV(),{TKP:tdoing},aDone,i=i) for i in ('abc','x'*41,'ev-00001')) and not ec(EV(type='created',taskId='bad id'),{},{'todoTasks/bad id':TK()}) and not ec(EV(type='created',taskId='abc'),{},{'todoTasks/abc':TK()}) and ec(EV(type='created',taskId='abcd1234'),{},{'todoTasks/abcd1234':TK()})
+        and not any(ec(EV(),{TKP:tdoing},aDone,au=a) for a in (None,STRANGER,TV0)))
+    eo=EV(createdAt=TS(NOW-86400000)); ep='todoEvents/'+EVID
+    chk(f'TD2 [{nm}] event: entries are never edited; the owner reads and deletes; nobody else reads, lists or deletes',
+        not TDA(sim,'update',ep,dict(eo,type='created'),eo,{ep:eo},None,OWN) and not TDA(sim,'update',ep,eo,eo,{ep:eo},None,OWN) and TDA(sim,'get',ep,None,None,{ep:eo}) and TDA(sim,'delete',ep,None,eo,{ep:eo})
+        and not any(TDA(sim,'get',ep,None,None,{ep:eo},None,a) for a in (None,STRANGER,TV0)) and not any(TDA(sim,'delete',ep,None,eo,{ep:eo},None,a) for a in (None,STRANGER,TV0)))
+    # preferences
+    PF=lambda **k: dict({'dailyGoalMin':120,'updatedAt':TSNOW},**k)
+    pc=lambda d,i='main',au=OWN,op='create',o=None: TDA(sim,op,'todoPrefs/'+i,d,o,{} if o is None else {'todoPrefs/'+i:o},None,au)
+    chk(f'TD2 [{nm}] prefs: the owner sets a daily goal of 0..1440 whole minutes on "main"; a fraction, a string, -1, 1441, another id, an extra or missing key, a forged time and strangers are refused',
+        pc(PF()) and pc(PF(dailyGoalMin=0)) and pc(PF(dailyGoalMin=1440)) and not any(pc(PF(dailyGoalMin=g)) for g in (-1,1441,1.5,'120',None)) and not pc(PF(),i='other') and not pc(dict(PF(),x=1)) and not pc({'dailyGoalMin':60})
+        and not pc({'updatedAt':TSNOW}) and not pc(PF(updatedAt=TS(NOW-1))) and not any(pc(PF(),au=a) for a in (None,STRANGER,TV0)))
+    po=PF(updatedAt=TS(NOW-86400000))
+    chk(f'TD2 [{nm}] prefs: update, read and delete are owner only and only on "main"',
+        pc(PF(dailyGoalMin=90),'main',OWN,'update',po) and not pc(PF(dailyGoalMin=1441),'main',OWN,'update',po) and not pc(PF(dailyGoalMin=90),'main',STRANGER,'update',po) and not pc(PF(dailyGoalMin=90),'other',OWN,'update',po)
+        and TDA(sim,'get','todoPrefs/main',None,None,{'todoPrefs/main':po}) and not TDA(sim,'get','todoPrefs/main',None,None,{'todoPrefs/main':po},None,STRANGER) and TDA(sim,'delete','todoPrefs/main',None,po,{'todoPrefs/main':po})
+        and not TDA(sim,'delete','todoPrefs/other',None,po,{'todoPrefs/other':po}) and not any(TDA(sim,'delete','todoPrefs/main',None,po,{'todoPrefs/main':po},None,a) for a in (None,STRANGER,TV0)))
+
 # ---------------- 9. cross-check: strict file equals transition file apart from the owner check
 a=re.sub(r'\s+','',TXT); b=re.sub(r'\s+','',re.sub(r'^//.*\n','',STRICT,flags=re.M))
 chk('strict rules differ from the transition rules only in the owner e-mail fallback',a.replace("&&(request.auth.uid==ownerUid()||request.auth.token.email=='fredespinosa86.app@gmail.com');","&&request.auth.uid==ownerUid();")==b,'')

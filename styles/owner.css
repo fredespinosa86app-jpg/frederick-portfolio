@@ -405,3 +405,27 @@ dialog.svtpl{max-width:min(720px,94vw);max-height:92vh;overflow:auto}
   .tdfl .tdfl-banner,.tdfl .tdfl-panel,.tdfl .tdfl-sound,.tdfl .wtfl-err,.tdfl .wtfl-sr{grid-column:1 / -1}
   .tdfl .wtfl-time{font-size:24px}
 }
+
+/* TD2: Graphs tab of To-do & focus */
+.td-tabs{display:flex;gap:6px;margin:10px 0}
+.td-tabs button[aria-selected="true"]{background:#2f4fb3;color:#fff;border-color:#2f4fb3}
+.td-graphs[hidden],#tdTasksView[hidden]{display:none}
+.td-gtop{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:6px 0}
+.td-gctl{display:flex;gap:6px}.td-gctl button[aria-pressed="true"]{background:#2f4fb3;color:#fff;border-color:#2f4fb3}
+.td-ggoal{display:flex;flex-wrap:wrap;align-items:end;gap:8px;margin:8px 0}.td-ggoal input{min-height:36px;width:7em;padding:0 8px;border-radius:8px;border:1px solid var(--dline,#cfd6e6);font:inherit;background:transparent;color:inherit}
+.td-streak{font-weight:650;margin:6px 0}
+.td-gsec{margin:16px 0;padding-top:8px;border-top:1px solid var(--dline,#cfd6e6)}
+.td-gsec h3{margin:0 0 4px}.td-gsec h4{margin:14px 0 4px}
+.td-chart{width:100%;overflow:hidden;background:#fff;border-radius:10px;border:1px solid var(--dline,#cfd6e6)}
+.td-chart svg{display:block;width:100%;height:auto;max-width:100%}
+.td-gbar{outline:none;cursor:pointer}.td-gbar:focus-visible rect:first-child,.td-gbar:hover rect:first-child{fill:rgba(47,79,179,.12)}.td-gbar:focus-visible{outline:3px solid #ffbf47;outline-offset:-3px}
+.td-ginfo{min-height:1.4em;margin:6px 0;font-weight:600;overflow-wrap:anywhere}
+.td-legend{list-style:none;margin:6px 0;padding:0;display:flex;flex-wrap:wrap;gap:6px 14px;font-size:.9rem}
+.td-legend li{display:flex;align-items:center;gap:4px}
+.td-tbl{overflow-x:auto;margin:8px 0}.td-tbl table{border-collapse:collapse;width:100%;font-size:.9rem}.td-tbl th,.td-tbl td{border:1px solid var(--dline,#cfd6e6);padding:4px 8px;text-align:left}.td-tbl caption{text-align:left;font-weight:650;padding:4px 0}
+.td-gact{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.td-uva{list-style:none;margin:6px 0;padding:0;display:grid;gap:10px}.td-uva li{display:grid;grid-template-columns:minmax(0,1fr);gap:4px}.td-uvn{font-weight:650;overflow-wrap:anywhere}.td-uvt{font-size:.9rem}
+.td-seg{display:flex;height:12px;border-radius:6px;overflow:hidden;background:rgba(127,127,127,.25);margin:6px 0}.td-seg .sd{background:#1f7a4a}.td-seg .sg{background:#2f4fb3}
+@media (max-width:600px){.td-tabs button,.td-gctl button,.td-gtop .dbtn,.td-gact .dbtn,.td-ggoal .dbtn,.td-gsec .dbtn{min-height:44px}.td-gtop{gap:8px}.td-chart{border-radius:8px}}
+@media (forced-colors:active){.td-chart{border:2px solid CanvasText}.td-gbar:focus-visible{outline:3px solid Highlight}}
+@media (prefers-reduced-motion:reduce){.td-gbar{transition:none}}
