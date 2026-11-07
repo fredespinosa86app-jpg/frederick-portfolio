@@ -9,7 +9,7 @@ You already created the widget and put the secret into the Worker's settings (Se
 4. Hard refresh the site (Ctrl+Shift+R).
 
 ## Live steps
-1. Open `https://portfolio-forms.fredespinosa86-app.workers.dev/v1/status` in a browser tab: the text contains `"turnstile":true`. Pass: yes / no
+1. Open your site, press F12 > Console and run: `fetch('https://portfolio-forms.fredespinosa86-app.workers.dev/v1/status').then(r=>r.json()).then(j=>console.log(JSON.stringify(j)))`. The text contains `"turnstile":true`. (Typing the address in the address bar shows `{"error":"origin"}` and a favicon 403: that is the Worker's origin rule working, not a fault.) Pass: yes / no
 2. Open the site > Book a Discovery Call, pick a date and time, fill the form, press Send: a "Quick check" box appears with the Cloudflare check (usually it passes by itself). Pass: yes / no
 3. After it passes, the request is sent and the thank-you appears. Pass: yes / no
 4. The request arrives in the Owner Panel as usual. Pass: yes / no
@@ -26,3 +26,6 @@ You already created the widget and put the secret into the Worker's settings (Se
 - Turnstile misbehaves: remove the line `turnstileSiteKey` from `scripts/settings.js` (commit); the page goes back to the six-digit code. Or delete `TURNSTILE_SECRET` in the Worker: it switches itself back (status says `"turnstile":false`).
 - Everything else: restore the files from the rollback ZIP (and, if wanted, the previous Worker code).
 - The rollback ZIP puts back the 15 changed files. Delete these four test files if you roll back (they only apply to SE-E6): `scripts/se6-guard.test.mjs`, `server/portfolio-forms-turnstile.test.mjs`, `rules-tests/browser/se6-1-turnstile.mjs`, `SE-E6-CHECKLIST.md`.
+
+## Result (2026-11-07, owner's live test)
+Steps 1-12 passed. Lesson: a wrong `TURNSTILE_SECRET` makes the Worker answer `503 tsdown` and the page falls back to the six-digit code; re-entering the secret (type Secret, Production) and redeploying fixed it.

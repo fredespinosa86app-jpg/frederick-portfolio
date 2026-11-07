@@ -85,5 +85,8 @@ No open defects.
 ## SE-E3 (Firebase SDK served from this site): BUILT, awaiting the owner's live test (`SE-E3-CHECKLIST.md`)
 - Open points: equality with the CDN copy is an optional owner check (checklist step 11); the SDK stays on 10.12.2 until a separate upgrade item; updates are manual (quarterly reminder in Owner Panel > Security). The earlier `.js.map` blocked-log noise should disappear.
 
-## SE-E6 (Turnstile on the booking form + chatbot AI-to-scripted switch): BUILT, awaiting the owner's live test (`SE-E6-CHECKLIST.md`)
+## SE-E6 (Turnstile on the booking form + chatbot AI-to-scripted switch): LIVE-TESTED 2026-11-07, all 12 steps passed (`SE-E6-CHECKLIST.md`)
 - Open points: the real Cloudflare widget can only be tested live (tests use a stub); deploy order matters (Worker first, then the site files); privacy wording needs the owner's approval; Part B2 (AI chatbot session token, budget, emergency pause in the chat Worker) is design only; Cloudflare hostname list on the widget must include the GitHub Pages host (`fredespinosa86app-jpg.github.io`).
+
+## SE-E5 (review pack): BUILT, owner decides who reviews (`SECURITY-REVIEW-OWNER-CHECKLIST.md`)
+- Open points: nobody has reviewed yet; the owner confirms which rules file is published (strict or transition) and tells me so the pack can say it; the report e-mail in `security.txt` can be changed on request.

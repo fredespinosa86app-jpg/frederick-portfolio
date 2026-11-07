@@ -1,5 +1,6 @@
 # Security contact for the Frederick Espinosa portfolio (RFC 9116).
-# To report a problem, send a meeting request through the form on the site and start the message with "SECURITY".
+# To report a problem, e-mail the address below, or send a meeting request through the form on the site and start the message with "SECURITY".
+Contact: mailto:frederickespinosa.onlinejob@gmail.com
 Contact: https://fredespinosa86app-jpg.github.io/frederick-portfolio/#schedule
 Expires: 2027-10-31T00:00:00.000Z
 Preferred-Languages: en, fil

@@ -104,3 +104,6 @@ Five items recorded in `4.5.0-security-enhancement-review.md`, each needing the 
 
 ## Update 2026-11-07: SE-E6 built (Turnstile + chatbot switch), awaiting live test
 `SE-E6-CHECKLIST.md`. Owner-side: Worker redeploy, TURNSTILE_SECRET already set by the owner, upload site files, approve privacy wording. Waiting: SE-E3 live test, SE-E1 day-7 numbers on 2026-11-14. Remaining security items: E5, E4, E2 (each needs approval first); Part B2 only if an AI chatbot is enabled.
+
+## Update 2026-11-07: SE-E5 built (review pack and owner checklist)
+`SECURITY-REVIEW-PACK.md`, `SECURITY-REVIEW-OWNER-CHECKLIST.md`. Owner: pick a reviewer, run the free scans, confirm the published rules file. Waiting: SE-E1 day-7 numbers on 2026-11-14. Remaining security items: E4 (needs the calendar provider choice), E2 (only if the domain moves).
