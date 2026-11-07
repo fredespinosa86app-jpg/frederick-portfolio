@@ -101,3 +101,6 @@ Five items recorded in `4.5.0-security-enhancement-review.md`, each needing the 
 
 ## Update 2026-11-07: SE-E3 built (Firebase SDK served from this site), awaiting live test
 `SE-E3-CHECKLIST.md`, `assets/vendor/firebase/README.md`. SE-E1 stage A still in its 7-day monitoring window (decision on enforcement on 2026-11-14). Remaining security items: E6, E5, E4, E2 (each needs approval first). Possible later: SDK upgrade as its own item.
+
+## Update 2026-11-07: SE-E6 built (Turnstile + chatbot switch), awaiting live test
+`SE-E6-CHECKLIST.md`. Owner-side: Worker redeploy, TURNSTILE_SECRET already set by the owner, upload site files, approve privacy wording. Waiting: SE-E3 live test, SE-E1 day-7 numbers on 2026-11-14. Remaining security items: E5, E4, E2 (each needs approval first); Part B2 only if an AI chatbot is enabled.

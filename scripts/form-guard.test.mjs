@@ -110,3 +110,49 @@ test('mailto draft carries what the visitor typed, is URL-safe and bounded', () 
   const m = guard.mailtoFor('me@example.com', { ...DATA, message: 'x'.repeat(5000) + '\nline & more' }); assert.ok(m.startsWith('mailto:me@example.com?subject=Meeting%20request&body='));
   assert.ok(!/[\n ]/.test(m)); assert.ok(decodeURIComponent(m).includes('Name: Ann Visitor')); assert.ok(decodeURIComponent(m).includes('ann@example.com')); assert.ok(m.length < 4000); });
 test('the file contains no key, token or secret', async () => { const fsm = await import('node:fs'); const t = fsm.readFileSync(new URL('./form-guard.js', import.meta.url), 'utf8'); assert.ok(!/BEGIN (RSA )?PRIVATE KEY|private_key|AIza[0-9A-Za-z_-]{20,}/.test(t)); });
+
+/* ---- SE-E6 Part A: Turnstile step with the six-digit code as the fallback ---- */
+const SK = '0x4AAAAAAF3CDYLp6mETZLKs';
+const tsUi = (tsAnswers, codeAnswers = []) => { const t = [...tsAnswers], c = [...codeAnswers]; const asked = [], tsAsked = []; return { asked, tsAsked, turnstile: async o => { tsAsked.push(o); return t.shift(); }, askCode: async o => { asked.push(o); return c.shift(); } }; };
+const withTs = fn => async () => { globalThis.portfolioSettings = { turnstileSiteKey: SK }; w.status.turnstile = true; try { await fn(); } finally { delete globalThis.portfolioSettings; } };
+const verifyBodies = () => calls.filter(c => c.url.endsWith('/v1/verify')).map(c => JSON.parse(c.body));
+
+test('Turnstile: token goes to /v1/verify as {challenge, ts}; the code box is never asked', withTs(async () => {
+  const u = tsUi([{ token: 'TSTOKEN' }]); w.verifyQueue.push({ s: 200, o: { token: 'TOKEN', uid: w.uid, day: '20261105', expiresInS: 600 } });
+  const r = await submit(u); assert.deepEqual(r, { ok: true }); assert.equal(u.asked.length, 0); assert.equal(u.tsAsked[0].siteKey, SK); assert.equal(u.tsAsked[0].action, 'meeting');
+  assert.deepEqual(verifyBodies(), [{ challenge: 'CH1', ts: 'TSTOKEN' }]); }));
+test('Turnstile: off when the Worker does not report it, when the key is missing or malformed, or when the page has no widget', async () => {
+  for (const [flag, key, hasUi] of [[false, SK, true], [true, undefined, true], [true, 'not-a-key', true], [true, '0x4' + 'x'.repeat(300), true], [true, SK, false]]) {
+    reset(); globalThis.portfolioSettings = key === undefined ? {} : { turnstileSiteKey: key }; w.status.turnstile = flag;
+    const u = hasUi ? tsUi([{ token: 'T' }], ['123456']) : ui(['123456']); const r = await submit(u);
+    assert.deepEqual(r, { ok: true }); if (hasUi) assert.equal(u.tsAsked.length, 0); assert.equal(verifyBodies()[0].code, '123456'); }
+  delete globalThis.portfolioSettings; });
+test('Turnstile: "use the code instead" and "unavailable" fall back to the code box on the same challenge, once', withTs(async () => {
+  for (const first of [{ useCode: true }, { unavailable: true }]) {
+    reset(); globalThis.portfolioSettings = { turnstileSiteKey: SK }; w.status.turnstile = true;
+    const u = tsUi([first, { token: 'NEVER' }], ['123456']); const r = await submit(u); assert.deepEqual(r, { ok: true });
+    assert.equal(u.tsAsked.length, 1); assert.equal(u.asked.length, 1); assert.equal(w.challenges, 1); assert.equal(verifyBodies()[0].code, '123456');
+    assert.equal(u.asked[0].error, first.unavailable ? 'tsnote' : ''); } }));
+test('Turnstile: a throwing widget counts as unavailable', withTs(async () => {
+  const u = tsUi([], ['123456']); u.turnstile = async () => { throw new Error('boom'); }; assert.deepEqual(await submit(u), { ok: true }); assert.equal(u.asked[0].error, 'tsnote'); }));
+test('Turnstile: cancelled -> "cancelled"; empty or oversize token -> code box', withTs(async () => {
+  let r = await submit(tsUi([null])); assert.equal(r.code, 'cancelled'); assert.equal(verifyBodies().length, 0);
+  reset(); globalThis.portfolioSettings = { turnstileSiteKey: SK }; w.status.turnstile = true;
+  const u = tsUi([{ token: 'x'.repeat(2049) }], ['123456']); r = await submit(u); assert.deepEqual(r, { ok: true }); assert.equal(u.asked.length, 1); assert.ok(verifyBodies().every(b => !b.ts)); }));
+test('Turnstile: Worker says 400 turnstile -> notice and a NEW challenge, widget shown again with the notice', withTs(async () => {
+  const u = tsUi([{ token: 'BAD' }, { token: 'GOOD' }]); w.verifyQueue.push({ s: 400, o: { error: 'turnstile' } }, { s: 200, o: { token: 'TOKEN', uid: w.uid, day: '20261105', expiresInS: 600 } });
+  assert.deepEqual(await submit(u), { ok: true }); assert.equal(w.challenges, 2); assert.equal(u.tsAsked[1].error, 'tsfail'); assert.deepEqual(verifyBodies().map(b => b.challenge), ['CH1', 'CH2']); }));
+test('Turnstile: three failed checks end with the plain failure message (no endless loop)', withTs(async () => {
+  const u = tsUi([{ token: 'a' }, { token: 'b' }, { token: 'c' }, { token: 'd' }]); for (let i = 0; i < 4; i++) w.verifyQueue.push({ s: 400, o: { error: 'turnstile' } });
+  const r = await submit(u); assert.equal(r.ok, false); assert.equal(r.code, 'failed'); assert.equal(w.challenges, 3); }));
+test('Turnstile: Worker says Cloudflare is down (503 tsdown) -> the code box on the same challenge, no new challenge', withTs(async () => {
+  const u = tsUi([{ token: 'T' }], ['123456']); w.verifyQueue.push({ s: 503, o: { error: 'tsdown' } });
+  assert.deepEqual(await submit(u), { ok: true }); assert.equal(w.challenges, 1); assert.equal(u.asked[0].error, 'tsnote'); assert.deepEqual(verifyBodies().map(b => b.ts || b.code), ['T', '123456']); }));
+test('Turnstile: paused 503, rate limit 429, 410 expired, 500 config and a network error keep their own messages', withTs(async () => {
+  for (const [q, code] of [[{ s: 503, o: { error: 'paused' } }, 'paused'], [{ s: 429, o: { error: 'slow' } }, 'slow'], [{ s: 500, o: {} }, 'config'], [{ s: 404, o: {} }, 'unreachable']]) {
+    reset(); globalThis.portfolioSettings = { turnstileSiteKey: SK }; w.status.turnstile = true; w.verifyQueue.push(q);
+    const r = await submit(tsUi([{ token: 'T' }])); assert.equal(r.code, code); }
+  reset(); globalThis.portfolioSettings = { turnstileSiteKey: SK }; w.status.turnstile = true; w.verifyQueue.push({ s: 410, o: {} });
+  const u = tsUi([{ token: 'T' }, { token: 'T2' }]); w.verifyQueue.push({ s: 200, o: { token: 'TOKEN', uid: w.uid, day: '20261105', expiresInS: 600 } });
+  assert.deepEqual(await submit(u), { ok: true }); assert.equal(w.challenges, 2); }));
+test('Turnstile: no secret or token text appears in visitor messages', () => { for (const k of ['tsfail', 'tsnote']) assert.ok(guard.MSG[k].length > 10 && !/token|secret|0x4/i.test(guard.MSG[k])); });

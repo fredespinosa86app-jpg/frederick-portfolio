@@ -35,6 +35,7 @@ window.portfolioSettings = {
      appCheckProvider: "enterprise" = Google Cloud reCAPTCHA Enterprise / Fraud Defense key (type "Score based v3" in the key page); "v3" = old classic key (deprecated). */
   appCheckSiteKey: "6LeC_RMuAAAAAELcd2_Knc3OuYpetZgz5bBZMmoc",   /* SE-E1: PUBLIC reCAPTCHA Enterprise key ID (Cloud console > Security > Fraud Defense > Keys; Enterprise keys have no secret) */
   appCheckProvider: "enterprise",
+  turnstileSiteKey: "0x4AAAAAAF3CDYLp6mETZLKs",   /* SE-E6: PUBLIC Cloudflare Turnstile site key (the secret lives only in the forms Worker's settings). Remove this line to switch the widget off on the page. */
 
   firebase: {
     apiKey: "AIzaSyAZpd6CHagQyLTryW5HizqeeZXZ1crgPJQ",

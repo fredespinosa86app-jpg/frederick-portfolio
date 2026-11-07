@@ -58,7 +58,7 @@ test('the dynamic fetches stay inside the rule', () => {
   assert.ok(!/fetch\(\s*'https:\/\/'\s*\+/.test(p3), 'the custom-domain check must not fetch an arbitrary address');
   const st = fs.readFileSync(path.join(dir, 'settings.js'), 'utf8').match(/formsApi:\s*"(https:\/\/[^"]+)"/);
   assert.ok(st && CSP.allows(policy, 'connect-src', st[1] + '/verify', 'https://page.test'), 'formsApi host must be in connect-src');
-  const cb = fs.readFileSync(path.join(dir, 'chatbot.js'), 'utf8'); assert.match(cb, /window\.chatHook&&hookAllowed\(\)/);
+  const cb = fs.readFileSync(path.join(dir, 'chatbot.js'), 'utf8'); assert.match(cb, /window\.chatHook&&!GATE\.isOff\(\)&&hookAllowed\(\)/);
 });
 test('no other way of opening a connection appears in the code', () => {
   for (const [f, src] of files) { const code = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, ''); for (const w of ['XMLHttpRequest', 'sendBeacon', 'EventSource', 'WebSocket', 'importScripts', 'navigator.serviceWorker']) assert.ok(!code.includes(w), f + ' uses ' + w); }

@@ -30,8 +30,12 @@
     unreachable: 'The safety check could not be reached right now. Please try again in a moment, or email me instead.',
     session: 'The safety check expired before your request was sent. Please press Send again.',
     failed: 'Sorry, your request could not be sent. The time may have just been taken, or the connection failed. You can email me instead.',
-    config: 'The safety check is not available right now. Please email me instead.'
+    config: 'The safety check is not available right now. Please email me instead.',
+    tsfail: 'The safety check did not pass. Please try again, or use the code instead.',
+    tsnote: 'The automatic check is not available, so please use the six-digit code instead.'
   };
+  /* SE-E6: public Turnstile site key shape (the secret never appears in this site) */
+  const TS_KEY_RE = /^0x4[A-Za-z0-9_-]{10,60}$/;
 
   const withTimeout = (p, ms, tag) => Promise.race([p, new Promise((_, j) => setTimeout(() => j(Object.assign(new Error('timeout'), { code: tag || 'timeout' })), ms))]);
   const fail = (code, extra) => Object.assign({ ok: false, code, message: MSG[code] || MSG.failed }, extra || {});
@@ -84,8 +88,11 @@
   /* ui hooks supplied by the page:
        ui.askCode({ code, left, error, fresh }) -> Promise<string | null | { expired: true }>   (null = the visitor cancelled)
        ui.progress(text)                                                                         (optional status line) */
-  async function getToken(ui) {
+  async function getToken(ui, status) {
     let challenges = 0, notice = '';
+    /* SE-E6: Turnstile first when the Worker has it on, the site key is valid and the page can show it; any problem falls back to the six-digit code on the same challenge */
+    const sk = root.portfolioSettings && root.portfolioSettings.turnstileSiteKey;
+    let useTs = !!(status && status.turnstile === true && typeof sk === 'string' && TS_KEY_RE.test(sk) && ui && typeof ui.turnstile === 'function');
     while (challenges < MAX_CHALLENGES) {
       challenges++;
       let c;
@@ -94,6 +101,21 @@
       if (!c.ok || !c.json.challenge || !/^\d{6}$/.test(String(c.json.code || ''))) return fail('unreachable');
       let left = 3, error = notice; notice = '';
       for (;;) {
+        if (useTs) {
+          let r = null; try { r = await ui.turnstile({ siteKey: sk, action: 'meeting', error }); } catch (e) { r = { unavailable: true }; }
+          if (r === null || r === undefined) return fail('cancelled');
+          if (r.useCode || r.unavailable) { useTs = false; error = r.unavailable ? 'tsnote' : error; continue; }
+          if (!r.token || typeof r.token !== 'string' || r.token.length > 2048) { useTs = false; error = 'tsnote'; continue; }
+          let tv;
+          try { tv = await call('/v1/verify', 'POST', { challenge: c.json.challenge, ts: r.token }); } catch (e) { return fail(isNet(e) && root.navigator && root.navigator.onLine === false ? 'offline' : 'unreachable'); }
+          if (tv.status === 200 && tv.json.token && tv.json.uid) return { ok: true, token: tv.json.token, uid: tv.json.uid, day: tv.json.day, expiresInS: tv.json.expiresInS, issuedAt: G.now() };
+          if (tv.status === 400 && tv.json.error === 'turnstile') { notice = 'tsfail'; break; }
+          if (tv.status === 503 && tv.json.error === 'tsdown') { useTs = false; error = 'tsnote'; continue; }
+          if (tv.status === 410) { notice = 'expired'; break; }
+          if (tv.status === 429) return fail('slow');
+          if (tv.status === 503) return fail('paused'); if (tv.status === 500) return fail('config');
+          return fail('unreachable');
+        }
         const ans = await ui.askCode({ code: c.json.code, left, error, fresh: challenges > 1 && !error, expiresInS: c.json.expiresInS });
         if (ans === null || ans === undefined) return fail('cancelled');
         if (ans && (ans.expired || ans.renew)) { notice = ans.renew ? '' : 'expired'; break; }
@@ -142,7 +164,7 @@
 
   /* data = the same object the old path sends (name, email, company, date, time, tz, platform, message, optional service fields) */
   async function submit(data, ui, status) {
-    const t = await getToken(ui); if (!t.ok) return t;
+    const t = await getToken(ui, status); if (!t.ok) return t;
     if (!dayOk(t.day)) return fail('config');
     let h;
     try { h = await visitorApp(); } catch (e) { return fail('config'); }

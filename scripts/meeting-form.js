@@ -96,12 +96,26 @@ b.disabled=false});
 /* "Email me instead": a draft with what the visitor typed, so nobody is silently dropped */
 function addFallback(st,d){const em=window.contactsApi&&window.contactsApi.get('email');if(!em)return;const a=document.createElement('a');a.href=window.formGuard?window.formGuard.mailtoFor(em.value,d):em.href+'?subject=Meeting%20request';a.textContent='Email me instead';a.className='gfb';st.append(' ',a)}
 /* The challenge step of the verified path: a labelled box with the code, a typed field, three buttons, announced by screen readers */
+/* SE-E6: Cloudflare Turnstile loader (explicit rendering). Resolves the global or null after ~8 s / on any load error; loaded once. */
+let tsLoad=null;function loadTs(){if(window.turnstile)return Promise.resolve(window.turnstile);if(tsLoad)return tsLoad;
+tsLoad=new Promise(res=>{let done=false;const end=v=>{if(done)return;done=true;clearTimeout(tm);if(!v)tsLoad=null;res(v)};const tm=setTimeout(()=>end(null),8000);
+try{const sc=document.createElement('script');sc.src='https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';sc.async=true;sc.defer=true;sc.onload=()=>end(window.turnstile||null);sc.onerror=()=>end(null);document.head.appendChild(sc)}catch(e){end(null)}});return tsLoad}
 function guardUi(){const box=document.getElementById('mGuard');if(!box)return{hooks:{askCode:async()=>null},hide(){}};
+const tsBox=document.getElementById('gTsBox'),codeBox=document.getElementById('gCodeBox'),tsEl=document.getElementById('gTs'),tsCode=document.getElementById('gTsCode'),tsNo=document.getElementById('gTsCancel');
+let wid=null;const tsStop=()=>{try{if(wid!==null&&window.turnstile)window.turnstile.remove(wid)}catch(e){}wid=null;if(tsEl)tsEl.textContent=''};
 const code=document.getElementById('gCode'),inp=document.getElementById('gInput'),ok=document.getElementById('gOk'),nw=document.getElementById('gNew'),no=document.getElementById('gCancel'),msg=document.getElementById('gMsg');
 const M=window.formGuard.MSG;
-return{hide(){box.hidden=true;msg.textContent='';inp.value=''},hooks:{askCode(o){return new Promise(res=>{
-box.hidden=false;code.textContent=o.code;code.setAttribute('aria-label','Your code: '+o.code.split('').join(' '));
-msg.textContent=o.error==='wrong'?M.wrong+' '+o.left+(o.left===1?' try left.':' tries left.'):o.error==='expired'?M.expired:o.fresh?'Here is a new code.':'';
+return{hide(){tsStop();box.hidden=true;msg.textContent='';inp.value='';if(tsBox)tsBox.hidden=true;if(codeBox)codeBox.hidden=false},hooks:{
+async turnstile(o){if(!tsBox||!tsEl||!tsCode||!tsNo)return{unavailable:true};
+box.hidden=false;codeBox.hidden=true;tsBox.hidden=false;tsStop();msg.textContent=o.error==='tsfail'?M.tsfail:'Checking that you are a person…';
+const api=await loadTs();if(!api){tsStop();tsBox.hidden=true;codeBox.hidden=false;return{unavailable:true}}
+return new Promise(res=>{let over=false;const fin=v=>{if(over)return;over=true;tsCode.onclick=tsNo.onclick=null;tsStop();tsBox.hidden=true;if(v&&v.token)msg.textContent='Checking…';else codeBox.hidden=false;res(v)};
+try{wid=api.render(tsEl,{sitekey:o.siteKey,action:o.action||'meeting',theme:'light',callback:t=>fin({token:String(t||'')}),'error-callback':()=>{fin({unavailable:true});return true},'timeout-callback':()=>{try{api.reset(wid)}catch(e){}},'expired-callback':()=>{try{api.reset(wid)}catch(e){}}})}catch(e){fin({unavailable:true});return}
+tsCode.onclick=()=>fin({useCode:true});tsNo.onclick=()=>fin(null);
+box.scrollIntoView({block:'center'});tsCode.focus()})},
+askCode(o){return new Promise(res=>{
+tsBox&&(tsBox.hidden=true);codeBox&&(codeBox.hidden=false);box.hidden=false;code.textContent=o.code;code.setAttribute('aria-label','Your code: '+o.code.split('').join(' '));
+msg.textContent=o.error==='wrong'?M.wrong+' '+o.left+(o.left===1?' try left.':' tries left.'):o.error==='expired'?M.expired:o.error==='tsnote'?M.tsnote:o.error==='tsfail'?M.tsfail:o.fresh?'Here is a new code.':'';
 inp.value='';let over=false;const t=setTimeout(()=>fin({expired:true}),Math.max(10,(o.expiresInS||300)-5)*1000);
 function fin(v){if(over)return;over=true;clearTimeout(t);ok.onclick=nw.onclick=no.onclick=inp.onkeydown=null;if(v!==null&&!(v&&v.expired)&&!(v&&v.renew))msg.textContent='Checking…';res(v)}
 ok.onclick=()=>{const v=inp.value.trim();if(!/^\d{6}$/.test(v)){msg.textContent='Type the six digits shown above.';inp.focus();return}fin(v)};

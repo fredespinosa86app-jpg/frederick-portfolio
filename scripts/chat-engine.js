@@ -116,7 +116,21 @@
   const emit = () => listeners.forEach(f => { try { f(); } catch (e) { /* ignore */ } });
   const CACHE = 'chatCfg';
   const save = () => { try { localStorage.setItem(CACHE, JSON.stringify({ i: ident, k: kb })); } catch (e) { /* ignore */ } };
+  /* SE-E6 Part B1: the AI webhook is level 1, the scripted bot level 2. The gate decides when the page stops calling the webhook for the rest of the visit.
+     Hard stop at once: the Worker said "limit" (429) or "paused / unavailable" (503). Soft failures (network, timeout, other errors) switch off after 2 in a row. It never switches back. */
+  const GATE_KEY = 'chatHookOff', HARD = { 429: 1, 503: 1 }, SOFT_MAX = 2;
+  const hookGate = store => {
+    let off = false, soft = 0;
+    try { if (store && store.getItem(GATE_KEY) === '1') off = true; } catch (e) { /* ignore */ }
+    const turnOff = () => { const first = !off; off = true; try { if (store) store.setItem(GATE_KEY, '1'); } catch (e) { /* ignore */ } return first; };
+    return {
+      isOff: () => off,
+      ok: () => { if (!off) soft = 0; },
+      fail: status => { if (off) return false; if (typeof status === 'number' && HARD[status]) return turnOff(); soft++; return soft >= SOFT_MAX ? turnOff() : false; }
+    };
+  };
   const api = {
+    hookGate, GATE_KEY,
     DEFAULT_KB, DEF_ID, tokens, score, matchKb, classify, injection, cleanText, stamp, replyDelay, MIN_MS, MAX_MS, TH, cleanId, cleanKb, BAD,
     identity: () => ident, kb: () => (kb == null ? DEFAULT_KB : kb), hasCustomKb: () => kb != null,
     setIdentity: d => { ident = cleanId(d); save(); emit(); },

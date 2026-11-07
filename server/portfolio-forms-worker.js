@@ -11,6 +11,9 @@
      CH_SECRET            Secret  long random text (40+ characters) that signs challenges and derives the codes.
      ALLOWED_ORIGINS      Text    comma list of page origins, e.g. https://fredespinosa86app-jpg.github.io  (no path, no trailing slash)
      FIREBASE_PROJECT_ID  Text    optional; default is read from the service-account key (project_id). Used only to read content/guard.
+     TURNSTILE_SECRET     Secret  (SE-E6) the secret key of your Cloudflare Turnstile widget. Optional: when it is not set the Worker behaves exactly as before
+                                  (six-digit code only). When it is set, the page proves it is not a bot with Turnstile and /v1/verify checks the token with
+                                  Cloudflare (siteverify) before signing the Firebase token. Never put it in a file or in chat.
    Rate limiter bindings (S2-B, optional; Worker > Settings > Bindings > Add > Rate limiter). Names and values:
      RL_STATUS     limit 30  per 60 seconds   (namespace ID 1001)
      RL_CHALLENGE  limit 5   per 60 seconds   (namespace ID 1002)
@@ -18,6 +21,11 @@
      Keyed by the visitor address. Counts are per Cloudflare location and approximate; a missing binding or an error FAILS OPEN so the form never
      breaks, and the in-Worker limits below plus the daily cap in the rules still apply. GET /v1/status reports `rl: true` when all three are bound.
    Endpoints (all need an allowed Origin header):  GET /v1/status   POST /v1/challenge   POST /v1/verify
+   (SE-E6) With TURNSTILE_SECRET set: /v1/verify accepts {challenge, ts} (Turnstile token) or the old {challenge, code}.
+     ts valid (success, hostname is one of ALLOWED_ORIGINS, action "meeting") -> token. ts refused -> 400 {error:'turnstile'}.
+     Cloudflare unreachable / 5xx / secret misconfigured -> 503 {error:'tsdown'}: the page then shows the six-digit code (the try is not used up).
+     The code path stays open but is tighter than before (LIMITS.ipTokensCode tokens and LIMITS.ipWrongCode wrong codes per visitor address per window),
+     so it is never weaker than today. GET /v1/status adds turnstile:true/false.
    (F6: status and verify also return `day`, the Worker's UTC date as YYYYMMDD.)          */
 const enc = new TextEncoder();
 const b64u = b => btoa(String.fromCharCode(...new Uint8Array(b))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -31,6 +39,11 @@ export const LIMITS = {
   ipTokens: 3,                     // tokens per visitor address per window (one token = one request)
   ipWrong: 12,                     // wrong codes per visitor address per window
   bodyMax: 2048,
+  bodyMaxTs: 4096,                 // (SE-E6) with Turnstile on: a Turnstile token can be up to 2048 characters
+  tsMax: 2048,                     // longest accepted Turnstile token
+  tsTimeoutMs: 4000,               // how long the Worker waits for Cloudflare before it falls back to the code
+  ipTokensCode: 2,                 // tokens per visitor address per window on the CODE path while Turnstile is on (the normal limit is ipTokens)
+  ipWrongCode: 6,                  // wrong codes per visitor address per window on the CODE path while Turnstile is on (the normal limit is ipWrong)
   guardCacheMs: 20 * 1000,
   mapMax: 2000
 };
@@ -91,8 +104,29 @@ const J = (status, obj, h = {}) => new Response(JSON.stringify(obj), { status, h
 // per-visitor counters: kind -> count inside a sliding window
 function hit(ip, kind, max, nowMs) {
   let e = byIp.get(ip);
-  if (!e || nowMs - e.t0 > LIMITS.ipWindowMs) { e = { t0: nowMs, c: 0, t: 0, w: 0 }; byIp.set(ip, e); if (byIp.size > LIMITS.mapMax) byIp.delete(byIp.keys().next().value); }
+  if (!e || nowMs - e.t0 > LIMITS.ipWindowMs) { e = { t0: nowMs, c: 0, t: 0, w: 0, tc: 0 }; byIp.set(ip, e); if (byIp.size > LIMITS.mapMax) byIp.delete(byIp.keys().next().value); }
   e[kind]++; return e[kind] <= max;
+}
+/* ---------- (SE-E6) Cloudflare Turnstile ---------- */
+export const TS_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
+export const TS_ACTION = 'meeting';
+const tsEnabled = env => typeof env.TURNSTILE_SECRET === 'string' && env.TURNSTILE_SECRET.length >= 10;
+const allowedHosts = env => { const out = new Set(); for (const o of String(env.ALLOWED_ORIGINS || '').split(',').map(x => x.trim()).filter(Boolean)) { try { out.add(new URL(o).hostname); } catch (e) { /* ignore a bad entry */ } } return out; };
+/* -> { ok:true, hostname, action } | { invalid:true } (Cloudflare refused the token) | { down:true } (could not be checked: network, timeout, 5xx, bad secret) */
+async function turnstileVerify(env, token, ip) {
+  const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), LIMITS.tsTimeoutMs);
+  try {
+    const body = { secret: String(env.TURNSTILE_SECRET), response: token, idempotency_key: crypto.randomUUID() };
+    if (ip && ip !== 'unknown') body.remoteip = ip;
+    const r = await fetch(TS_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: ctl.signal });
+    if (r.status >= 500) return { down: true };
+    let j; try { j = await r.json(); } catch (e) { return { down: true }; }
+    if (j && j.success === true) return { ok: true, hostname: String(j.hostname || ''), action: String(j.action || '') };
+    const codes = Array.isArray(j && j['error-codes']) ? j['error-codes'] : [];
+    if (codes.some(c => c === 'internal-error' || c === 'invalid-input-secret' || c === 'missing-input-secret' || c === 'bad-request')) return { down: true };   // our side or Cloudflare's, not the visitor's: fall back to the code
+    return { invalid: true };
+  } catch (e) { return { down: true }; }
+  finally { clearTimeout(timer); }
 }
 // Read content/guard (public read in the rules) so the page can see a pause and the Worker can refuse early. Fails OPEN: the rules enforce the pause anyway.
 async function readGuard(env, nowMs) {
@@ -121,7 +155,7 @@ export default {
     if (p === '/v1/status' && req.method === 'GET') {
       if (!await rateOk(env, RL.status, ip)) return slow(h);
       const g = await readGuard(env, nowMs);
-      return J(200, { ok: true, open: !g.paused, paused: g.paused, tokenRequired: g.tokenRequired, cap: g.cap, day: utcDay(nowMs), rl: rlBound(env) }, h);
+      return J(200, { ok: true, open: !g.paused, paused: g.paused, tokenRequired: g.tokenRequired, cap: g.cap, day: utcDay(nowMs), rl: rlBound(env), turnstile: tsEnabled(env) }, h);
     }
     if (p === '/v1/challenge' && req.method === 'POST') {
       if (!await rateOk(env, RL.challenge, ip)) return slow(h);
@@ -132,9 +166,13 @@ export default {
     }
     if (p === '/v1/verify' && req.method === 'POST') {
       if (!await rateOk(env, RL.verify, ip)) return slow(h);
-      const raw = await req.text(); if (raw.length > LIMITS.bodyMax) return J(413, { error: 'big' }, h);
+      const tsOn = tsEnabled(env);
+      const raw = await req.text(); if (raw.length > (tsOn ? LIMITS.bodyMaxTs : LIMITS.bodyMax)) return J(413, { error: 'big' }, h);
       let b; try { b = JSON.parse(raw); } catch (e) { return J(400, { error: 'bad' }, h); }
-      if (!b || typeof b !== 'object' || typeof b.challenge !== 'string' || typeof b.code !== 'string' || !/^\d{6}$/.test(b.code)) return J(400, { error: 'bad' }, h);
+      const useTs = tsOn && !!b && typeof b === 'object' && b.ts !== undefined;      // the visitor's page sent a Turnstile token
+      if (!b || typeof b !== 'object' || typeof b.challenge !== 'string') return J(400, { error: 'bad' }, h);
+      if (useTs) { if (typeof b.ts !== 'string' || !b.ts || b.ts.length > LIMITS.tsMax) return J(400, { error: 'bad' }, h); }
+      else if (typeof b.code !== 'string' || !/^\d{6}$/.test(b.code)) return J(400, { error: 'bad' }, h);
       const [nonce, exp, sig, extra] = b.challenge.split('.');
       if (extra !== undefined || !/^[A-Za-z0-9_-]{16}$/.test(nonce || '') || !/^\d{13}$/.test(exp || '') || !sig) return J(400, { error: 'bad' }, h);
       if (!safeEq(sig, await chalSig(env.CH_SECRET, nonce, exp))) return J(400, { error: 'bad' }, h);
@@ -142,11 +180,21 @@ export default {
       const g = await readGuard(env, nowMs); if (g.paused) return J(503, { error: 'paused' }, h);
       const n = (triesByNonce.get(nonce) || 0) + 1; triesByNonce.set(nonce, n); if (triesByNonce.size > LIMITS.mapMax) triesByNonce.delete(triesByNonce.keys().next().value);
       if (n > LIMITS.maxTries) return J(429, { error: 'tries' }, h);
-      if (!safeEq(b.code, await codeFor(env.CH_SECRET, nonce, exp))) {
-        if (!hit(ip, 'w', LIMITS.ipWrong, nowMs)) return J(429, { error: 'slow' }, h);
-        return J(401, { error: 'code', left: LIMITS.maxTries - n }, h);
+      if (useTs) {
+        const v = await turnstileVerify(env, b.ts, ip);
+        if (v.down) { triesByNonce.set(nonce, n - 1); return J(503, { error: 'tsdown' }, h); }        // could not be checked: the page falls back to the code, this try is not used up
+        if (!v.ok || v.action !== TS_ACTION || !allowedHosts(env).has(v.hostname)) {
+          if (!hit(ip, 'w', LIMITS.ipWrong, nowMs)) return J(429, { error: 'slow' }, h);
+          return J(400, { error: 'turnstile' }, h);
+        }
+        if (!hit(ip, 't', LIMITS.ipTokens, nowMs)) return J(429, { error: 'slow' }, h);
+      } else {
+        if (!safeEq(b.code, await codeFor(env.CH_SECRET, nonce, exp))) {
+          if (!hit(ip, 'w', tsOn ? LIMITS.ipWrongCode : LIMITS.ipWrong, nowMs)) return J(429, { error: 'slow' }, h);
+          return J(401, { error: 'code', left: LIMITS.maxTries - n }, h);
+        }
+        if (!hit(ip, tsOn ? 'tc' : 't', tsOn ? LIMITS.ipTokensCode : LIMITS.ipTokens, nowMs)) return J(429, { error: 'slow' }, h);
       }
-      if (!hit(ip, 't', LIMITS.ipTokens, nowMs)) return J(429, { error: 'slow' }, h);
       triesByNonce.set(nonce, LIMITS.maxTries);                         // a solved challenge cannot be solved again on this instance
       const uid = 'm_' + randId(12);                                    // 'm_' + 16 random URL-safe characters; unrelated to the challenge
       let token; try { token = await customToken(loadSa(env), uid, { form: 'meeting' }, nowS); } catch (e) { return J(500, { error: 'sign' }, h); }

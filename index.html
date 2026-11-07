@@ -2,7 +2,7 @@
 <html lang="en" data-theme="gold-silver">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-fGX5IcsLgeneh8q3k50FD0Z3izvKrJM1aduFLTysApk=' https://www.gstatic.com/recaptcha/ https://apis.google.com https://accounts.google.com https://www.google.com/recaptcha/; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; font-src 'self'; img-src 'self' data: blob: https://i.ytimg.com https://cdn.loom.com; media-src 'none'; connect-src 'self' https://www.google.com https://recaptchaenterprise.googleapis.com https://content-firebaseappcheck.googleapis.com https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://portfolio-forms.fredespinosa86-app.workers.dev https://www.googleapis.com https://script.google.com https://script.googleusercontent.com https://www.youtube.com https://dns.google; frame-src https://www.youtube-nocookie.com https://www.youtube.com https://www.loom.com https://www.google.com https://recaptcha.google.com https://accounts.google.com https://apis.google.com https://*.firebaseapp.com https://calendly.com https://*.leadconnectorhq.com https://leadconnectorhq.com https://*.msgsndr.com https://msgsndr.com https://*.gohighlevel.com https://gohighlevel.com https://*.cal.com https://cal.com https://tidycal.com https://*.acuityscheduling.com https://acuityscheduling.com https://*.as.me https://as.me https://savvycal.com https://calendar.google.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-fGX5IcsLgeneh8q3k50FD0Z3izvKrJM1aduFLTysApk=' https://challenges.cloudflare.com https://www.gstatic.com/recaptcha/ https://apis.google.com https://accounts.google.com https://www.google.com/recaptcha/; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; font-src 'self'; img-src 'self' data: blob: https://i.ytimg.com https://cdn.loom.com; media-src 'none'; connect-src 'self' https://www.google.com https://recaptchaenterprise.googleapis.com https://content-firebaseappcheck.googleapis.com https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://portfolio-forms.fredespinosa86-app.workers.dev https://www.googleapis.com https://script.google.com https://script.googleusercontent.com https://www.youtube.com https://dns.google; frame-src https://challenges.cloudflare.com https://www.youtube-nocookie.com https://www.youtube.com https://www.loom.com https://www.google.com https://recaptcha.google.com https://accounts.google.com https://apis.google.com https://*.firebaseapp.com https://calendly.com https://*.leadconnectorhq.com https://leadconnectorhq.com https://*.msgsndr.com https://msgsndr.com https://*.gohighlevel.com https://gohighlevel.com https://*.cal.com https://cal.com https://tidycal.com https://*.acuityscheduling.com https://acuityscheduling.com https://*.as.me https://as.me https://savvycal.com https://calendar.google.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <script src="scripts/frame-guard.js?v=b3"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -262,11 +262,14 @@
 <label class="full">What would you like to discuss? <textarea name="message" rows="5" maxlength="1900" required></textarea></label>
 <div class="hp" aria-hidden="true"><label>Leave this field empty <input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>
 <fieldset class="full guard" id="mGuard" hidden><legend>Quick check</legend>
-<p id="gHelp">To keep this form free of spam, please type the six digits shown here. The code is valid for 5 minutes.</p>
+<div id="gTsBox" hidden><p id="gTsHelp">To keep this form free of spam, a quick automatic check runs here. It usually needs no action from you.</p>
+<div id="gTs" aria-label="Automatic safety check"></div>
+<div class="gbtns"><button type="button" class="btn gsec" id="gTsCode">Use a six-digit code instead</button><button type="button" class="btn gsec" id="gTsCancel">Cancel</button></div></div>
+<div id="gCodeBox"><p id="gHelp">To keep this form free of spam, please type the six digits shown here. The code is valid for 5 minutes.</p>
 <p class="gline">Your code: <strong class="gcode" id="gCode" role="img" aria-label="Your code"></strong></p>
 <label class="glabel" for="gInput">Type the code</label>
 <input id="gInput" class="ginput" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off" aria-describedby="gHelp gMsg">
-<div class="gbtns"><button type="button" class="btn navy" id="gOk">Confirm and send</button><button type="button" class="btn gsec" id="gNew">Get a new code</button><button type="button" class="btn gsec" id="gCancel">Cancel</button></div>
+<div class="gbtns"><button type="button" class="btn navy" id="gOk">Confirm and send</button><button type="button" class="btn gsec" id="gNew">Get a new code</button><button type="button" class="btn gsec" id="gCancel">Cancel</button></div></div>
 <p class="gmsg" id="gMsg" role="status" aria-live="polite"></p>
 </fieldset>
 <p class="fine">By sending this request you agree that Frederick may contact you by email about it.</p>
@@ -294,6 +297,7 @@
 <h3>Who can see it</h3>
 <p>Only the owner, in a private database (Google Firebase) that visitors cannot read. The website is hosted on GitHub Pages. No data is shared with advertisers.</p>
 <h3>Your rights</h3>
+<p><strong>Spam check on the booking form.</strong> To keep the booking form free of spam, it may run a Cloudflare Turnstile check. Cloudflare receives technical information from your browser to decide whether you are a person, and the booking form’s server asks Cloudflare to confirm the result. If the check cannot run, you can type a six-digit code instead.</p>
 <p><strong>Employer feedback survey.</strong> If the owner sends you a personal survey link, the survey collects what you type: your star rating, message, an optional video link, and the name, role and company you want shown. Nothing is published without your tick-box consent. Only the owner sees your answer, and the owner may publish it on this site as a testimonial. The owner keeps your e-mail address only to send the link. You may ask the owner to remove your answer or testimonial at any time.</p>
 <p>You may ask to see, correct, export or delete your data, object to its use, or withdraw consent, and you may complain to the National Privacy Commission (privacy.gov.ph). Requests are answered personally.</p>
 <label class="tog"><input type="checkbox" id="privOpt"> Do not count my visits</label><p class="dhelp" id="privState" role="status"></p>
@@ -1076,8 +1080,8 @@ function doPost(e) {
 <script src="scripts/hero-photo.js?v=b3"></script>
 <script src="scripts/main.js?v=b3"></script>
 <script src="scripts/core-csp.js?v=s2c3"></script>
-<script src="scripts/chat-engine.js?v=c1"></script>
-<script src="scripts/chatbot.js?v=s2c2"></script>
+<script src="scripts/chat-engine.js?v=se6"></script>
+<script src="scripts/chatbot.js?v=se6"></script>
 <script src="scripts/video-section.js?v=b3"></script>
 <script src="scripts/theme-switcher.js?v=b3"></script>
 <script src="scripts/seo.js?v=b3"></script>
@@ -1088,8 +1092,8 @@ function doPost(e) {
 <script src="scripts/core-retention.js?v=r3"></script>
 <script src="scripts/service-forms.js?v=c1"></script>
 <script src="scripts/app-check.js?v=se1"></script>
-<script src="scripts/form-guard.js?v=se3"></script>
-<script src="scripts/meeting-form.js?v=c1"></script>
+<script src="scripts/form-guard.js?v=se6"></script>
+<script src="scripts/meeting-form.js?v=se6"></script>
 <script src="scripts/booking-embed.js?v=c1"></script>
 <script src="scripts/owner-ui.js?v=b3"></script>
 <script src="scripts/owner-dashboard.js?v=sv1"></script>

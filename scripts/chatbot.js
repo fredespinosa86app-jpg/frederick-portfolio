@@ -56,11 +56,14 @@ lastFallback=!best;return best?best.a:FALLBACK}
 /* S2-C2: the connection rule lists the allowed hosts. A webhook host that is not on it would be blocked by the browser, so it is skipped quietly (scripted answers are used) */
 function hookAllowed(){return !!(window.coreCsp&&window.coreCsp.allowsConnect(window.chatHook))}
 const SID=Math.random().toString(36).slice(2),HIST=[];
+/* SE-E6 B1: once the AI webhook says "limit" or keeps failing, the rest of the visit uses the scripted answers and the webhook is not called again */
+let GATE;try{GATE=E.hookGate(window.sessionStorage)}catch(e){GATE=E.hookGate(null)}
+let switchNoted=false;const SWITCH_NOTE='I’ve switched to quick answers. For anything else, book a discovery call or email me.';
 async function viaHook(q){const c=new AbortController(),t=setTimeout(()=>c.abort(),HOOK_TIMEOUT);
 try{const r=await fetch(window.chatHook,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:q.slice(0,300),sessionId:SID,history:HIST.filter(m=>m.role==='user').slice(-6).map(m=>({role:'user',content:String(m.content).slice(0,300)})),page:location.origin+location.pathname}),signal:c.signal});
-if(!r.ok)throw 0;const ct=r.headers.get('content-type')||'';let x=ct.includes('json')?await r.json():await r.text();
+if(!r.ok)throw {status:r.status};const ct=r.headers.get('content-type')||'';let x=ct.includes('json')?await r.json():await r.text();
 if(Array.isArray(x))x=x[0];if(x&&typeof x==='object')x=x.reply??x.output??x.text??x.message??x.response;
-if(typeof x!=='string')throw 0;x=E.cleanText(x.replace(/<[^>]*>/g,' '),2000);if(!x)throw 0;return x}finally{clearTimeout(t)}}
+if(typeof x!=='string')throw 0;x=E.cleanText(x.replace(/<[^>]*>/g,' '),2000);if(!x)throw 0;GATE.ok();return x}finally{clearTimeout(t)}}
 function ownLink(u){try{const x=new URL(u.replace(/&amp;/g,'&'));return x.protocol==='https:'&&x.hostname===location.hostname}catch(e){return false}}
 function esc(s){return s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 const wait=t=>new Promise(r=>setTimeout(r,t));
@@ -78,13 +81,14 @@ idleT=setTimeout(()=>{idleT=0;if(!cp.classList.contains('open')||blocked)return;
 if(!idleSent){idleSent=true;add(IDLE_MSG,'bot')}},IDLE_MS)}
 const touch=()=>{idleSent=false;resetIdle()};
 
+let noteSwitch=false;
 async function reply(q){
 lock(true);const w=typing(),t0=Date.now();const guard=setTimeout(()=>lock(false),HOOK_TIMEOUT+8000);
 let a=null,html=true,local=false;
 try{
 const m=E.matchKb(q,E.kb());                       // owner-approved and predefined answers come first
 if(m){a=m.item.a;html=false;local=true}
-else if(window.chatHook&&hookAllowed()&&!E.injection(q)){try{a=await viaHook(q);html=false}catch(e){a=null}}   // instruction-override attempts never reach the AI webhook
+else if(window.chatHook&&!GATE.isOff()&&hookAllowed()&&!E.injection(q)){try{a=await viaHook(q);html=false}catch(e){a=null;if(GATE.fail(e&&typeof e.status==='number'?e.status:0)&&!switchNoted){switchNoted=true;noteSwitch=true}}}   // instruction-override attempts never reach the AI webhook
 if(a==null){a=answer(q);html=true;local=true}
 const target=local?E.replyDelay(a.length):E.MIN_MS;   // controlled 2-8 s for stored answers; webhook answers show as soon as they arrive (after 2 s minimum)
 const rem=target-(Date.now()-t0);if(rem>0)await wait(rem);
@@ -94,6 +98,7 @@ const b=document.createElement('div');b.className='mt';
 if(html)b.innerHTML=fixLinks(a);else b.innerHTML=esc(a).replace(/(https?:\/\/[^\s<]+)/g,u=>ownLink(u)?'<a href="'+u+'" target="_blank" rel="noopener noreferrer">'+u+'</a>':u).replace(/\n/g,'<br>');   // answers from outside can only link to this site
 w.append(b);stamp(w);HIST.push({role:'assistant',content:b.textContent});
 if(unanswered)trackUnanswered(q,b.textContent);
+if(noteSwitch){noteSwitch=false;add(SWITCH_NOTE,'bot')}   // SE-E6 B1: one plain line, once
 }catch(e){w.classList.remove('typing');w.textContent='';const b=document.createElement('div');b.className='mt';b.textContent=SLOW_MSG;w.append(b);stamp(w)}
 finally{clearTimeout(guard);ms.scrollTop=ms.scrollHeight;lock(false);touch()}}
 
