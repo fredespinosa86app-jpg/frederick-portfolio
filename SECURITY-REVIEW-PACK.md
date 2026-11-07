@@ -1,0 +1,1234 @@
+# Security review pack: Frederick Espinosa portfolio (CodeFlow Portfolio 4.5.0)
+
+For a person asked to try to break this site within the limits below. Prepared by the site owner's assistant. **This pack is preparation only: nothing in it is an independent review, a certification or a guarantee.** All existing tests were written by the same assistant, which is exactly why an outside look is wanted.
+
+Version of the pack: 2026-11-07 (SE-E5). Keep it private: share the ZIP only with the agreed reviewer. It contains no passwords, keys or secrets. The site's public Firebase web config and public site keys are in the page source anyway.
+
+## 1. What the site is
+- A static HTML/CSS/vanilla-JS site on GitHub Pages: https://fredespinosa86app-jpg.github.io/frederick-portfolio/ (no framework, no build step, no inline scripts).
+- Database and sign-in: Firebase **Spark (free)** project `my-online-portfolio-db2a5` (Auth with Google sign-in for the owner only, Firestore). Visitors never have an account; the booking form signs in with a short-lived custom token from the Worker (below) and signs out again.
+- Cloudflare Worker `portfolio-forms` (Free plan): `GET /v1/status`, `POST /v1/challenge`, `POST /v1/verify`. It checks a Cloudflare Turnstile token (or a six-digit code fallback), then signs a 10-minute Firebase custom token with the claim `form: "meeting"`. Source: `server/portfolio-forms-worker.js`.
+- Optional chat Worker `server/chat-proxy-worker.js`: **not active** (no AI chatbot is switched on; the chatbot is scripted in the browser). Review it only as source.
+- Protections in layers: Firestore rules (the main wall), App Check in **monitoring mode** (not enforced), Turnstile on the booking form, per-address and daily limits in the Worker, an emergency pause switch, a CSP set by a meta tag, the Firebase SDK served from the site itself (`assets/vendor/firebase/10.12.2/`).
+
+## 2. Scope
+**In scope (test the site and the code):**
+- The public site and `survey.html` (employer feedback survey, opened by a personal link).
+- The Firestore rules text in section 6 and what a visitor or a signed-in stranger can read or write through the public web config.
+- The forms Worker routes above (rate limits, token rules, origin rule, error handling).
+- XSS and injection through anything a visitor can type or put in the address (name, email, message, survey answers, URL hash and query).
+- CSP and framing, anything that bypasses the owner-only panel, anything that exposes private data.
+- Source code in this ZIP (read-only review is welcome).
+
+**Out of scope (do not do):**
+- Attacks on Google, Firebase infrastructure, GitHub, Cloudflare or any other third party themselves.
+- Denial-of-service or load testing, brute-forcing, scanning beyond a normal polite automated scan, spamming the booking form.
+- Social engineering of the owner or visitors, phishing, physical access.
+- Reading, changing or deleting real visitor or client data. If you find you can read any, **stop, do not copy it, report it**.
+- The owner's Google, GitHub or Cloudflare accounts.
+- Anything on the owner's other domains.
+
+**Testing rules:** use only your own test inputs; keep volume low (a few dozen requests, not thousands); use the booking form at most a handful of times and start the message with `SECURITY-TEST`; do not keep any data you see; tell the owner the time window you tested.
+
+## 3. Threat list (what we tried to stop, where, and what is NOT stopped)
+| # | Threat | Main defences | Residual risk |
+|---|---|---|---|
+| 1 | Visitor reads private data (requests, clients, invoices, surveys) | Firestore rules: no read or list on any private collection; no catch-all rule; owner check by account ID (`firestore.rules.strict`) | The rules engine is Google's; our own checks used a home-made interpreter plus the official emulator in GitHub Actions |
+| 2 | Visitor writes junk or forged records | Field lists, types, sizes, formats, server time, ids tied to the token, replay refusal | A real person can still send valid-looking junk within the daily cap |
+| 3 | Bots flood the booking form / use up free quota | Turnstile, six-digit code fallback, per-address limits, daily cap, pause switch | Turnstile does not stop a person or a paid solving service; Worker counters are per instance (approximate); Firebase App Check is monitoring only, not enforced |
+| 4 | Script injection (XSS) | Everything rendered with `textContent`, escaped text, no inline scripts or handlers, CSP `script-src` list | CSP is a meta tag: no `frame-ancestors`, cannot report-only; Google sign-in scripts are trusted by necessity |
+| 5 | Clickjacking | `scripts/frame-guard.js` | Not a real header; only partly effective |
+| 6 | Supply chain (SDK) | Firebase SDK files vendored with a SHA-256 manifest; no `gstatic.com` SDK address; test fails on a changed hash | Updates are manual (quarterly reminder) |
+| 7 | Owner account takeover | Google sign-in only, session-only login, idle timeout, owner ID in rules | Depends on the owner's Google account security (2-step verification) |
+| 8 | Prompt injection / AI cost | Not active (scripted chatbot); chat Worker has screens and limits if ever switched on | Part of the design only until an AI chatbot exists |
+| 9 | Data kept too long | Retention periods and a monthly cleanup run by the owner | Owner must run it |
+| 10 | Navigation away or data in an approved calendar frame address | Frame sandbox, `no-referrer`, host allow-list | Documented residual risk (SE-E4 pending) |
+
+## 4. Known limits (be aware before you report these)
+- No real HTTP security headers (GitHub Pages cannot send them): no `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `frame-ancestors`. Free scanners will mark this. It is known (SE-E2, only if the domain moves to Cloudflare).
+- App Check is in monitoring mode; enforcement is a later console step.
+- Limits in the Worker are per instance unless Cloudflare rate-limit bindings are on (they are on for the forms Worker at the last check, field `rl:true`).
+- Older, finished work is listed in `KNOWN-ISSUES.md` and `SECURITY-FINAL-REPORT.md`; read those first.
+- The Firebase web API key and project id are public by design; the key is meant to be restricted to the site address and to the APIs in use.
+
+## 5. How to run the checks yourself (read, run, try to break them)
+| What | Command (from the project folder) |
+|---|---|
+| Rules attack tests (both rules files, home-made interpreter) | `python3 rules-tests/attack/attack_cases.py .` |
+| Rules mutation tests (weakens the rules; each weakening must be caught) | `python3 rules-tests/attack/mutation_check.py .` |
+| Unit tests (Node 20+) | `node --test scripts/*.test.mjs server/*.test.mjs` |
+| Browser tests (Playwright) | `cd rules-tests/browser && node <suite>.mjs` |
+| Official Firestore emulator tests | GitHub Actions workflow `.github/workflows/rules-emulator.yml` (or `rules-tests/emulator`, needs Java 17) |
+
+Key files and suites to start from:
+- Rules and rule tests: `firestore.rules.strict`, `firestore.rules`, `rules-tests/attack/attack_cases.py`, `rules-tests/attack/rules_sim.py`, `rules-tests/emulator/forms-f5.test.mjs`, `rules-tests/emulator/survey-sv1.test.mjs`.
+- Worker: `server/portfolio-forms-worker.js`, `server/portfolio-forms-worker.test.mjs`, `server/portfolio-forms-turnstile.test.mjs`, `server/chat-proxy-worker.js`.
+- Page security: `scripts/csp-guard.test.mjs`, `scripts/form-guard.js`, `scripts/frame-guard.js`, `scripts/vendor-firebase.test.mjs`, `scripts/se6-guard.test.mjs`, `scripts/survey-guard.test.mjs`.
+- Browser suites: `rules-tests/browser/se1-1-app-check.mjs`, `rules-tests/browser/se3-1-vendored-sdk.mjs`, `rules-tests/browser/se6-1-turnstile.mjs`, `rules-tests/browser/sv1-1-survey.mjs`.
+- Reports and design notes: `SECURITY-FINAL-REPORT.md`, `internal-docs/4.5.0-S2-security.md`, `internal-docs/4.5.0-security-enhancement-review.md`, `KNOWN-ISSUES.md`.
+
+Two rules files exist: `firestore.rules.strict` (owner only by account ID; reproduced below) and `firestore.rules` (the transition file, identical except that it also accepts the owner's e-mail). The owner confirms in the console which one is published.
+
+## 6. The Firestore rules (`firestore.rules.strict`, exact copy)
+<!-- RULES-BEGIN (generated by tools/review-pack.mjs, do not edit by hand) -->
+```
+// STRICT OWNER MODE: only the account ID below is the owner (no e-mail fallback).
+// Publish, then sign in again and test. If locked out, publish firestore.rules (transition file) to go back.
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Security S1: only a verified Google sign-in can be the owner.
+    function isGoogleSignIn() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.firebase.sign_in_provider == 'google.com';
+    }
+    // Your Firebase account ID. Owner panel > Security shows it after you sign in.
+    function ownerUid() { return '3p2YvH4NSVYAAfA0E6HC2kkyc5F3'; }
+    function isOwner() {
+      return isGoogleSignIn()
+        && request.auth.uid == ownerUid();
+    }
+    // Phase 2: true when the requested start time is not already confirmed (best effort, see README)
+    function slotFree() {
+      let ref = /databases/$(database)/documents/content/busy;
+      return !exists(ref) || !((request.resource.data.date + 'T' + request.resource.data.time) in get(ref).data.get('keys', []));
+    }
+    // Phase 7: true unless the owner panel has marked the business as full (content/capacity.open == false).
+    function capOpen() {
+      let cap = /databases/$(database)/documents/content/capacity;
+      return !exists(cap) || get(cap).data.get('open', true) != false;
+    }
+    // Security S2: emergency pause. The owner panel (Security > Abuse protection) sets content/guard.pause = true,
+    // which makes every public write below refuse until it is switched back.
+    function intakeOpen() {
+      let g = /databases/$(database)/documents/content/guard;
+      return !exists(g) || get(g).data.get('pause', false) != true;
+    }
+    // F5 (4.5.0): form-verification helpers. A visitor token is a Firebase custom token issued by the portfolio-forms Worker after the
+    // visitor passed its challenge. It carries the claim form == 'meeting' and a uid of the shape m_<random>. See internal-docs/f5-setup.md.
+    function visitorTok() {
+      return request.auth != null && request.auth.token.firebase.sign_in_provider == 'custom'
+        && request.auth.token.form == 'meeting' && request.auth.uid.matches('^m_[A-Za-z0-9_-]{8,40}$');
+    }
+    // UTC calendar day as YYYYMMDD, from the server's request time (the visitor's clock is never used).
+    function today() { return string(request.time.year() * 10000 + request.time.month() * 100 + request.time.day()); }
+    function capDoc(day) { return /databases/$(database)/documents/reqCounters/$(day); }
+    function reqDoc(uid) { return /databases/$(database)/documents/meetingRequests/$(uid); }
+    function guardDoc() { return /databases/$(database)/documents/content/guard; }
+    // The daily limit lives in content/guard.cap (already read by intakeOpen(), so it adds no document lookup). Default 30.
+    function underCap(n) { return (!exists(guardDoc()) && n <= 30) || (exists(guardDoc()) && n <= get(guardDoc()).data.get('cap', 30)); }
+    // SE-H1 (4.5.0): the old direct booking path is gone. A booking needs a Worker token ALWAYS; a missing or edited content/guard cannot reopen it.
+    // Calendar day text YYYY-MM-DD from a timestamp (zero-padded without number functions: a lookup table), used for the date window below.
+    function p2(n) { return ['00','01','02','03','04','05','06','07','08','09','10','11','12','13','14','15','16','17','18','19','20','21','22','23','24','25','26','27','28','29','30','31'][n]; }
+    function dayStr(t) { return string(t.year()) + '-' + p2(t.month()) + '-' + p2(t.day()); }
+    // A booking date may not be in the past (yesterday UTC is allowed for time zones) and not more than 366 days ahead.
+    function dateWindowOk(d) { return d >= dayStr(request.time - duration.value(1, 'd')) && d <= dayStr(request.time + duration.value(366, 'd')); }
+    // SE-H1: daily budgets for anonymous writes (visits, unanswered chat questions). One counter per kind and UTC day (anonCounters/v_YYYYMMDD, c_YYYYMMDD).
+    // Every counted record is created in the same batch as a counter bump of exactly 1; the counter cannot pass content/guard.visitCap (default 1500) or chatCap (default 300).
+    function anonDoc(k) { return /databases/$(database)/documents/anonCounters/$(k); }
+    function visitDoc(id) { return /databases/$(database)/documents/visits/$(id); }
+    function chatDoc(id) { return /databases/$(database)/documents/chatUnanswered/$(id); }
+    function underAnon(field, dflt, n) { return (!exists(guardDoc()) && n <= dflt) || (exists(guardDoc()) && n <= get(guardDoc()).data.get(field, dflt)); }
+    // P0 (4.5.0): Client ID registry helpers. An ID is A-Z, 0-9 and "-", 3 to 24 characters, starts with a letter, no "--", no trailing "-".
+    function validClientId(id) { return id.matches('^[A-Z][A-Z0-9-]{1,22}[A-Z0-9]$') && !id.matches('.*--.*'); }
+    function regDoc(cid) { return /databases/$(database)/documents/clientRegistry/$(cid); }
+    function regAudit(aid) { return /databases/$(database)/documents/clientRegistryAudit/$(aid); }
+    // W1 (4.5.0): WorkTrack helpers. Sessions, events and the current-state record. Owner only; see the match blocks below.
+    function wkState() { return /databases/$(database)/documents/workState/main; }
+    function wkSess(sid) { return /databases/$(database)/documents/workSessions/$(sid); }
+    function wkEvt(eid) { return /databases/$(database)/documents/workEvents/$(eid); }
+    function wkSid(s) { return s is string && s.matches('^[A-Za-z0-9]{16,40}$'); }
+    // The event ID is the session ID, two underscores and the event counter (1 to 12), so counters cannot be skipped or reused.
+    function wkEid(sid, n, eid) {
+      return (n == 1 && eid == sid + '__1') || (n == 2 && eid == sid + '__2') || (n == 3 && eid == sid + '__3') || (n == 4 && eid == sid + '__4')
+        || (n == 5 && eid == sid + '__5') || (n == 6 && eid == sid + '__6') || (n == 7 && eid == sid + '__7') || (n == 8 && eid == sid + '__8')
+        || (n == 9 && eid == sid + '__9') || (n == 10 && eid == sid + '__10') || (n == 11 && eid == sid + '__11') || (n == 12 && eid == sid + '__12');
+    }
+    function wkKeep(b, a) { return a.fb == b.fb && a.lu == b.lu && a.lb == b.lb; }
+    // The transition table. t = punch, b = state before the batch, a = state after the batch. Anything not listed is refused.
+    function wkStep(t, b, a) {
+      return (t == 'CLOCK_IN' && b.state == 'NOT_STARTED' && a.state == 'WORKING' && a.n == 1 && a.fb == false && a.lu == false && a.lb == false)
+        || (a.sid == b.sid && a.n == b.n + 1 && (
+             (t == 'FIRST_BREAK_OUT' && b.state == 'WORKING' && b.fb == false && a.state == 'FIRST_BREAK' && a.fb == true && a.lu == b.lu && a.lb == b.lb)
+          || (t == 'FIRST_BREAK_IN' && b.state == 'FIRST_BREAK' && a.state == 'WORKING' && wkKeep(b, a))
+          || (t == 'LUNCH_OUT' && b.state == 'WORKING' && b.lu == false && a.state == 'LUNCH' && a.lu == true && a.fb == b.fb && a.lb == b.lb)
+          || (t == 'LUNCH_IN' && b.state == 'LUNCH' && a.state == 'WORKING' && wkKeep(b, a))
+          || (t == 'LAST_BREAK_OUT' && b.state == 'WORKING' && b.lb == false && a.state == 'LAST_BREAK' && a.lb == true && a.fb == b.fb && a.lu == b.lu)
+          || (t == 'LAST_BREAK_IN' && b.state == 'LAST_BREAK' && a.state == 'WORKING' && wkKeep(b, a))
+          || (t == 'CLOCK_OUT' && b.state == 'WORKING' && a.state == 'NOT_STARTED' && wkKeep(b, a))
+          || (t == 'CLOSE_INCOMPLETE' && b.state in ['WORKING','FIRST_BREAK','LUNCH','LAST_BREAK'] && a.state == 'NOT_STARTED' && wkKeep(b, a))));
+    }
+    // W2 (4.5.0): WorkTrack client assignment helpers. One record per (session, Client ID); no hours are stored on it, so hours can never be multiplied.
+    function waAuditRef(aid) { return /databases/$(database)/documents/workAssignAudit/$(aid); }
+    function waRef(id) { return /databases/$(database)/documents/workAssign/$(id); }
+    // True when, after this batch, the session is the one that is open right now (assignments can only change while it is open).
+    function wkOpen(sid) { return existsAfter(wkState()) && getAfter(wkState()).data.sid == sid && getAfter(wkState()).data.state != 'NOT_STARTED'; }
+    function regActive(cid) { return exists(regDoc(cid)) && get(regDoc(cid)).data.status == 'active'; }
+    // W3 (4.5.0): the sealed log and corrections. Rules can check order and numbering only; the SHA-256 maths is done (and checked again by Verify) on the page.
+    function wkSealRef(h) { return /databases/$(database)/documents/workSeals/$(h); }
+    function wkChainRef() { return /databases/$(database)/documents/workChain/main; }
+    function isHex64(s) { return s is string && s.matches('^[0-9a-f]{64}$'); }
+    // B1 (4.5.0): billing profiles, billable hours and the migration of old client records. Owner only; see the match blocks before "clients".
+    function bpDoc(cid) { return /databases/$(database)/documents/billingProfiles/$(cid); }
+    function bpAudit(aid) { return /databases/$(database)/documents/billingProfileAudit/$(aid); }
+    function beDoc(id) { return /databases/$(database)/documents/billableEntries/$(id); }
+    function beAudit(aid) { return /databases/$(database)/documents/billableEntryAudit/$(aid); }
+    function plainKey(k) { return k is string && k.matches('^[A-Za-z0-9]{16,40}$'); }
+    // Currency and its decimal places must agree (the same table as core-money.js).
+    function curExp(c, e) { return (c == 'USD' && e == 2) || (c == 'GBP' && e == 2) || (c == 'EUR' && e == 2) || (c == 'AUD' && e == 2) || (c == 'CAD' && e == 2) || (c == 'PHP' && e == 2) || (c == 'JPY' && e == 0) || (c == 'KWD' && e == 3); }
+    // The shape of a billing profile. Custom anchor days are checked for count and format here; their order and 1-31 range are checked by the page (rules cannot loop).
+    function bpOk(d) {
+      return d.keys().hasOnly(['currency','exp','rateMinor','arrangement','schedKind','weekStart','anchors','genTime','tz','dueKind','dueDays','dueDate','rev','createdAt','updatedAt','lastAudit'])
+        && d.keys().hasAll(['currency','exp','rateMinor','arrangement','schedKind','weekStart','anchors','genTime','tz','dueKind','dueDays','dueDate','rev','createdAt','updatedAt','lastAudit'])
+        && d.currency is string && d.exp is int && curExp(d.currency, d.exp)
+        && d.rateMinor is int && d.rateMinor >= 0 && d.rateMinor <= 1000000000
+        && d.arrangement in ['hourly','monthly']
+        && d.schedKind in ['weekly','monthly','midmonth','custom']
+        && d.weekStart in ['mon','tue','wed','thu','fri','sat','sun']
+        && d.anchors is string && d.anchors.matches('^$|^[0-9]{1,2}(,[0-9]{1,2}){0,3}$') && ((d.schedKind == 'custom') == (d.anchors.size() > 0))
+        && d.genTime is string && d.genTime.matches('^([01][0-9]|2[0-3]):[0-5][0-9]$')
+        && d.tz is string && d.tz.size() <= 60 && d.tz.matches('^[A-Za-z0-9_+/-]+$')
+        && d.dueKind in ['fixed','afterSend','afterGeneration']
+        && d.dueDays is int && d.dueDays >= 0 && d.dueDays <= 365
+        && d.dueDate is string && d.dueDate.matches('^$|^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && ((d.dueKind == 'fixed') == (d.dueDate.size() == 10))
+        && (d.dueKind != 'fixed' || d.dueDays == 0)
+        && d.rev is int && d.rev >= 1 && plainKey(d.lastAudit);
+    }
+    // The shape of one billable entry (hours for a client and a period). The document ID is checked against these fields in the match block.
+    function beOk(d) {
+      return d.keys().hasOnly(['clientId','periodStart','periodEnd','seq','submittedMinutes','approvedMinutes','status','note','supersedes','supersededBy','approvedAt','approverUid','relatedInvoiceId','rev','createdAt','updatedAt','lastAudit'])
+        && d.keys().hasAll(['clientId','periodStart','periodEnd','seq','submittedMinutes','approvedMinutes','status','note','supersedes','supersededBy','approvedAt','approverUid','relatedInvoiceId','rev','createdAt','updatedAt','lastAudit'])
+        && d.clientId is string && validClientId(d.clientId)
+        && d.periodStart is string && d.periodStart.matches('^[0-9]{8}$') && d.periodEnd is string && d.periodEnd.matches('^[0-9]{8}$') && d.periodEnd >= d.periodStart
+        && d.seq is string && d.seq.matches('^(0[1-9]|[1-9][0-9])$')
+        && d.submittedMinutes is int && d.submittedMinutes >= 1 && d.submittedMinutes <= 133920
+        && (d.approvedMinutes == null || (d.approvedMinutes is int && d.approvedMinutes >= 0 && d.approvedMinutes <= 133920))
+        && d.status in ['DRAFT','SUBMITTED','APPROVED','SUPERSEDED']
+        && d.note is string && d.note.size() <= 200
+        && d.supersedes is string && d.supersedes.size() <= 80 && d.supersededBy is string && d.supersededBy.size() <= 80
+        && d.approverUid is string && d.approverUid.size() <= 128
+        && d.relatedInvoiceId is string && d.relatedInvoiceId.size() <= 80
+        && d.rev is int && d.rev >= 1 && plainKey(d.lastAudit);
+    }
+    match /settings/site { allow read: if true; allow write: if isOwner(); }
+    match /meetingRequests/{id} {
+      allow create: if request.resource.data.keys().hasOnly(['name','email','company','date','time','tz','platform','message','status','createdAt','service','formId','formName','answers','day'])
+        && request.resource.data.keys().hasAll(['name','email','company','date','time','tz','platform','message','status','createdAt'])
+        && request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 100
+        && request.resource.data.email is string && request.resource.data.email.size() > 4 && request.resource.data.email.size() <= 120
+        && request.resource.data.email.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$')
+        && request.resource.data.message is string && request.resource.data.message.size() > 0 && request.resource.data.message.size() <= 2000
+        && request.resource.data.company is string && request.resource.data.company.size() <= 120
+        && request.resource.data.platform is string && request.resource.data.platform.size() <= 60
+        && request.resource.data.date is string && request.resource.data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && request.resource.data.time is string && request.resource.data.time.matches('^[0-9]{2}:[0-9]{2}$')
+        && request.resource.data.tz is string && request.resource.data.tz.size() <= 60 && request.resource.data.tz.matches('^[A-Za-z0-9_+/-]+$')
+        && (request.resource.data.get('service', '') is string && request.resource.data.get('service', '').size() <= 60)
+        && (request.resource.data.get('formId', '') is string && request.resource.data.get('formId', '').size() <= 40)
+        && (request.resource.data.get('formName', '') is string && request.resource.data.get('formName', '').size() <= 100)
+        && (request.resource.data.get('answers', '') is string && request.resource.data.get('answers', '').size() <= 4000)
+        && request.resource.data.status == 'new'
+        && request.resource.data.createdAt == request.time
+        && intakeOpen()
+        && capOpen()
+        && slotFree()
+        && dateWindowOk(request.resource.data.date)
+        // token path only: one request per token (the document ID is the token's uid), counted in the same batch under today's counter
+        && visitorTok() && id == request.auth.uid && request.resource.data.day == today()
+        && getAfter(capDoc(today())).data.lastReq == request.auth.uid;
+      // a visitor may confirm ONLY their own request (resolves a lost acknowledgement); no list, no update, no delete
+      allow get: if visitorTok() && id == request.auth.uid;
+      allow read, update, delete: if isOwner();
+    }
+    // F5: one counter per UTC day. Only a visitor token can bump it, by exactly 1, in the same batch as its own request.
+    match /reqCounters/{day} {
+      allow create: if visitorTok() && day == today() && request.resource.data.keys().hasOnly(['count','lastReq'])
+        && request.resource.data.count == 1 && request.resource.data.lastReq == request.auth.uid
+        && existsAfter(reqDoc(request.auth.uid));
+      allow update: if visitorTok() && day == today() && request.resource.data.keys().hasOnly(['count','lastReq'])
+        && request.resource.data.count == resource.data.count + 1 && underCap(request.resource.data.count)
+        && request.resource.data.lastReq == request.auth.uid && existsAfter(reqDoc(request.auth.uid));
+      allow get: if visitorTok() || isOwner();   // the page reads today's count to show "almost full"; listing is for the owner only
+      allow list: if isOwner();
+      allow delete: if false;
+    }
+    match /chatUnanswered/{id} {
+      allow create: if intakeOpen()
+        && request.resource.data.sessionId is string && request.resource.data.sessionId.matches('^[a-z0-9]{1,20}$')
+        && id.matches('^' + request.resource.data.sessionId + '_[a-z0-9]{1,12}$')
+        && request.resource.data.keys().hasOnly(['question','response','sessionId','context','status','createdAt'])
+        && request.resource.data.keys().hasAll(['question','response','sessionId','context','status','createdAt'])
+        && request.resource.data.question is string && request.resource.data.question.size() > 0 && request.resource.data.question.size() <= 300
+        && request.resource.data.response is string && request.resource.data.response.size() <= 600
+        && request.resource.data.sessionId is string && request.resource.data.sessionId.size() <= 40
+        && request.resource.data.context is string && request.resource.data.context.size() <= 300
+        && request.resource.data.status == 'new'
+        && request.resource.data.createdAt == request.time
+        && getAfter(anonDoc('c_' + today())).data.last == id;
+      allow read, update, delete: if isOwner();
+    }
+    // SE-H1: the daily budget counters. Anyone may bump one by exactly 1, only together with a brand-new record it points to; nobody can lower or delete it except the owner.
+    match /anonCounters/{k} {
+      allow create: if request.resource.data.keys().hasOnly(['count','last']) && request.resource.data.count == 1 && request.resource.data.last is string
+        && ((k == 'v_' + today() && request.resource.data.last.matches('^[0-9a-f]{24}_(view|summary)_[A-Za-z0-9_-]{1,40}$')
+              && !exists(visitDoc(request.resource.data.last)) && existsAfter(visitDoc(request.resource.data.last)) && underAnon('visitCap', 1500, 1))
+         || (k == 'c_' + today() && request.resource.data.last.matches('^[a-z0-9]{1,20}_[a-z0-9]{1,12}$')
+              && !exists(chatDoc(request.resource.data.last)) && existsAfter(chatDoc(request.resource.data.last)) && underAnon('chatCap', 300, 1)));
+      allow update: if request.resource.data.keys().hasOnly(['count','last']) && request.resource.data.count == resource.data.count + 1 && request.resource.data.last is string
+        && ((k == 'v_' + today() && request.resource.data.last.matches('^[0-9a-f]{24}_(view|summary)_[A-Za-z0-9_-]{1,40}$')
+              && !exists(visitDoc(request.resource.data.last)) && existsAfter(visitDoc(request.resource.data.last)) && underAnon('visitCap', 1500, request.resource.data.count))
+         || (k == 'c_' + today() && request.resource.data.last.matches('^[a-z0-9]{1,20}_[a-z0-9]{1,12}$')
+              && !exists(chatDoc(request.resource.data.last)) && existsAfter(chatDoc(request.resource.data.last)) && underAnon('chatCap', 300, request.resource.data.count)));
+      allow read, delete: if isOwner();
+    }
+    match /activity/{id} {
+      allow read, create, delete: if isOwner();
+    }
+    // Phase 2: private business data. Never readable by visitors.
+    // Phase 3: anonymous visit counter. Visitors may only create; only the owner reads or deletes.
+    match /visits/{id} {
+      allow create: if intakeOpen()
+        && request.resource.data.keys().hasOnly(['vid','sid','type','path','ref','device','browser','createdAt'])
+        && request.resource.data.keys().hasAll(['vid','sid','type','path','ref','device','browser','createdAt'])
+        && request.resource.data.vid is string && request.resource.data.vid.matches('^[0-9a-f]{24}$')
+        && request.resource.data.sid is string && request.resource.data.sid.matches('^[0-9a-f]{24}$')
+        && request.resource.data.type == 'view'
+        && request.resource.data.path is string && request.resource.data.path.matches('^[A-Za-z0-9_-]{1,40}$')
+        && id == request.resource.data.sid + '_' + request.resource.data.type + '_' + request.resource.data.path
+        && request.resource.data.ref is string && request.resource.data.ref.size() <= 100
+        && request.resource.data.device in ['desktop','tablet','mobile']
+        && request.resource.data.browser is string && request.resource.data.browser.size() <= 20
+        && request.resource.data.createdAt == request.time
+        && getAfter(anonDoc('v_' + today())).data.last == id;
+      allow create: if intakeOpen()
+        && request.resource.data.keys().hasOnly(['vid','sid','type','path','ref','device','browser','createdAt','secs'])
+        && request.resource.data.keys().hasAll(['vid','sid','type','path','ref','device','browser','createdAt','secs'])
+        && request.resource.data.vid is string && request.resource.data.vid.matches('^[0-9a-f]{24}$')
+        && request.resource.data.sid is string && request.resource.data.sid.matches('^[0-9a-f]{24}$')
+        && request.resource.data.type == 'summary' && request.resource.data.path == 'sections'
+        && id == request.resource.data.sid + '_summary_sections'
+        && request.resource.data.ref == ''
+        && request.resource.data.device in ['desktop','tablet','mobile']
+        && request.resource.data.browser is string && request.resource.data.browser.size() <= 20
+        && request.resource.data.createdAt == request.time
+        && getAfter(anonDoc('v_' + today())).data.last == id
+        && request.resource.data.secs is list && request.resource.data.secs.size() >= 1 && request.resource.data.secs.size() <= 12
+        && request.resource.data.secs.hasOnly(['intro','services','training','experience','toolkit','process','testimonials','faq','thank-you','contact','schedule']);
+      // E2: a session's summary may only GROW (same fields, more sections), a few times at most
+      allow update: if intakeOpen()
+        && resource.data.type == 'summary'
+        && request.resource.data.keys().hasOnly(['vid','sid','type','path','ref','device','browser','createdAt','secs'])
+        && request.resource.data.vid == resource.data.vid && request.resource.data.sid == resource.data.sid
+        && request.resource.data.type == resource.data.type && request.resource.data.path == resource.data.path
+        && request.resource.data.ref == resource.data.ref && request.resource.data.device == resource.data.device
+        && request.resource.data.browser == resource.data.browser && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.secs is list && request.resource.data.secs.size() <= 12
+        && request.resource.data.secs.size() > resource.data.secs.size()
+        && request.resource.data.secs.hasOnly(['intro','services','training','experience','toolkit','process','testimonials','faq','thank-you','contact','schedule'])
+        && request.resource.data.secs.hasAll(resource.data.secs);
+      allow read, delete: if isOwner();
+    }
+    // E3: private image library. Owner only (read, write, delete); every write is shape- and size-limited.
+    match /library/{id} {
+      allow read, delete: if isOwner();
+      allow create, update: if isOwner()
+        && request.resource.data.keys().hasOnly(['name','tags','mime','w','h','bytes','hash','thumb','used','usedIn','createdAt'])
+        && request.resource.data.keys().hasAll(['name','tags','mime','w','h','bytes','hash','thumb','used','usedIn','createdAt'])
+        && request.resource.data.name is string && request.resource.data.name.size() >= 1 && request.resource.data.name.size() <= 80
+        && request.resource.data.tags is list && request.resource.data.tags.size() <= 10
+        && request.resource.data.mime == 'image/webp'
+        && request.resource.data.w is number && request.resource.data.h is number
+        && request.resource.data.w >= 1 && request.resource.data.w <= 4000 && request.resource.data.h >= 1 && request.resource.data.h <= 4000
+        && request.resource.data.bytes is number && request.resource.data.bytes >= 1 && request.resource.data.bytes <= 262144
+        && request.resource.data.hash is string && request.resource.data.hash.size() <= 64
+        && request.resource.data.thumb is string && request.resource.data.thumb.size() <= 24000
+        && request.resource.data.used is number && request.resource.data.usedIn is list && request.resource.data.usedIn.size() <= 8
+        && request.resource.data.createdAt is number;
+    }
+    match /libraryFull/{id} {
+      allow read, delete: if isOwner();
+      allow create, update: if isOwner()
+        && request.resource.data.keys().hasOnly(['data','bytes'])
+        && request.resource.data.keys().hasAll(['data','bytes'])
+        && request.resource.data.data is string && request.resource.data.data.size() <= 360000
+        && request.resource.data.data.matches('^data:image/webp;base64,[A-Za-z0-9+/]+={0,2}$')
+        && request.resource.data.bytes is number && request.resource.data.bytes <= 262144;
+    }
+    // P0 (4.5.0): shared Client ID registry. IDs only - never a name, e-mail, phone or company. Owner only.
+    // The ID is the document ID, so it can never be edited or reused, and there is no delete (archive instead).
+    // Every create or update must be written in one batch with a BRAND-NEW audit record (lastAudit) and a revision number one higher,
+    // so two tabs cannot overwrite each other and no change exists without its audit entry.
+    match /clientRegistry/{id} {
+      allow read: if isOwner();
+      allow create: if isOwner() && validClientId(id)
+        && request.resource.data.keys().hasOnly(['status','notes','createdAt','updatedAt','rev','lastAudit'])
+        && request.resource.data.keys().hasAll(['status','notes','createdAt','updatedAt','rev','lastAudit'])
+        && request.resource.data.status == 'active'
+        && request.resource.data.notes is string && request.resource.data.notes.size() <= 500
+        && request.resource.data.rev == 1
+        && request.resource.data.createdAt == request.time && request.resource.data.updatedAt == request.time
+        && request.resource.data.lastAudit is string && request.resource.data.lastAudit.matches('^[A-Za-z0-9]{16,40}$')
+        && !exists(regAudit(request.resource.data.lastAudit)) && existsAfter(regAudit(request.resource.data.lastAudit));
+      allow update: if isOwner() && validClientId(id)
+        && request.resource.data.keys().hasOnly(['status','notes','createdAt','updatedAt','rev','lastAudit'])
+        && request.resource.data.keys().hasAll(['status','notes','createdAt','updatedAt','rev','lastAudit'])
+        && request.resource.data.status in ['active','archived']
+        && request.resource.data.notes is string && request.resource.data.notes.size() <= 500
+        && request.resource.data.rev is number && request.resource.data.rev == resource.data.rev + 1
+        && request.resource.data.createdAt == resource.data.createdAt && request.resource.data.updatedAt == request.time
+        && request.resource.data.lastAudit is string && request.resource.data.lastAudit.matches('^[A-Za-z0-9]{16,40}$')
+        && !exists(regAudit(request.resource.data.lastAudit)) && existsAfter(regAudit(request.resource.data.lastAudit));
+    }
+    match /clientRegistryAudit/{aid} {
+      allow read: if isOwner();
+      allow create: if isOwner() && aid.matches('^[A-Za-z0-9]{16,40}$')
+        && request.resource.data.keys().hasOnly(['clientId','action','prev','next','reason','rev','actor','createdAt'])
+        && request.resource.data.keys().hasAll(['clientId','action','prev','next','reason','rev','actor','createdAt'])
+        && request.resource.data.clientId is string && validClientId(request.resource.data.clientId)
+        && request.resource.data.action in ['create','status','notes']
+        && request.resource.data.prev is string && request.resource.data.prev.size() <= 500
+        && request.resource.data.next is string && request.resource.data.next.size() <= 500
+        && request.resource.data.reason is string && request.resource.data.reason.size() <= 200
+        && (request.resource.data.action != 'status' || request.resource.data.reason.size() >= 3)
+        && request.resource.data.rev is number
+        && request.resource.data.actor == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && existsAfter(regDoc(request.resource.data.clientId))
+        && getAfter(regDoc(request.resource.data.clientId)).data.lastAudit == aid
+        && getAfter(regDoc(request.resource.data.clientId)).data.rev == request.resource.data.rev
+        && ((request.resource.data.action == 'create') == (request.resource.data.rev == 1))
+        && (request.resource.data.action != 'create' || request.resource.data.next == getAfter(regDoc(request.resource.data.clientId)).data.status)
+        && (request.resource.data.action != 'status' || (request.resource.data.prev == get(regDoc(request.resource.data.clientId)).data.status && request.resource.data.next == getAfter(regDoc(request.resource.data.clientId)).data.status))
+        && (request.resource.data.action != 'notes' || (request.resource.data.prev == get(regDoc(request.resource.data.clientId)).data.notes && request.resource.data.next == getAfter(regDoc(request.resource.data.clientId)).data.notes));
+    }
+    // W1 (4.5.0): WorkTrack. Owner only. Sessions and events are create-only (no edit, no delete), time is the server's (request.time).
+    // Every punch is ONE batch: a brand-new event + the current-state record moved by exactly one valid step (revision +1, counter +1).
+    // A second tab that tries the same step is refused, because the state it read is already out of date.
+    match /workState/{id} {
+      allow read: if isOwner();
+      allow create: if isOwner() && id == 'main'
+        && request.resource.data.keys().hasOnly(['state','sid','n','fb','lu','lb','lastEid','rev','updatedAt'])
+        && request.resource.data.keys().hasAll(['state','sid','n','fb','lu','lb','lastEid','rev','updatedAt'])
+        && request.resource.data.state == 'NOT_STARTED' && request.resource.data.sid == '' && request.resource.data.n == 0
+        && request.resource.data.fb == false && request.resource.data.lu == false && request.resource.data.lb == false
+        && request.resource.data.lastEid == '' && request.resource.data.rev == 1 && request.resource.data.updatedAt == request.time;
+      allow update: if isOwner() && id == 'main'
+        && request.resource.data.keys().hasOnly(['state','sid','n','fb','lu','lb','lastEid','rev','updatedAt'])
+        && request.resource.data.keys().hasAll(['state','sid','n','fb','lu','lb','lastEid','rev','updatedAt'])
+        && request.resource.data.state in ['NOT_STARTED','WORKING','FIRST_BREAK','LUNCH','LAST_BREAK']
+        && wkSid(request.resource.data.sid)
+        && request.resource.data.n is number && request.resource.data.n >= 1 && request.resource.data.n <= 12
+        && request.resource.data.fb is bool && request.resource.data.lu is bool && request.resource.data.lb is bool
+        && request.resource.data.lastEid is string && request.resource.data.lastEid.matches('^[A-Za-z0-9]{16,40}__[0-9]{1,2}$')
+        && request.resource.data.rev is number && request.resource.data.rev == resource.data.rev + 1
+        && request.resource.data.updatedAt == request.time
+        && !exists(wkEvt(request.resource.data.lastEid)) && existsAfter(wkEvt(request.resource.data.lastEid));
+    }
+    match /workSessions/{sid} {
+      allow read: if isOwner();
+      allow create: if isOwner() && wkSid(sid)
+        && request.resource.data.keys().hasOnly(['tz','date','startedAt','by'])
+        && request.resource.data.keys().hasAll(['tz','date','startedAt','by'])
+        && request.resource.data.tz is string && request.resource.data.tz.size() <= 60 && request.resource.data.tz.matches('^[A-Za-z0-9_+/-]+$')
+        && request.resource.data.date is string && request.resource.data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && request.resource.data.startedAt == request.time && request.resource.data.by == request.auth.uid
+        && existsAfter(wkEvt(sid + '__1')) && getAfter(wkEvt(sid + '__1')).data.type == 'CLOCK_IN';
+    }
+    match /workEvents/{eid} {
+      allow read: if isOwner();
+      allow create: if isOwner()
+        && request.resource.data.keys().hasOnly(['sid','n','type','at','by','reason'])
+        && request.resource.data.keys().hasAll(['sid','n','type','at','by','reason'])
+        && wkSid(request.resource.data.sid)
+        && request.resource.data.n is number && request.resource.data.n >= 1 && request.resource.data.n <= 12
+        && wkEid(request.resource.data.sid, request.resource.data.n, eid)
+        && request.resource.data.type in ['CLOCK_IN','FIRST_BREAK_OUT','FIRST_BREAK_IN','LUNCH_OUT','LUNCH_IN','LAST_BREAK_OUT','LAST_BREAK_IN','CLOCK_OUT','CLOSE_INCOMPLETE']
+        && request.resource.data.at == request.time && request.resource.data.by == request.auth.uid
+        && request.resource.data.reason is string
+        && ((request.resource.data.type == 'CLOSE_INCOMPLETE' && request.resource.data.reason.size() >= 3 && request.resource.data.reason.size() <= 200)
+            || (request.resource.data.type != 'CLOSE_INCOMPLETE' && request.resource.data.reason == ''))
+        && exists(wkState()) && existsAfter(wkState())
+        && getAfter(wkState()).data.lastEid == eid && getAfter(wkState()).data.sid == request.resource.data.sid && getAfter(wkState()).data.n == request.resource.data.n
+        && wkStep(request.resource.data.type, get(wkState()).data, getAfter(wkState()).data)
+        && (request.resource.data.type != 'CLOCK_IN' || (!exists(wkSess(request.resource.data.sid)) && existsAfter(wkSess(request.resource.data.sid))));
+    }
+    // W2 (4.5.0): client assignment on a work session. Owner only. IDs only (never a name). Every create or update is ONE batch with a BRAND-NEW
+    // audit record and revision +1. Only while the session is open, only active Client IDs can be added, a client appears once per session
+    // (removed ones can be added back), and there is no delete.
+    match /workAssign/{id} {
+      allow read: if isOwner();
+      allow create: if isOwner()
+        && request.resource.data.keys().hasOnly(['sid','clientId','status','rev','addedAt','updatedAt','lastAudit'])
+        && request.resource.data.keys().hasAll(['sid','clientId','status','rev','addedAt','updatedAt','lastAudit'])
+        && wkSid(request.resource.data.sid) && request.resource.data.clientId is string && validClientId(request.resource.data.clientId)
+        && id == request.resource.data.sid + '__' + request.resource.data.clientId
+        && request.resource.data.status == 'active' && request.resource.data.rev == 1
+        && request.resource.data.addedAt == request.time && request.resource.data.updatedAt == request.time
+        && request.resource.data.lastAudit is string && request.resource.data.lastAudit.matches('^[A-Za-z0-9]{16,40}$')
+        && !exists(waAuditRef(request.resource.data.lastAudit)) && existsAfter(waAuditRef(request.resource.data.lastAudit))
+        && wkOpen(request.resource.data.sid) && regActive(request.resource.data.clientId);
+      allow update: if isOwner()
+        && request.resource.data.keys().hasOnly(['sid','clientId','status','rev','addedAt','updatedAt','lastAudit'])
+        && request.resource.data.keys().hasAll(['sid','clientId','status','rev','addedAt','updatedAt','lastAudit'])
+        && request.resource.data.sid == resource.data.sid && request.resource.data.clientId == resource.data.clientId
+        && request.resource.data.addedAt == resource.data.addedAt && request.resource.data.updatedAt == request.time
+        && request.resource.data.status in ['active','removed'] && request.resource.data.status != resource.data.status
+        && request.resource.data.rev is number && request.resource.data.rev == resource.data.rev + 1
+        && request.resource.data.lastAudit is string && request.resource.data.lastAudit.matches('^[A-Za-z0-9]{16,40}$')
+        && !exists(waAuditRef(request.resource.data.lastAudit)) && existsAfter(waAuditRef(request.resource.data.lastAudit))
+        && wkOpen(request.resource.data.sid)
+        && (request.resource.data.status == 'removed' || regActive(request.resource.data.clientId));
+    }
+    match /workAssignAudit/{aid} {
+      allow read: if isOwner();
+      allow create: if isOwner() && aid.matches('^[A-Za-z0-9]{16,40}$')
+        && request.resource.data.keys().hasOnly(['sid','clientId','action','reason','rev','actor','createdAt'])
+        && request.resource.data.keys().hasAll(['sid','clientId','action','reason','rev','actor','createdAt'])
+        && wkSid(request.resource.data.sid) && request.resource.data.clientId is string && validClientId(request.resource.data.clientId)
+        && request.resource.data.action in ['add','remove','readd']
+        && request.resource.data.reason is string && request.resource.data.reason.size() <= 200
+        && request.resource.data.rev is number
+        && request.resource.data.actor == request.auth.uid && request.resource.data.createdAt == request.time
+        && existsAfter(waRef(request.resource.data.sid + '__' + request.resource.data.clientId))
+        && getAfter(waRef(request.resource.data.sid + '__' + request.resource.data.clientId)).data.lastAudit == aid
+        && getAfter(waRef(request.resource.data.sid + '__' + request.resource.data.clientId)).data.rev == request.resource.data.rev
+        && ((request.resource.data.action == 'add') == (request.resource.data.rev == 1))
+        && (request.resource.data.action != 'add' || (!exists(waRef(request.resource.data.sid + '__' + request.resource.data.clientId)) && getAfter(waRef(request.resource.data.sid + '__' + request.resource.data.clientId)).data.status == 'active'))
+        && (request.resource.data.action != 'remove' || (get(waRef(request.resource.data.sid + '__' + request.resource.data.clientId)).data.status == 'active' && getAfter(waRef(request.resource.data.sid + '__' + request.resource.data.clientId)).data.status == 'removed'))
+        && (request.resource.data.action != 'readd' || (get(waRef(request.resource.data.sid + '__' + request.resource.data.clientId)).data.status == 'removed' && getAfter(waRef(request.resource.data.sid + '__' + request.resource.data.clientId)).data.status == 'active'));
+    }
+    // W3 (4.5.0): sealed log. A seal is create-only, its ID is its own fingerprint, and it is always written together with the chain head record
+    // (the head moves exactly one step: number +1, previous fingerprint = the old head). No edit, no delete.
+    match /workSeals/{h} {
+      allow read: if isOwner();
+      allow create: if isOwner() && isHex64(h)
+        && request.resource.data.keys().hasOnly(['n','prev','hash','kind','ids','upto','legacyN','at','by'])
+        && request.resource.data.keys().hasAll(['n','prev','hash','kind','ids','upto','legacyN','at','by'])
+        && request.resource.data.hash == h && isHex64(request.resource.data.prev)
+        && request.resource.data.n is int && request.resource.data.n >= 1 && request.resource.data.n <= 1000000
+        && request.resource.data.kind in ['genesis','records']
+        && request.resource.data.ids is list && request.resource.data.ids.size() <= 30
+        && request.resource.data.upto is number && request.resource.data.upto >= 0
+        && request.resource.data.legacyN is number && request.resource.data.legacyN >= 0 && request.resource.data.legacyN <= 100000
+        && request.resource.data.at == request.time && request.resource.data.by == request.auth.uid
+        && ((request.resource.data.kind == 'genesis' && request.resource.data.n == 1 && request.resource.data.prev == '0000000000000000000000000000000000000000000000000000000000000000' && request.resource.data.ids.size() == 0)
+            || (request.resource.data.kind == 'records' && request.resource.data.n >= 2 && request.resource.data.ids.size() >= 1 && request.resource.data.upto == 0 && request.resource.data.legacyN == 0))
+        && existsAfter(wkChainRef()) && getAfter(wkChainRef()).data.head == h && getAfter(wkChainRef()).data.cn == request.resource.data.n
+        && ((request.resource.data.n == 1 && !exists(wkChainRef()))
+            || (request.resource.data.n > 1 && exists(wkChainRef()) && get(wkChainRef()).data.head == request.resource.data.prev && get(wkChainRef()).data.cn + 1 == request.resource.data.n));
+    }
+    match /workChain/{id} {
+      allow read: if isOwner();
+      allow create: if isOwner() && id == 'main'
+        && request.resource.data.keys().hasOnly(['cn','head','updatedAt'])
+        && request.resource.data.keys().hasAll(['cn','head','updatedAt'])
+        && request.resource.data.cn == 1 && isHex64(request.resource.data.head) && request.resource.data.updatedAt == request.time
+        && !exists(wkSealRef(request.resource.data.head)) && existsAfter(wkSealRef(request.resource.data.head))
+        && getAfter(wkSealRef(request.resource.data.head)).data.n == 1 && getAfter(wkSealRef(request.resource.data.head)).data.kind == 'genesis';
+      allow update: if isOwner() && id == 'main'
+        && request.resource.data.keys().hasOnly(['cn','head','updatedAt'])
+        && request.resource.data.keys().hasAll(['cn','head','updatedAt'])
+        && request.resource.data.cn is int && request.resource.data.cn == resource.data.cn + 1
+        && isHex64(request.resource.data.head) && request.resource.data.updatedAt == request.time
+        && !exists(wkSealRef(request.resource.data.head)) && existsAfter(wkSealRef(request.resource.data.head))
+        && getAfter(wkSealRef(request.resource.data.head)).data.n == request.resource.data.cn
+        && getAfter(wkSealRef(request.resource.data.head)).data.prev == resource.data.head;
+    }
+    // W3 (4.5.0): corrections. A closed session is never edited: a correction is a NEW create-only record with a reason, allowed only for 24 hours after
+    // the session's closing punch (measured with the database's clock). Four kinds: change the time of a punch, add a missed break (out and in),
+    // add a client, remove a client. Whether the corrected day is still in a valid order is checked by the page (rules cannot sort).
+    match /workCorrections/{cid} {
+      allow read: if isOwner();
+      allow create: if isOwner() && cid.matches('^[A-Za-z0-9]{16,40}$')
+        && request.resource.data.keys().hasOnly(['sid','kind','n','type','clientId','at','at2','reason','closeEid','closeN','by','createdAt'])
+        && request.resource.data.keys().hasAll(['sid','kind','n','type','clientId','at','at2','reason','closeEid','closeN','by','createdAt'])
+        && wkSid(request.resource.data.sid)
+        && request.resource.data.kind in ['TIME','ADD','CLIENT_ADD','CLIENT_REMOVE']
+        && request.resource.data.reason is string && request.resource.data.reason.size() >= 3 && request.resource.data.reason.size() <= 200
+        && request.resource.data.by == request.auth.uid && request.resource.data.createdAt == request.time
+        && request.resource.data.closeN is number && request.resource.data.closeN >= 1 && request.resource.data.closeN <= 12
+        && wkEid(request.resource.data.sid, request.resource.data.closeN, request.resource.data.closeEid)
+        && exists(wkEvt(request.resource.data.closeEid)) && get(wkEvt(request.resource.data.closeEid)).data.sid == request.resource.data.sid
+        && get(wkEvt(request.resource.data.closeEid)).data.type in ['CLOCK_OUT','CLOSE_INCOMPLETE']
+        && request.time < get(wkEvt(request.resource.data.closeEid)).data.at + duration.value(24, 'h')
+        && exists(wkSess(request.resource.data.sid))
+        && exists(wkState()) && (get(wkState()).data.sid != request.resource.data.sid || get(wkState()).data.state == 'NOT_STARTED')
+        && ((request.resource.data.kind == 'TIME'
+              && request.resource.data.n is number && request.resource.data.n >= 1 && request.resource.data.n <= 12
+              && request.resource.data.type == '' && request.resource.data.clientId == ''
+              && request.resource.data.at is timestamp && request.resource.data.at2 == null
+              && request.resource.data.at <= request.time && request.resource.data.at > get(wkEvt(request.resource.data.closeEid)).data.at - duration.value(48, 'h'))
+            || (request.resource.data.kind == 'ADD'
+              && request.resource.data.n == 0 && request.resource.data.type in ['FIRST_BREAK','LUNCH','LAST_BREAK'] && request.resource.data.clientId == ''
+              && request.resource.data.at is timestamp && request.resource.data.at2 is timestamp
+              && request.resource.data.at2 > request.resource.data.at && request.resource.data.at2 <= request.time
+              && request.resource.data.at > get(wkEvt(request.resource.data.closeEid)).data.at - duration.value(48, 'h'))
+            || (request.resource.data.kind == 'CLIENT_ADD'
+              && request.resource.data.n == 0 && request.resource.data.type == ''
+              && request.resource.data.clientId is string && validClientId(request.resource.data.clientId)
+              && request.resource.data.at == null && request.resource.data.at2 == null && regActive(request.resource.data.clientId))
+            || (request.resource.data.kind == 'CLIENT_REMOVE'
+              && request.resource.data.n == 0 && request.resource.data.type == ''
+              && request.resource.data.clientId is string && validClientId(request.resource.data.clientId)
+              && request.resource.data.at == null && request.resource.data.at2 == null));
+    }
+    // W3 (4.5.0): work settings (time zone for NEW sessions, first weekday of the week). Owner only; each change keeps the value it replaced.
+    match /workSettings/{id} {
+      allow read: if isOwner();
+      allow create: if isOwner() && id == 'main'
+        && request.resource.data.keys().hasOnly(['tz','weekStart','prevTz','prevWeekStart','rev','updatedAt'])
+        && request.resource.data.keys().hasAll(['tz','weekStart','prevTz','prevWeekStart','rev','updatedAt'])
+        && request.resource.data.tz is string && request.resource.data.tz.size() <= 60 && request.resource.data.tz.matches('^[A-Za-z0-9_+/-]+$')
+        && request.resource.data.weekStart in ['mon','tue','wed','thu','fri','sat','sun']
+        && request.resource.data.prevTz == '' && request.resource.data.prevWeekStart == ''
+        && request.resource.data.rev == 1 && request.resource.data.updatedAt == request.time;
+      allow update: if isOwner() && id == 'main'
+        && request.resource.data.keys().hasOnly(['tz','weekStart','prevTz','prevWeekStart','rev','updatedAt'])
+        && request.resource.data.keys().hasAll(['tz','weekStart','prevTz','prevWeekStart','rev','updatedAt'])
+        && request.resource.data.tz is string && request.resource.data.tz.size() <= 60 && request.resource.data.tz.matches('^[A-Za-z0-9_+/-]+$')
+        && request.resource.data.weekStart in ['mon','tue','wed','thu','fri','sat','sun']
+        && request.resource.data.prevTz == resource.data.tz && request.resource.data.prevWeekStart == resource.data.weekStart
+        && request.resource.data.rev is number && request.resource.data.rev == resource.data.rev + 1 && request.resource.data.updatedAt == request.time;
+    }
+    // B1 (4.5.0): billing profile, one per Client ID (the document ID IS the Client ID, which must exist in the registry). Never a name or contact detail.
+    // Every create and change is ONE batch with a brand-new audit record (revision +1). No delete. A currency change affects new invoices only (there are none yet).
+    match /billingProfiles/{id} {
+      allow read: if isOwner();
+      allow create: if isOwner() && validClientId(id) && (regActive(id) || (!exists(regDoc(id)) && existsAfter(regDoc(id)) && getAfter(regDoc(id)).data.status == 'active')) && bpOk(request.resource.data)
+        && request.resource.data.rev == 1
+        && request.resource.data.createdAt == request.time && request.resource.data.updatedAt == request.time
+        && !exists(bpAudit(request.resource.data.lastAudit)) && existsAfter(bpAudit(request.resource.data.lastAudit));
+      allow update: if isOwner() && validClientId(id) && exists(regDoc(id)) && bpOk(request.resource.data)
+        && request.resource.data.rev == resource.data.rev + 1
+        && request.resource.data.createdAt == resource.data.createdAt && request.resource.data.updatedAt == request.time
+        && !exists(bpAudit(request.resource.data.lastAudit)) && existsAfter(bpAudit(request.resource.data.lastAudit));
+    }
+    match /billingProfileAudit/{aid} {
+      allow read: if isOwner();
+      allow create: if isOwner() && plainKey(aid)
+        && request.resource.data.keys().hasOnly(['clientId','action','rev','currency','rateMinor','arrangement','summary','reason','actor','createdAt'])
+        && request.resource.data.keys().hasAll(['clientId','action','rev','currency','rateMinor','arrangement','summary','reason','actor','createdAt'])
+        && request.resource.data.clientId is string && validClientId(request.resource.data.clientId)
+        && request.resource.data.action in ['create','update']
+        && request.resource.data.rev is int
+        && request.resource.data.summary is string && request.resource.data.summary.size() >= 1 && request.resource.data.summary.size() <= 300
+        && request.resource.data.reason is string && request.resource.data.reason.size() <= 200
+        && (request.resource.data.action != 'update' || request.resource.data.reason.size() >= 3)
+        && request.resource.data.actor == request.auth.uid && request.resource.data.createdAt == request.time
+        && existsAfter(bpDoc(request.resource.data.clientId))
+        && getAfter(bpDoc(request.resource.data.clientId)).data.lastAudit == aid
+        && getAfter(bpDoc(request.resource.data.clientId)).data.rev == request.resource.data.rev
+        && getAfter(bpDoc(request.resource.data.clientId)).data.currency == request.resource.data.currency
+        && getAfter(bpDoc(request.resource.data.clientId)).data.rateMinor == request.resource.data.rateMinor
+        && getAfter(bpDoc(request.resource.data.clientId)).data.arrangement == request.resource.data.arrangement
+        && ((request.resource.data.action == 'create') == (request.resource.data.rev == 1))
+        && (request.resource.data.action == 'create' || (exists(bpDoc(request.resource.data.clientId)) && get(bpDoc(request.resource.data.clientId)).data.rev + 1 == request.resource.data.rev));
+    }
+    // B1 (4.5.0): billable hours. The ID is CLIENTID__YYYYMMDD__YYYYMMDD__NN (client, period start, period end, sequence), so one entry exists per client, period and sequence number.
+    // DRAFT -> SUBMITTED -> APPROVED (self-approved: the approver and the server time are stored). An approved entry never changes its minutes: a later change is a NEW entry
+    // that points back to it, and the old one becomes SUPERSEDED in the same batch. Every step has its own brand-new audit record. No delete.
+    // Every change to an existing billable entry (n = after the write, o = before it).
+    function beUpdateOk(id, n, o) {
+      return beOk(n)
+        && n.clientId == o.clientId && n.periodStart == o.periodStart
+        && n.periodEnd == o.periodEnd && n.seq == o.seq
+        && n.createdAt == o.createdAt && n.supersedes == o.supersedes
+        && n.rev == o.rev + 1 && n.updatedAt == request.time
+        && !exists(beAudit(n.lastAudit)) && existsAfter(beAudit(n.lastAudit))
+        && (
+          // edit a draft
+          (o.status == 'DRAFT' && n.status == 'DRAFT' && n.relatedInvoiceId == o.relatedInvoiceId
+            && n.approvedMinutes == null && n.approvedAt == null && n.approverUid == '' && n.supersededBy == '')
+          // submit
+          || (o.status == 'DRAFT' && n.status == 'SUBMITTED' && n.relatedInvoiceId == o.relatedInvoiceId
+            && n.submittedMinutes == o.submittedMinutes && n.note == o.note
+            && n.approvedMinutes == null && n.approvedAt == null && n.approverUid == '' && n.supersededBy == '')
+          // reopen
+          || (o.status == 'SUBMITTED' && n.status == 'DRAFT' && n.relatedInvoiceId == o.relatedInvoiceId
+            && n.submittedMinutes == o.submittedMinutes && n.note == o.note
+            && n.approvedMinutes == null && n.approvedAt == null && n.approverUid == '' && n.supersededBy == '')
+          // approve (self-approved)
+          || (o.status == 'SUBMITTED' && n.status == 'APPROVED' && n.relatedInvoiceId == o.relatedInvoiceId
+            && n.submittedMinutes == o.submittedMinutes && n.note == o.note
+            && n.approvedMinutes != null && n.approvedAt == request.time
+            && n.approverUid == request.auth.uid && n.supersededBy == '')
+          // replaced by a newer entry (created in the same batch)
+          || (o.status == 'APPROVED' && n.status == 'SUPERSEDED' && o.relatedInvoiceId == '' && n.relatedInvoiceId == ''
+            && n.submittedMinutes == o.submittedMinutes && n.approvedMinutes == o.approvedMinutes
+            && n.approvedAt == o.approvedAt && n.approverUid == o.approverUid && n.note == o.note
+            && n.supersededBy.size() > 0
+            && existsAfter(beDoc(n.supersededBy)) && getAfter(beDoc(n.supersededBy)).data.supersedes == id
+            && getAfter(beDoc(n.supersededBy)).data.status == 'DRAFT')
+          // B2: put on a new draft invoice (made in the same batch and listing this entry); the hours stay exactly as approved
+          || (o.status == 'APPROVED' && n.status == 'APPROVED' && o.relatedInvoiceId == '' && n.relatedInvoiceId != ''
+            && n.submittedMinutes == o.submittedMinutes && n.approvedMinutes == o.approvedMinutes
+            && n.approvedAt == o.approvedAt && n.approverUid == o.approverUid && n.note == o.note
+            && n.supersededBy == o.supersededBy
+            && beLinkInvOk(n.relatedInvoiceId, id, o.clientId))
+          // B2: released when its draft or ready invoice is cancelled in the same batch
+          || (o.status == 'APPROVED' && n.status == 'APPROVED' && o.relatedInvoiceId != '' && n.relatedInvoiceId == ''
+            && n.submittedMinutes == o.submittedMinutes && n.approvedMinutes == o.approvedMinutes
+            && n.approvedAt == o.approvedAt && n.approverUid == o.approverUid && n.note == o.note
+            && n.supersededBy == o.supersededBy
+            && beUnlinkInvOk(o.relatedInvoiceId))
+        );
+    }
+    match /billableEntries/{id} {
+      allow read: if isOwner();
+      allow create: if isOwner() && beOk(request.resource.data)
+        && id == request.resource.data.clientId + '__' + request.resource.data.periodStart + '__' + request.resource.data.periodEnd + '__' + request.resource.data.seq
+        && regActive(request.resource.data.clientId) && exists(bpDoc(request.resource.data.clientId))
+        && request.resource.data.status == 'DRAFT' && request.resource.data.rev == 1
+        && request.resource.data.approvedMinutes == null && request.resource.data.approvedAt == null && request.resource.data.approverUid == ''
+        && request.resource.data.relatedInvoiceId == '' && request.resource.data.supersededBy == ''
+        && request.resource.data.createdAt == request.time && request.resource.data.updatedAt == request.time
+        && !exists(beAudit(request.resource.data.lastAudit)) && existsAfter(beAudit(request.resource.data.lastAudit))
+        && (request.resource.data.supersedes == ''
+            || (exists(beDoc(request.resource.data.supersedes)) && get(beDoc(request.resource.data.supersedes)).data.status == 'APPROVED'
+                && get(beDoc(request.resource.data.supersedes)).data.clientId == request.resource.data.clientId
+                && get(beDoc(request.resource.data.supersedes)).data.periodStart == request.resource.data.periodStart
+                && get(beDoc(request.resource.data.supersedes)).data.periodEnd == request.resource.data.periodEnd
+                && existsAfter(beDoc(request.resource.data.supersedes)) && getAfter(beDoc(request.resource.data.supersedes)).data.status == 'SUPERSEDED'
+                && getAfter(beDoc(request.resource.data.supersedes)).data.supersededBy == id));
+      allow update: if isOwner() && beUpdateOk(id, request.resource.data, resource.data);
+    }
+    match /billableEntryAudit/{aid} {
+      allow read: if isOwner();
+      allow create: if isOwner() && plainKey(aid)
+        && request.resource.data.keys().hasOnly(['entryId','clientId','action','fromStatus','toStatus','rev','submittedMinutes','approvedMinutes','reason','actor','createdAt'])
+        && request.resource.data.keys().hasAll(['entryId','clientId','action','fromStatus','toStatus','rev','submittedMinutes','approvedMinutes','reason','actor','createdAt'])
+        && request.resource.data.entryId is string && request.resource.data.entryId.size() <= 80
+        && request.resource.data.clientId is string && validClientId(request.resource.data.clientId)
+        && request.resource.data.fromStatus in ['','DRAFT','SUBMITTED','APPROVED'] && request.resource.data.toStatus in ['DRAFT','SUBMITTED','APPROVED','SUPERSEDED']
+        && request.resource.data.reason is string && request.resource.data.reason.size() <= 200
+        && request.resource.data.rev is int
+        && request.resource.data.actor == request.auth.uid && request.resource.data.createdAt == request.time
+        && existsAfter(beDoc(request.resource.data.entryId))
+        && getAfter(beDoc(request.resource.data.entryId)).data.lastAudit == aid
+        && getAfter(beDoc(request.resource.data.entryId)).data.rev == request.resource.data.rev
+        && getAfter(beDoc(request.resource.data.entryId)).data.status == request.resource.data.toStatus
+        && getAfter(beDoc(request.resource.data.entryId)).data.clientId == request.resource.data.clientId
+        && getAfter(beDoc(request.resource.data.entryId)).data.submittedMinutes == request.resource.data.submittedMinutes
+        && getAfter(beDoc(request.resource.data.entryId)).data.approvedMinutes == request.resource.data.approvedMinutes
+        && ((request.resource.data.action == 'create' && request.resource.data.rev == 1 && request.resource.data.fromStatus == '' && request.resource.data.toStatus == 'DRAFT'
+              && (getAfter(beDoc(request.resource.data.entryId)).data.supersedes == '' || request.resource.data.reason.size() >= 3))
+            || (request.resource.data.action == 'edit' && request.resource.data.fromStatus == 'DRAFT' && request.resource.data.toStatus == 'DRAFT')
+            || (request.resource.data.action == 'submit' && request.resource.data.fromStatus == 'DRAFT' && request.resource.data.toStatus == 'SUBMITTED')
+            || (request.resource.data.action == 'reopen' && request.resource.data.fromStatus == 'SUBMITTED' && request.resource.data.toStatus == 'DRAFT' && request.resource.data.reason.size() >= 3)
+            || (request.resource.data.action == 'approve' && request.resource.data.fromStatus == 'SUBMITTED' && request.resource.data.toStatus == 'APPROVED')
+            || (request.resource.data.action == 'supersede' && request.resource.data.fromStatus == 'APPROVED' && request.resource.data.toStatus == 'SUPERSEDED' && request.resource.data.reason.size() >= 3)
+            || (request.resource.data.action == 'link' && request.resource.data.fromStatus == 'APPROVED' && request.resource.data.toStatus == 'APPROVED' && getAfter(beDoc(request.resource.data.entryId)).data.relatedInvoiceId != '')
+            || (request.resource.data.action == 'unlink' && request.resource.data.fromStatus == 'APPROVED' && request.resource.data.toStatus == 'APPROVED' && getAfter(beDoc(request.resource.data.entryId)).data.relatedInvoiceId == '' && request.resource.data.reason.size() >= 3))
+        && (request.resource.data.action == 'create'
+            || (exists(beDoc(request.resource.data.entryId)) && get(beDoc(request.resource.data.entryId)).data.status == request.resource.data.fromStatus
+                && get(beDoc(request.resource.data.entryId)).data.rev + 1 == request.resource.data.rev));
+    }
+    // B1 (4.5.0): which old client record became which Client ID. Create-only; the ID is the old record's ID. Written in the same batch as the new billing profile
+    // (which must NOT exist yet, so two old records can never share one profile). Never holds a name or contact detail.
+    match /billingMigration/{lid} {
+      allow read: if isOwner();
+      allow create: if isOwner() && lid.matches('^[A-Za-z0-9]{10,40}$')
+        && request.resource.data.keys().hasOnly(['clientId','profileNew','registryNew','arrangement','by','createdAt'])
+        && request.resource.data.keys().hasAll(['clientId','profileNew','registryNew','arrangement','by','createdAt'])
+        && request.resource.data.clientId is string && validClientId(request.resource.data.clientId)
+        && request.resource.data.profileNew == true && request.resource.data.registryNew is bool
+        && request.resource.data.arrangement in ['hourly','monthly']
+        && request.resource.data.by == request.auth.uid && request.resource.data.createdAt == request.time
+        && !exists(bpDoc(request.resource.data.clientId)) && existsAfter(bpDoc(request.resource.data.clientId))
+        && getAfter(bpDoc(request.resource.data.clientId)).data.rev == 1
+        && getAfter(bpDoc(request.resource.data.clientId)).data.arrangement == request.resource.data.arrangement
+        && ((request.resource.data.registryNew == true && !exists(regDoc(request.resource.data.clientId)) && existsAfter(regDoc(request.resource.data.clientId)))
+            || (request.resource.data.registryNew == false && regActive(request.resource.data.clientId)));
+    }
+    // B2 (4.5.0): invoices, payments, reversals, adjustments and due-date changes. Owner only. Money is whole minor units. Every change is ONE batch that pairs the invoice
+    // update with a brand-new record (the "paired write"), so the cached balance on the invoice can never move without a record that explains it.
+    // Rules cannot loop or divide: an invoice holds at most 2 approved entries (their minutes are added up here) and the half-up total is checked as an inequality.
+    // Payment dates and due-date maths are checked by the page; the rules check the date FORMAT only.
+    // Entry side of the invoice link, written with let so each invoice is read once (a write may use at most 1000 rule steps; a missing invoice makes the read fail, which refuses the write).
+    function beLinkInvOk(rel, id, cid) {
+      let i = getAfter(invDoc(rel)).data;
+      return !exists(invDoc(rel)) && i.status == 'DRAFT' && i.clientId == cid && id in i.entryIds;
+    }
+    function beUnlinkInvOk(rel) {
+      let b = get(invDoc(rel)).data;
+      let a = getAfter(invDoc(rel)).data;
+      return (b.status == 'DRAFT' || b.status == 'READY') && a.status == 'CANCELLED';
+    }
+    function invDoc(id) { return /databases/$(database)/documents/invoices/$(id); }
+    function invAudit(aid) { return /databases/$(database)/documents/invoiceAudit/$(aid); }
+    function payDoc(pid) { return /databases/$(database)/documents/payments/$(pid); }
+    function revDoc(pid) { return /databases/$(database)/documents/paymentReversals/$(pid); }
+    function adjDoc(aid) { return /databases/$(database)/documents/invoiceAdjustments/$(aid); }
+    function dueDoc(did) { return /databases/$(database)/documents/invoiceDueDates/$(did); }
+    function dateFmt(s) { return s is string && s.matches('^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$'); }
+    function invBaseId(d) { return d.clientId + '__' + d.periodStart + '__' + d.periodEnd; }
+    function invOk(d) {
+      return d.keys().hasOnly(['clientId','periodStart','periodEnd','suffix','currency','exp','rateMinor','tz','dueKind','dueDays','dueDate','entryIds','minutes','totalMinor','status','sentAt','paidMinor','creditMinor','adjMinor','rev','createdAt','updatedAt','lastKind','lastRef'])
+        && d.clientId is string && validClientId(d.clientId)
+        && d.periodStart is string && d.periodStart.matches('^[0-9]{8}$') && d.periodEnd is string && d.periodEnd.matches('^[0-9]{8}$') && d.periodEnd >= d.periodStart
+        && d.suffix is string && d.suffix.matches('^$|^(0[2-9]|[1-9][0-9])$')
+        && d.currency is string && d.exp is int && curExp(d.currency, d.exp)
+        && d.rateMinor is int && d.rateMinor >= 1 && d.rateMinor <= 1000000000
+        && d.tz is string && d.tz.size() <= 60 && d.tz.matches('^[A-Za-z0-9_+/-]+$')
+        && d.dueKind in ['fixed','afterSend','afterGeneration'] && d.dueDays is int && d.dueDays >= 0 && d.dueDays <= 365
+        && d.dueDate is string && d.dueDate.matches('^$|^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && d.entryIds is list && d.entryIds.size() >= 1 && d.entryIds.size() <= 2
+        && d.minutes is int && d.minutes >= 1 && d.minutes <= 267840
+        && d.totalMinor is int && d.totalMinor >= 0 && d.totalMinor <= 1000000000000
+        && d.status in ['DRAFT','READY','SENT','CANCELLED']
+        && (d.sentAt == null || d.sentAt is timestamp)
+        && d.paidMinor is int && d.paidMinor >= 0 && d.paidMinor <= 1000000000000
+        && d.creditMinor is int && d.creditMinor >= 0 && d.creditMinor <= 1000000000000
+        && d.adjMinor is int && d.adjMinor >= -1000000000000 && d.adjMinor <= 1000000000000
+        && d.rev is int && d.rev >= 1
+        && d.lastKind in ['create','ready','send','cancel','payment','credit','reversal','adjustment','due']
+        && plainKey(d.lastRef);
+    }
+    // The fields an invoice can never change after it is made.
+    function invFixed(n, o) {
+      return n.clientId == o.clientId && n.periodStart == o.periodStart && n.periodEnd == o.periodEnd && n.suffix == o.suffix
+        && n.currency == o.currency && n.exp == o.exp && n.rateMinor == o.rateMinor && n.tz == o.tz && n.dueKind == o.dueKind && n.dueDays == o.dueDays
+        && n.entryIds == o.entryIds && n.minutes == o.minutes && n.totalMinor == o.totalMinor && n.createdAt == o.createdAt;
+    }
+    function invMoneySame(n, o) { return n.paidMinor == o.paidMinor && n.creditMinor == o.creditMinor && n.adjMinor == o.adjMinor; }
+    // Approved minutes of a listed entry as it will be after this batch, and the list of entries all being approved, linked to this invoice, same client and period.
+    function invEntData(e, iid, d) {
+      return e.status == 'APPROVED' && e.relatedInvoiceId == iid && e.clientId == d.clientId && e.periodStart == d.periodStart && e.periodEnd == d.periodEnd;
+    }
+    function invEnt2(iid, d, a) {
+      let b = getAfter(beDoc(d.entryIds[1])).data;
+      return d.entryIds[0] != d.entryIds[1] && invEntData(b, iid, d) && d.minutes == a.approvedMinutes + b.approvedMinutes;
+    }
+    // A missing entry makes getAfter fail, which refuses the write.
+    function invEntsOk(iid, d) {
+      let a = getAfter(beDoc(d.entryIds[0])).data;
+      return invEntData(a, iid, d) && ((d.entryIds.size() == 1 && d.minutes == a.approvedMinutes) || (d.entryIds.size() == 2 && invEnt2(iid, d, a)));
+    }
+    // total = round-half-up(rate x minutes / 60), written without division: 120 x total <= 2 x rate x minutes + 60 < 120 x (total + 1)
+    function invTotalOk(d) {
+      return 120 * d.totalMinor <= 2 * d.rateMinor * d.minutes + 60 && 2 * d.rateMinor * d.minutes + 60 < 120 * (d.totalMinor + 1);
+    }
+    function invDueOk(d, p) {
+      return (p.dueKind == 'fixed' && d.dueDate == p.dueDate) || (p.dueKind == 'afterGeneration' && dateFmt(d.dueDate)) || (p.dueKind == 'afterSend' && d.dueDate == '');
+    }
+    function invUnl2(d) { return getAfter(beDoc(d.entryIds[1])).data.relatedInvoiceId == ''; }
+    function invUnlinked(d) {
+      let a = getAfter(beDoc(d.entryIds[0])).data;
+      return a.relatedInvoiceId == '' && (d.entryIds.size() == 1 || (d.entryIds.size() == 2 && invUnl2(d)));
+    }
+    // Everything an invoice must satisfy when it is made. The billing profile is read once (rules allow only so many steps per write).
+    function invCreateOk(id, d) {
+      let bp = get(bpDoc(d.clientId)).data;
+      return invOk(d)
+        && ((d.suffix == '' && id == invBaseId(d)) || (d.suffix != '' && id == invBaseId(d) + '__' + d.suffix))
+        && regActive(d.clientId) && bp.arrangement == 'hourly' && bp.rateMinor >= 1
+        && d.currency == bp.currency && d.exp == bp.exp && d.rateMinor == bp.rateMinor && d.tz == bp.tz
+        && d.dueKind == bp.dueKind && d.dueDays == bp.dueDays && invDueOk(d, bp)
+        && d.status == 'DRAFT' && d.sentAt == null && d.paidMinor == 0 && d.creditMinor == 0 && d.adjMinor == 0
+        && d.rev == 1 && d.lastKind == 'create' && d.createdAt == request.time && d.updatedAt == request.time
+        && invTotalOk(d) && invEntsOk(id, d)
+        && !exists(invAudit(d.lastRef)) && existsAfter(invAudit(d.lastRef));
+    }
+    // Every change to an existing invoice (n = the invoice after the write, o = before it). One shared function so each value is read once.
+    function invUpdateOk(id, n, o) {
+      return invOk(n) && invFixed(n, o)
+        && n.rev == o.rev + 1 && n.updatedAt == request.time
+        && (
+          // draft -> ready
+          (n.lastKind == 'ready' && o.status == 'DRAFT' && n.status == 'READY'
+            && n.sentAt == null && n.dueDate == o.dueDate && invMoneySame(n, o)
+            && !exists(invAudit(n.lastRef)) && existsAfter(invAudit(n.lastRef)))
+          // ready -> sent (the sent time is the server time; "after sending" due dates are fixed now)
+          || (n.lastKind == 'send' && o.status == 'READY' && n.status == 'SENT'
+            && n.sentAt == request.time && invMoneySame(n, o)
+            && ((o.dueKind == 'afterSend' && dateFmt(n.dueDate)) || (o.dueKind != 'afterSend' && n.dueDate == o.dueDate))
+            && !exists(invAudit(n.lastRef)) && existsAfter(invAudit(n.lastRef)))
+          // draft or ready -> cancelled (its entries are released in the same batch)
+          || (n.lastKind == 'cancel' && (o.status == 'DRAFT' || o.status == 'READY') && n.status == 'CANCELLED'
+            && n.sentAt == null && n.dueDate == o.dueDate && invMoneySame(n, o)
+            && invUnlinked(o)
+            && !exists(invAudit(n.lastRef)) && existsAfter(invAudit(n.lastRef)))
+          // a payment is recorded (only on a sent invoice; never more than the invoice total)
+          || (n.lastKind == 'payment' && o.status == 'SENT' && n.status == 'SENT'
+            && n.sentAt == o.sentAt && n.dueDate == o.dueDate
+            && n.creditMinor == o.creditMinor && n.adjMinor == o.adjMinor
+            && n.paidMinor > o.paidMinor && n.paidMinor <= o.totalMinor + o.adjMinor
+            && !exists(payDoc(n.lastRef)) && existsAfter(payDoc(n.lastRef))
+            && getAfter(payDoc(n.lastRef)).data.invoiceId == id && getAfter(payDoc(n.lastRef)).data.kind == 'payment'
+            && getAfter(payDoc(n.lastRef)).data.amountMinor == n.paidMinor - o.paidMinor)
+          // money received beyond a fully paid invoice, recorded as a credit
+          || (n.lastKind == 'credit' && o.status == 'SENT' && n.status == 'SENT'
+            && n.sentAt == o.sentAt && n.dueDate == o.dueDate
+            && n.paidMinor == o.paidMinor && n.adjMinor == o.adjMinor
+            && o.paidMinor == o.totalMinor + o.adjMinor && n.creditMinor > o.creditMinor
+            && !exists(payDoc(n.lastRef)) && existsAfter(payDoc(n.lastRef))
+            && getAfter(payDoc(n.lastRef)).data.invoiceId == id && getAfter(payDoc(n.lastRef)).data.kind == 'credit'
+            && getAfter(payDoc(n.lastRef)).data.amountMinor == n.creditMinor - o.creditMinor)
+          // a whole payment is reversed (the reversal's ID is the payment's ID, so it can happen once)
+          || (n.lastKind == 'reversal' && o.status == 'SENT' && n.status == 'SENT'
+            && n.sentAt == o.sentAt && n.dueDate == o.dueDate && n.adjMinor == o.adjMinor
+            && exists(payDoc(n.lastRef)) && get(payDoc(n.lastRef)).data.invoiceId == id
+            && !exists(revDoc(n.lastRef)) && existsAfter(revDoc(n.lastRef))
+            && ((get(payDoc(n.lastRef)).data.kind == 'payment' && o.creditMinor == 0 && n.creditMinor == 0
+                  && n.paidMinor == o.paidMinor - get(payDoc(n.lastRef)).data.amountMinor)
+                || (get(payDoc(n.lastRef)).data.kind == 'credit' && n.paidMinor == o.paidMinor
+                  && n.creditMinor == o.creditMinor - get(payDoc(n.lastRef)).data.amountMinor)))
+          // an adjustment after sending (never below what was already paid; not while a credit is held)
+          || (n.lastKind == 'adjustment' && o.status == 'SENT' && n.status == 'SENT'
+            && n.sentAt == o.sentAt && n.dueDate == o.dueDate
+            && n.paidMinor == o.paidMinor && n.creditMinor == o.creditMinor && o.creditMinor == 0
+            && n.adjMinor != o.adjMinor && o.totalMinor + n.adjMinor >= o.paidMinor
+            && !exists(adjDoc(n.lastRef)) && existsAfter(adjDoc(n.lastRef))
+            && getAfter(adjDoc(n.lastRef)).data.invoiceId == id
+            && getAfter(adjDoc(n.lastRef)).data.amountMinor == n.adjMinor - o.adjMinor)
+          // the due date is changed after sending (old and new date and a reason are recorded)
+          || (n.lastKind == 'due' && o.status == 'SENT' && n.status == 'SENT'
+            && n.sentAt == o.sentAt && invMoneySame(n, o)
+            && n.dueDate != o.dueDate && dateFmt(n.dueDate)
+            && !exists(dueDoc(n.lastRef)) && existsAfter(dueDoc(n.lastRef))
+            && getAfter(dueDoc(n.lastRef)).data.invoiceId == id
+            && getAfter(dueDoc(n.lastRef)).data.previous == o.dueDate && getAfter(dueDoc(n.lastRef)).data.next == n.dueDate)
+        );
+    }
+    match /invoices/{id} {
+      allow read: if isOwner();
+      allow create: if isOwner() && invCreateOk(id, request.resource.data);
+      allow update: if isOwner() && invUpdateOk(id, request.resource.data, resource.data);
+    }
+    match /invoiceAudit/{aid} {
+      allow read: if isOwner();
+      allow create: if isOwner() && plainKey(aid)
+        && request.resource.data.keys().hasOnly(['invoiceId','action','fromStatus','toStatus','rev','totalMinor','reason','actor','createdAt'])
+        && request.resource.data.keys().hasAll(['invoiceId','action','fromStatus','toStatus','rev','totalMinor','reason','actor','createdAt'])
+        && request.resource.data.invoiceId is string && request.resource.data.invoiceId.size() <= 80
+        && request.resource.data.rev is int && request.resource.data.totalMinor is int
+        && request.resource.data.reason is string && request.resource.data.reason.size() <= 200
+        && request.resource.data.actor == request.auth.uid && request.resource.data.createdAt == request.time
+        && existsAfter(invDoc(request.resource.data.invoiceId))
+        && getAfter(invDoc(request.resource.data.invoiceId)).data.lastRef == aid
+        && getAfter(invDoc(request.resource.data.invoiceId)).data.lastKind == request.resource.data.action
+        && getAfter(invDoc(request.resource.data.invoiceId)).data.rev == request.resource.data.rev
+        && getAfter(invDoc(request.resource.data.invoiceId)).data.status == request.resource.data.toStatus
+        && getAfter(invDoc(request.resource.data.invoiceId)).data.totalMinor == request.resource.data.totalMinor
+        && ((request.resource.data.action == 'create' && request.resource.data.rev == 1 && request.resource.data.fromStatus == '' && request.resource.data.toStatus == 'DRAFT')
+            || (request.resource.data.action == 'ready' && request.resource.data.fromStatus == 'DRAFT' && request.resource.data.toStatus == 'READY')
+            || (request.resource.data.action == 'send' && request.resource.data.fromStatus == 'READY' && request.resource.data.toStatus == 'SENT')
+            || (request.resource.data.action == 'cancel' && (request.resource.data.fromStatus == 'DRAFT' || request.resource.data.fromStatus == 'READY') && request.resource.data.toStatus == 'CANCELLED' && request.resource.data.reason.size() >= 3))
+        && (request.resource.data.action == 'create'
+            || (exists(invDoc(request.resource.data.invoiceId)) && get(invDoc(request.resource.data.invoiceId)).data.status == request.resource.data.fromStatus
+                && get(invDoc(request.resource.data.invoiceId)).data.rev + 1 == request.resource.data.rev));
+    }
+    // A payment or a credit. Create-only. The ID is made by the browser when the form opens, so a retry or a second tab can never record it twice.
+    match /payments/{pid} {
+      allow read: if isOwner();
+      allow create: if isOwner() && plainKey(pid)
+        && request.resource.data.keys().hasOnly(['invoiceId','clientId','kind','amountMinor','currency','date','method','note','reason','correctionId','payloadHash','actor','createdAt'])
+        && request.resource.data.keys().hasAll(['invoiceId','clientId','kind','amountMinor','currency','date','method','note','reason','correctionId','payloadHash','actor','createdAt'])
+        && request.resource.data.invoiceId is string && request.resource.data.invoiceId.size() <= 80
+        && request.resource.data.clientId is string && validClientId(request.resource.data.clientId)
+        && request.resource.data.kind in ['payment','credit']
+        && request.resource.data.amountMinor is int && request.resource.data.amountMinor >= 1 && request.resource.data.amountMinor <= 1000000000000
+        && request.resource.data.currency is string && dateFmt(request.resource.data.date)
+        && request.resource.data.method is string && request.resource.data.method.size() <= 40
+        && request.resource.data.note is string && request.resource.data.note.size() <= 200
+        && request.resource.data.reason is string && request.resource.data.reason.size() <= 200
+        && (request.resource.data.kind != 'credit' || request.resource.data.reason.size() >= 3)
+        && request.resource.data.correctionId is string && request.resource.data.correctionId.matches('^$|^[A-Za-z0-9]{16,40}$')
+        && isHex64(request.resource.data.payloadHash)
+        && request.resource.data.actor == request.auth.uid && request.resource.data.createdAt == request.time
+        && exists(invDoc(request.resource.data.invoiceId)) && get(invDoc(request.resource.data.invoiceId)).data.status == 'SENT'
+        && get(invDoc(request.resource.data.invoiceId)).data.clientId == request.resource.data.clientId
+        && get(invDoc(request.resource.data.invoiceId)).data.currency == request.resource.data.currency
+        && existsAfter(invDoc(request.resource.data.invoiceId))
+        && getAfter(invDoc(request.resource.data.invoiceId)).data.lastKind == request.resource.data.kind
+        && getAfter(invDoc(request.resource.data.invoiceId)).data.lastRef == pid;
+    }
+    // Reverses ONE whole payment or credit. The ID is the payment's ID, so it can only happen once.
+    match /paymentReversals/{pid} {
+      allow read: if isOwner();
+      allow create: if isOwner() && plainKey(pid)
+        && request.resource.data.keys().hasOnly(['invoiceId','clientId','kind','amountMinor','reason','correctionId','actor','createdAt'])
+        && request.resource.data.keys().hasAll(['invoiceId','clientId','kind','amountMinor','reason','correctionId','actor','createdAt'])
+        && request.resource.data.reason is string && request.resource.data.reason.size() >= 3 && request.resource.data.reason.size() <= 200
+        && request.resource.data.correctionId is string && request.resource.data.correctionId.matches('^$|^[A-Za-z0-9]{16,40}$')
+        && request.resource.data.actor == request.auth.uid && request.resource.data.createdAt == request.time
+        && exists(payDoc(pid))
+        && get(payDoc(pid)).data.invoiceId == request.resource.data.invoiceId && get(payDoc(pid)).data.clientId == request.resource.data.clientId
+        && get(payDoc(pid)).data.kind == request.resource.data.kind && get(payDoc(pid)).data.amountMinor == request.resource.data.amountMinor
+        && exists(invDoc(request.resource.data.invoiceId)) && get(invDoc(request.resource.data.invoiceId)).data.status == 'SENT'
+        && existsAfter(invDoc(request.resource.data.invoiceId))
+        && getAfter(invDoc(request.resource.data.invoiceId)).data.lastKind == 'reversal' && getAfter(invDoc(request.resource.data.invoiceId)).data.lastRef == pid;
+    }
+    match /invoiceAdjustments/{aid} {
+      allow read: if isOwner();
+      allow create: if isOwner() && plainKey(aid)
+        && request.resource.data.keys().hasOnly(['invoiceId','clientId','amountMinor','reason','entryRef','actor','createdAt'])
+        && request.resource.data.keys().hasAll(['invoiceId','clientId','amountMinor','reason','entryRef','actor','createdAt'])
+        && request.resource.data.invoiceId is string && request.resource.data.invoiceId.size() <= 80
+        && request.resource.data.clientId is string && validClientId(request.resource.data.clientId)
+        && request.resource.data.amountMinor is int && request.resource.data.amountMinor != 0 && request.resource.data.amountMinor >= -1000000000000 && request.resource.data.amountMinor <= 1000000000000
+        && request.resource.data.reason is string && request.resource.data.reason.size() >= 3 && request.resource.data.reason.size() <= 200
+        && request.resource.data.entryRef is string && request.resource.data.entryRef.size() <= 80
+        && request.resource.data.actor == request.auth.uid && request.resource.data.createdAt == request.time
+        && exists(invDoc(request.resource.data.invoiceId)) && get(invDoc(request.resource.data.invoiceId)).data.status == 'SENT'
+        && get(invDoc(request.resource.data.invoiceId)).data.clientId == request.resource.data.clientId
+        && existsAfter(invDoc(request.resource.data.invoiceId))
+        && getAfter(invDoc(request.resource.data.invoiceId)).data.lastKind == 'adjustment' && getAfter(invDoc(request.resource.data.invoiceId)).data.lastRef == aid;
+    }
+    match /invoiceDueDates/{did} {
+      allow read: if isOwner();
+      allow create: if isOwner() && plainKey(did)
+        && request.resource.data.keys().hasOnly(['invoiceId','clientId','previous','next','reason','actor','createdAt'])
+        && request.resource.data.keys().hasAll(['invoiceId','clientId','previous','next','reason','actor','createdAt'])
+        && request.resource.data.invoiceId is string && request.resource.data.invoiceId.size() <= 80
+        && request.resource.data.clientId is string && validClientId(request.resource.data.clientId)
+        && dateFmt(request.resource.data.previous) && dateFmt(request.resource.data.next) && request.resource.data.previous != request.resource.data.next
+        && request.resource.data.reason is string && request.resource.data.reason.size() >= 3 && request.resource.data.reason.size() <= 200
+        && request.resource.data.actor == request.auth.uid && request.resource.data.createdAt == request.time
+        && exists(invDoc(request.resource.data.invoiceId)) && get(invDoc(request.resource.data.invoiceId)).data.status == 'SENT'
+        && get(invDoc(request.resource.data.invoiceId)).data.clientId == request.resource.data.clientId
+        && existsAfter(invDoc(request.resource.data.invoiceId))
+        && getAfter(invDoc(request.resource.data.invoiceId)).data.lastKind == 'due' && getAfter(invDoc(request.resource.data.invoiceId)).data.lastRef == did;
+    }
+    // B3 (4.5.0): the owner can skip a billing period (create-only; the period ID is the record ID, so a period can be skipped once). Nothing else about
+    // periods is stored: they are worked out from the billing profile. That no hours exist for the period is checked by the page, not the rules.
+    function skipOk(id, d) {
+      let bp = get(bpDoc(d.clientId)).data;
+      return d.keys().hasOnly(['clientId','periodStart','periodEnd','reason','actor','createdAt'])
+        && validClientId(d.clientId) && regActive(d.clientId) && bp.arrangement == 'hourly'
+        && d.periodStart.matches('^[0-9]{8}$') && d.periodEnd.matches('^[0-9]{8}$') && d.periodEnd >= d.periodStart
+        && id == d.clientId + '__' + d.periodStart + '__' + d.periodEnd
+        && d.reason is string && d.reason.size() >= 3 && d.reason.size() <= 200
+        && d.actor == request.auth.uid && d.createdAt == request.time;
+    }
+    match /periodSkips/{id} {
+      allow read: if isOwner();
+      allow create: if isOwner() && skipOk(id, request.resource.data);
+    }
+    match /clients/{id} { allow read, write: if isOwner(); }
+    // SV1 (4.5.0): employer testimonial survey. The invite key (32 letters/digits) is the document ID of the invite and of its ONE response.
+    // A visitor can read one invite by its key (never list), and answer it once while it is "sent" and not past expiresAt.
+    // The invite document is public to the key holder, so it holds no e-mail and no Client ID; those live in surveyInvitesPrivate (owner only).
+    function svKey(k) { return k.matches('^[A-Za-z0-9]{32}$'); }
+    function svInv(k) { return /databases/$(database)/documents/surveyInvites/$(k); }
+    function svResp(k) { return /databases/$(database)/documents/surveyResponses/$(k); }
+    function svVideoOk(v) {
+      return v.size() <= 300 && (v == '' || v.matches('^https://(www\\.)?(youtube\\.com|loom\\.com)/[^\\s]+$') || v.matches('^https://youtu\\.be/[^\\s]+$') || v.matches('^https://drive\\.google\\.com/[^\\s]+$'));
+    }
+    function svInviteOk(d) {
+      return d.keys().hasOnly(['surveyVersion','employerName','company','ownerName','status','createdAt','expiresAt'])
+        && d.keys().hasAll(['surveyVersion','employerName','company','ownerName','status','createdAt','expiresAt'])
+        && d.surveyVersion == 'default-1'
+        && d.employerName is string && d.employerName.size() > 0 && d.employerName.size() <= 100
+        && d.company is string && d.company.size() <= 100
+        && d.ownerName is string && d.ownerName.size() > 0 && d.ownerName.size() <= 80
+        && d.status == 'sent'
+        && d.createdAt == request.time
+        && d.expiresAt is timestamp && d.expiresAt > request.time && d.expiresAt <= request.time + duration.value(61, 'd');
+    }
+    function svRespOk(d) {
+      return d.keys().hasOnly(['rating','comment','best','recommend','videoUrl','displayName','displayRole','displayCompany','consentPublish','submittedAt','ownerStatus'])
+        && d.keys().hasAll(['rating','comment','best','recommend','videoUrl','displayName','displayRole','displayCompany','consentPublish','submittedAt','ownerStatus'])
+        && d.rating is int && d.rating >= 1 && d.rating <= 5
+        && d.comment is string && d.comment.size() >= 10 && d.comment.size() <= 700
+        && d.best is string && d.best.size() <= 500
+        && d.recommend in ['yes','no']
+        && d.videoUrl is string && svVideoOk(d.videoUrl)
+        && d.displayName is string && d.displayName.size() > 0 && d.displayName.size() <= 80
+        && d.displayRole is string && d.displayRole.size() <= 80
+        && d.displayCompany is string && d.displayCompany.size() <= 100
+        && d.consentPublish == true
+        && d.submittedAt == request.time
+        && d.ownerStatus == 'pending';
+    }
+    match /surveyInvites/{k} {
+      allow get: if svKey(k) && (isOwner() || (resource.data.status == 'sent' && resource.data.expiresAt > request.time));
+      allow list: if isOwner();
+      allow create: if isOwner() && svKey(k) && svInviteOk(request.resource.data);
+      // the owner can only revoke a sent invite; a visitor can only flip "sent" to "submitted" together with creating the one response
+      allow update: if (isOwner() && resource.data.status == 'sent' && request.resource.data.status == 'revoked'
+          && request.resource.data.keys().hasOnly(['surveyVersion','employerName','company','ownerName','status','createdAt','expiresAt'])
+          && request.resource.data.surveyVersion == resource.data.surveyVersion && request.resource.data.employerName == resource.data.employerName
+          && request.resource.data.company == resource.data.company && request.resource.data.ownerName == resource.data.ownerName
+          && request.resource.data.createdAt == resource.data.createdAt && request.resource.data.expiresAt == resource.data.expiresAt)
+        || (svKey(k) && intakeOpen() && resource.data.status == 'sent' && resource.data.expiresAt > request.time
+          && request.resource.data.keys().hasOnly(['surveyVersion','employerName','company','ownerName','status','createdAt','expiresAt','submittedAt'])
+          && request.resource.data.keys().hasAll(['surveyVersion','employerName','company','ownerName','status','createdAt','expiresAt','submittedAt'])
+          && request.resource.data.surveyVersion == resource.data.surveyVersion && request.resource.data.employerName == resource.data.employerName
+          && request.resource.data.company == resource.data.company && request.resource.data.ownerName == resource.data.ownerName
+          && request.resource.data.createdAt == resource.data.createdAt && request.resource.data.expiresAt == resource.data.expiresAt
+          && request.resource.data.status == 'submitted' && request.resource.data.submittedAt == request.time
+          && !exists(svResp(k)) && existsAfter(svResp(k)));
+      allow delete: if isOwner();
+    }
+    match /surveyInvitesPrivate/{k} {
+      allow get, create, update, delete: if isOwner() && svKey(k);
+      allow list: if isOwner();   // a query is not tied to one key, so the key check applies only to single-document access
+    }
+    match /surveyResponses/{k} {
+      allow create: if svKey(k) && intakeOpen() && svRespOk(request.resource.data)
+        && get(svInv(k)).data.status == 'sent' && get(svInv(k)).data.expiresAt > request.time
+        && (!exists(svFormDoc(k)) || existsAfter(svAns(k)))
+        && getAfter(svInv(k)).data.status == 'submitted';
+      allow read, delete: if isOwner();
+      // the owner decides once: pending to approved or rejected (an approved response also records the id of the testimonial it became)
+      allow update: if isOwner() && resource.data.ownerStatus == 'pending' && request.resource.data.ownerStatus in ['approved','rejected']
+        && request.resource.data.rating == resource.data.rating && request.resource.data.comment == resource.data.comment
+        && request.resource.data.best == resource.data.best && request.resource.data.recommend == resource.data.recommend
+        && request.resource.data.videoUrl == resource.data.videoUrl && request.resource.data.displayName == resource.data.displayName
+        && request.resource.data.displayRole == resource.data.displayRole && request.resource.data.displayCompany == resource.data.displayCompany
+        && request.resource.data.consentPublish == resource.data.consentPublish && request.resource.data.submittedAt == resource.data.submittedAt
+        && request.resource.data.decidedAt == request.time
+        && ((request.resource.data.ownerStatus == 'rejected'
+              && request.resource.data.keys().hasOnly(['rating','comment','best','recommend','videoUrl','displayName','displayRole','displayCompany','consentPublish','submittedAt','ownerStatus','decidedAt'])
+              && request.resource.data.keys().hasAll(['rating','comment','best','recommend','videoUrl','displayName','displayRole','displayCompany','consentPublish','submittedAt','ownerStatus','decidedAt']))
+          || (request.resource.data.ownerStatus == 'approved'
+              && request.resource.data.keys().hasOnly(['rating','comment','best','recommend','videoUrl','displayName','displayRole','displayCompany','consentPublish','submittedAt','ownerStatus','decidedAt','testimonialId'])
+              && request.resource.data.keys().hasAll(['rating','comment','best','recommend','videoUrl','displayName','displayRole','displayCompany','consentPublish','submittedAt','ownerStatus','decidedAt','testimonialId'])
+              && request.resource.data.testimonialId is string && request.resource.data.testimonialId.matches('^[A-Za-z0-9_-]{4,40}$')));
+    }
+    // end SV1
+    // SV2a (4.5.0): survey reminder per Client ID. Owner only. The ID is the document ID of the registry entry it belongs to (the registry itself is NOT changed).
+    // Holds only a start date, a number of months, a state and an optional snooze date. No name, e-mail or phone.
+    function srDate(v) { return v is string && v.matches('^20[0-9]{2}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$'); }
+    function srOk(d) {
+      return d.keys().hasOnly(['startDate','months','status','snoozedUntil','updatedAt'])
+        && d.keys().hasAll(['startDate','months','status','snoozedUntil','updatedAt'])
+        && srDate(d.startDate)
+        && d.months is int && d.months >= 1 && d.months <= 24
+        && d.status in ['active','done','skipped']
+        && d.snoozedUntil is string && (d.snoozedUntil == '' || srDate(d.snoozedUntil))
+        && d.updatedAt == request.time;
+    }
+    match /surveyReminders/{id} {
+      allow read: if isOwner();
+      allow create, update: if isOwner() && validClientId(id) && exists(regDoc(id)) && srOk(request.resource.data);
+      allow delete: if isOwner();
+    }
+    // end SV2a
+    // SV2b (4.5.0): custom surveys = a title, an intro and 1-6 EXTRA questions. The testimonial core (rating, message, name, consent) is unchanged.
+    // surveyTemplates: the owner's saved surveys (owner only). surveyForms/{key}: a COPY of one template made when a link is created, readable by whoever holds
+    // that link (same rule as the invite) so later edits or deletes of a template never change a link already sent. surveyAnswers/{key}: the extra answers,
+    // written in the SAME batch as the response and checked slot by slot against the copy of the questions. Extra answers are for the owner only (never published).
+    function svOpt(o) { return o is string && o.size() >= 1 && o.size() <= 60; }
+    function svQ(q, id) {
+      return q is map && q.keys().hasOnly(['id','type','label','required','options']) && q.keys().hasAll(['id','type','label','required','options'])
+        && q.id == id && q.type in ['stars','short','long','yesno','choice']
+        && q.label is string && q.label.size() >= 1 && q.label.size() <= 200
+        && q.required is bool && q.options is list
+        && ((q.type == 'choice' && q.options.size() >= 2 && q.options.size() <= 6 && svOpt(q.options[0]) && svOpt(q.options[1])
+              && (q.options.size() < 3 || svOpt(q.options[2])) && (q.options.size() < 4 || svOpt(q.options[3])) && (q.options.size() < 5 || svOpt(q.options[4])) && (q.options.size() < 6 || svOpt(q.options[5])))
+          || (q.type != 'choice' && q.options.size() == 0));
+    }
+    function svQs(qs) {
+      return qs is list && qs.size() >= 1 && qs.size() <= 6 && svQ(qs[0], 'q1')
+        && (qs.size() < 2 || svQ(qs[1], 'q2')) && (qs.size() < 3 || svQ(qs[2], 'q3')) && (qs.size() < 4 || svQ(qs[3], 'q4')) && (qs.size() < 5 || svQ(qs[4], 'q5')) && (qs.size() < 6 || svQ(qs[5], 'q6'));
+    }
+    function svFormBody(d) {
+      return d.title is string && d.title.size() >= 1 && d.title.size() <= 80 && d.intro is string && d.intro.size() <= 300 && svQs(d.questions);
+    }
+    function svFormDoc(k) { return /databases/$(database)/documents/surveyForms/$(k); }
+    function svAns(k) { return /databases/$(database)/documents/surveyAnswers/$(k); }
+    function svAnsSlot(d, key, q) {
+      return (!(key in d.keys()) && q.required == false)
+        || (key in d.keys() && (
+             (q.type == 'stars' && d[key] is int && d[key] >= 1 && d[key] <= 5)
+          || (q.type == 'short' && d[key] is string && d[key].size() <= 200 && (q.required == false || d[key].size() >= 1))
+          || (q.type == 'long' && d[key] is string && d[key].size() <= 700 && (q.required == false || d[key].size() >= 1))
+          || (q.type == 'yesno' && d[key] in ['yes','no'])
+          || (q.type == 'choice' && d[key] is string && d[key] in q.options)));
+    }
+    function svAnsOk(d, qs) {
+      return d.keys().hasOnly(['q1','q2','q3','q4','q5','q6','submittedAt']) && d.keys().hasAll(['submittedAt']) && d.submittedAt == request.time
+        && svAnsSlot(d, 'q1', qs[0])
+        && (qs.size() >= 2 || !('q2' in d.keys())) && (qs.size() < 2 || svAnsSlot(d, 'q2', qs[1]))
+        && (qs.size() >= 3 || !('q3' in d.keys())) && (qs.size() < 3 || svAnsSlot(d, 'q3', qs[2]))
+        && (qs.size() >= 4 || !('q4' in d.keys())) && (qs.size() < 4 || svAnsSlot(d, 'q4', qs[3]))
+        && (qs.size() >= 5 || !('q5' in d.keys())) && (qs.size() < 5 || svAnsSlot(d, 'q5', qs[4]))
+        && (qs.size() >= 6 || !('q6' in d.keys())) && (qs.size() < 6 || svAnsSlot(d, 'q6', qs[5]));
+    }
+    match /surveyTemplates/{id} {
+      allow read: if isOwner();
+      allow create, update: if isOwner() && id.matches('^[A-Za-z0-9]{8,32}$')
+        && request.resource.data.keys().hasOnly(['title','intro','questions','updatedAt']) && request.resource.data.keys().hasAll(['title','intro','questions','updatedAt'])
+        && svFormBody(request.resource.data) && request.resource.data.updatedAt == request.time;
+      allow delete: if isOwner();
+    }
+    match /surveyForms/{k} {
+      allow get: if svKey(k) && (isOwner() || (get(svInv(k)).data.status == 'sent' && get(svInv(k)).data.expiresAt > request.time));
+      allow list: if isOwner();
+      // created only together with its invite, still "sent"; never edited (a new link makes a new copy)
+      allow create: if isOwner() && svKey(k)
+        && request.resource.data.keys().hasOnly(['title','intro','questions','createdAt']) && request.resource.data.keys().hasAll(['title','intro','questions','createdAt'])
+        && svFormBody(request.resource.data) && request.resource.data.createdAt == request.time
+        && existsAfter(svInv(k)) && getAfter(svInv(k)).data.status == 'sent';
+      allow delete: if isOwner();
+    }
+    match /surveyAnswers/{k} {
+      allow read, delete: if isOwner();
+      allow create: if svKey(k) && intakeOpen() && exists(svFormDoc(k))
+        && get(svInv(k)).data.status == 'sent' && get(svInv(k)).data.expiresAt > request.time
+        && getAfter(svInv(k)).data.status == 'submitted' && existsAfter(svResp(k))
+        && svAnsOk(request.resource.data, get(svFormDoc(k)).data.questions);
+    }
+    // end SV2b
+    match /ownerPrivate/{doc} { allow read, write: if isOwner(); }
+    match /content/{doc} {
+      allow read: if true;
+      allow write: if isOwner();
+    }
+    // D1: owner-only documents portal (private notes and runbooks; never keys, tokens or webhook addresses)
+    function ownerDocOk(d) {
+      return d.keys().hasOnly(['title','category','body','createdAt','updatedAt'])
+        && d.keys().hasAll(['title','category','body','createdAt','updatedAt'])
+        && d.title is string && d.title.size() > 0 && d.title.size() <= 120
+        && d.category is string && d.category in ['security','runbook','notes','other']
+        && d.body is string && d.body.size() <= 50000
+        && d.createdAt is timestamp && d.updatedAt is timestamp;
+    }
+    match /ownerDocs/{id} {
+      allow read, delete: if isOwner();
+      allow create: if isOwner() && id.matches('^[a-z0-9]{8,32}$') && ownerDocOk(request.resource.data)
+        && request.resource.data.createdAt == request.time && request.resource.data.updatedAt == request.time;
+      allow update: if isOwner() && ownerDocOk(request.resource.data)
+        && request.resource.data.createdAt == resource.data.createdAt && request.resource.data.updatedAt == request.time;
+    }
+    // W5b (4.5.0): break schedules. Owner only. One document per Client ID (must exist in the registry) plus the one named 'default'.
+    // fb/lu/lb = allowed minutes now; pfb/plu/plb = the values they replaced, so a break that started before the last edit keeps its old limit.
+    // On every update the previous values must equal the values being replaced. 0 means no limit.
+    function wsInt(v) { return v is int && v >= 0 && v <= 240; }
+    function wsOk(d) {
+      return d.keys().hasOnly(['fb','lu','lb','pfb','plu','plb','rev','updatedAt'])
+        && d.keys().hasAll(['fb','lu','lb','pfb','plu','plb','rev','updatedAt'])
+        && wsInt(d.fb) && wsInt(d.lu) && wsInt(d.lb) && wsInt(d.pfb) && wsInt(d.plu) && wsInt(d.plb)
+        && d.rev is int && d.updatedAt is timestamp;
+    }
+    function wsId(id) { return id == 'default' || (validClientId(id) && exists(regDoc(id))); }
+    match /workSchedules/{id} {
+      allow read, delete: if isOwner();
+      allow create: if isOwner() && wsId(id) && wsOk(request.resource.data)
+        && request.resource.data.rev == 1 && request.resource.data.updatedAt == request.time;
+      allow update: if isOwner() && wsId(id) && wsOk(request.resource.data)
+        && request.resource.data.rev == resource.data.rev + 1 && request.resource.data.updatedAt == request.time
+        && request.resource.data.pfb == resource.data.fb && request.resource.data.plu == resource.data.lu && request.resource.data.plb == resource.data.lb;
+    }
+  }
+}
+```
+<!-- RULES-END -->
+
+## 7. How to report a problem
+1. Stop testing that path. Do not copy or keep any private data you may have seen.
+2. Write to the contact in `.well-known/security.txt` (the owner's e-mail address shown on the site, or the booking form with a message starting `SECURITY`). Do not post the problem publicly before it is fixed.
+3. Include: what you did, the exact address or request, what you expected, what happened, and the time (with time zone) so the owner can check logs. Screenshots are welcome; keep them free of other people's data.
+4. Suggested severity words: **Critical** (private data readable or writable by a stranger), **High** (bypass of a protection with real effect), **Medium**, **Low**, **Info**.
+5. The owner replies, fixes it as its own item (with tests), and updates the table below.
+
+## 8. Fix-tracking table (the owner fills this in)
+| ID | Date reported | Reporter | Finding | Severity | Status (open / fixing / fixed / will not fix) | Fixed in (build) | Re-tested (date) |
+|---|---|---|---|---|---|---|---|
+| R-1 | | | | | | | |
+| R-2 | | | | | | | |
+| R-3 | | | | | | | |

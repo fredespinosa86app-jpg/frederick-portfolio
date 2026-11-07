@@ -1,4 +1,4 @@
-// CodeFlow 4.5.0 F5 - REAL Firestore rules engine tests for the form-verification design (visitor token, daily counter, tokenRequired switch).
+// CodeFlow 4.5.0 F5 (+ SE-H1) - REAL Firestore rules engine tests for the form-verification design (visitor token, daily counter; token-only since SE-H1).
 // Run by GitHub Actions (.github/workflows/rules-emulator.yml) or locally:  cd rules-tests/emulator && npm install && npm test   (needs Java 17+)
 // Own demo project name. It never touches your real Firebase project. Tests the STRICT rules file.
 // STATUS WHEN THIS FILE WAS BUILT: written but NOT executed (the build environment cannot download the emulator).
@@ -19,7 +19,10 @@ const owner = () => env.authenticatedContext(OWNER_UID, { email: 'x@example.com'
 const anon = () => env.unauthenticatedContext().firestore();
 const seed = (path, data) => env.withSecurityRulesDisabled(async c => { await setDoc(doc(c.firestore(), ...path.split('/')), data); });
 const ymd = () => { const d = new Date(); return '' + d.getUTCFullYear() + String(d.getUTCMonth() + 1).padStart(2, '0') + String(d.getUTCDate()).padStart(2, '0'); };
-const BASE = (o = {}) => ({ name: 'Ann', email: 'ann@example.com', company: 'Acme', date: '2026-12-01', time: '09:00', tz: 'Asia/Manila', platform: 'Zoom', message: 'Hello', status: 'new', createdAt: serverTimestamp(), ...o });
+/* SE-H1: dates are relative to today (the rules refuse past dates and dates more than 366 days ahead) */
+export const dayPlus = n => { const d = new Date(Date.now() + n * 86400000); return d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0') + '-' + String(d.getUTCDate()).padStart(2, '0'); };
+const BOOKDAY = dayPlus(30);
+const BASE = (o = {}) => ({ name: 'Ann', email: 'ann@example.com', company: 'Acme', date: BOOKDAY, time: '09:00', tz: 'Asia/Manila', platform: 'Zoom', message: 'Hello', status: 'new', createdAt: serverTimestamp(), ...o });
 const TREQ = (o = {}) => BASE({ day: ymd(), ...o });
 const seedCounter = n => seed('reqCounters/' + ymd(), { count: n, lastReq: 'm_previous_0000' });
 // One token submission, as the page will do it: read today's counter, then ONE batch (request + counter with an explicit new count).
@@ -69,23 +72,24 @@ test('token request keeps the normal field checks (bad e-mail, long name, extra 
 test('pause, capacity full and a busy slot also stop token requests', async () => {
   await seed('content/guard', { pause: true }); await assertFails(send(tok()));
   await env.clearFirestore(); await seed('content/capacity', { open: false }); await assertFails(send(tok()));
-  await env.clearFirestore(); await seed('content/busy', { keys: ['2026-12-01T09:00'] }); await assertFails(send(tok()));
+  await env.clearFirestore(); await seed('content/busy', { keys: [BOOKDAY + 'T09:00'] }); await assertFails(send(tok()));
 });
-test('SWITCH OFF: the old direct form still works, with and without a guard document; it cannot carry a day field', async () => {
-  await assertSucceeds(direct(anon(), 'auto1')); await seed('content/guard', { pause: false, tokenRequired: false }); await assertSucceeds(direct(anon(), 'auto2'));
-  await seed('content/guard', { pause: false }); await assertSucceeds(direct(anon(), 'auto3')); await assertFails(direct(anon(), 'auto4', { day: ymd() }));
+test('SE-H1: the old direct form is refused whatever content/guard says (absent, tokenRequired false / true / string, no field)', async () => {
+  await assertFails(direct(anon(), 'auto1')); await assertFails(direct(tok(), 'auto2')); await assertFails(direct(anon(), 'auto3', { day: ymd() }));
+  for (const g of [{ pause: false, tokenRequired: false }, { pause: false }, { tokenRequired: true }, { tokenRequired: 'true' }, { tokenRequired: 1 }]) { await seed('content/guard', g); await assertFails(direct(anon(), 'auto4')); await assertFails(direct(tok(), 'auto5')); }
 });
-test('SWITCH ON: the old direct form is refused for everyone; the token path still works', async () => {
-  await seed('content/guard', { pause: false, tokenRequired: true });
-  await assertFails(direct(anon(), 'auto1')); await assertFails(direct(tok(), 'auto2')); await assertSucceeds(send(tok()));
+test('SE-H1: the token path works whatever the old switch says; deleting the guard document cannot reopen the direct path', async () => {
+  await seed('content/guard', { pause: false, tokenRequired: false }); await assertSucceeds(send(tok('m_one_abcdefgh12'), 'm_one_abcdefgh12'));
+  await env.clearFirestore(); await assertFails(direct(anon(), 'auto1')); await assertSucceeds(send(tok()));
 });
-test('SWITCH back to false is the instant rollback', async () => {
-  await seed('content/guard', { tokenRequired: true }); await assertFails(direct(anon(), 'auto1'));
-  await updateDoc(doc(owner(), 'content', 'guard'), { tokenRequired: false }); await assertSucceeds(direct(anon(), 'auto2'));
+test('SE-H1 date window: today, yesterday (UTC) and +366 days accepted; two days ago, last year, +367 days and a far date refused', async () => {
+  await assertSucceeds(send(tok('m_d1_abcdefghij12'), 'm_d1_abcdefghij12', { date: dayPlus(0) })); await assertSucceeds(send(tok('m_d2_abcdefghij12'), 'm_d2_abcdefghij12', { date: dayPlus(-1) }));
+  await assertSucceeds(send(tok('m_d3_abcdefghij12'), 'm_d3_abcdefghij12', { date: dayPlus(366) }));
+  for (const [i, d] of [dayPlus(-2), dayPlus(-400), dayPlus(367), '2999-01-01', '1999-01-01'].entries()) { const u = 'm_bad' + i + '_abcdefgh12'; await assertFails(send(tok(u), u, { date: d })); }
 });
 test('only the owner can change content/guard (switch, cap, pause)', async () => {
-  await seed('content/guard', { tokenRequired: true, cap: 30 });
-  for (const db of [anon(), tok()]) await assertFails(updateDoc(doc(db, 'content', 'guard'), { tokenRequired: false, cap: 99999 }));
+  await seed('content/guard', { cap: 30, visitCap: 1500 });
+  for (const db of [anon(), tok()]) await assertFails(updateDoc(doc(db, 'content', 'guard'), { cap: 99999, visitCap: 99999, chatCap: 99999 }));
   await assertSucceeds(updateDoc(doc(owner(), 'content', 'guard'), { cap: 40 }));
 });
 test('reads: a token reads today counter and ONLY its own request; no lists; owner reads all', async () => {

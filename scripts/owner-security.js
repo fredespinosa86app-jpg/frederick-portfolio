@@ -93,32 +93,27 @@
     catch (e) { notify('Could not change the pause setting.', 'error'); }
   });
   /* ---- form verification (Project F / F6): daily limit, switch, today's count ---- */
-  let vf = { cap: 30, on: false }, vfBusy = false;
+  let vf = { cap: 30, on: true, visitCap: 1500, chatCap: 300 };
   const utcDay = () => { const d = new Date(); return String(d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate()); };
   function drawVf() {
     $('vfCap').value = String(vf.cap);
-    $('vfState').textContent = vf.on ? 'Verification is ON: visitors must pass the code check. The old direct form is refused.' : 'Verification is OFF: the form works as before.';
-    $('vfSwitch').textContent = vf.on ? 'Turn verification OFF (rollback)' : 'Turn verification ON';
   }
   async function loadVf() {
     const o = own(); if (!o) return;
-    try { const s = await o.fs.getDoc(o.fs.doc(o.db, 'content', 'guard')); const d = s.exists() ? s.data() : {}; vf = { cap: Number.isInteger(d.cap) && d.cap >= 1 ? d.cap : 30, on: d.tokenRequired === true }; drawVf(); } catch (e) { $('vfState').textContent = 'Could not read the current setting. Try again in a moment.'; }
+    try { const s = await o.fs.getDoc(o.fs.doc(o.db, 'content', 'guard')); const d = s.exists() ? s.data() : {}; const num = (v, dflt) => (Number.isInteger(v) && v >= 0 ? v : dflt); vf = { cap: Number.isInteger(d.cap) && d.cap >= 1 ? d.cap : 30, on: true, visitCap: num(d.visitCap, 1500), chatCap: num(d.chatCap, 300) }; drawVf(); } catch (e) { $('vfState').textContent = 'Could not read the current setting. Try again in a moment.'; }
     try { const c = await o.fs.getDoc(o.fs.doc(o.db, 'reqCounters', utcDay())); const n = c.exists() ? Number(c.data().count) || 0 : 0; $('vfToday').textContent = 'Requests counted today (UTC day ' + utcDay() + '): ' + n + ' of ' + vf.cap + (n >= vf.cap ? '. The limit is reached: visitors see "try again tomorrow" until the UTC day changes.' : '.'); }
     catch (e) { $('vfToday').textContent = 'Could not read today\u2019s count.'; }
+    try {
+      const rd = async k => { const c = await o.fs.getDoc(o.fs.doc(o.db, 'anonCounters', k + '_' + utcDay())); return c.exists() ? Number(c.data().count) || 0 : 0; };
+      const v = await rd('v'), q = await rd('c');
+      $('vfBudget').textContent = 'Today (UTC day ' + utcDay() + '): visit records ' + v + ' of ' + vf.visitCap + (v >= vf.visitCap ? ' (budget used up: no more visits are recorded until the UTC day changes)' : '') + '; unanswered chat questions ' + q + ' of ' + vf.chatCap + (q >= vf.chatCap ? ' (budget used up)' : '') + '.';
+    } catch (e) { $('vfBudget').textContent = 'Could not read today\u2019s budgets.'; }
   }
   $('vfCapSave').addEventListener('click', async () => {
     const n = Number($('vfCap').value); const msg = $('vfCapMsg');
     if (!Number.isInteger(n) || n < 1 || n > 200) { msg.textContent = 'Enter a whole number from 1 to 200.'; return; }
     try { await own().fs.setDoc(own().fs.doc(own().db, 'content', 'guard'), { cap: n, at: Date.now() }, { merge: true }); vf.cap = n; drawVf(); msg.textContent = 'Daily limit saved: ' + n + '.'; notify('Daily limit saved.', 'success'); loadVf(); }
     catch (e) { msg.textContent = 'Could not save. Check that you are signed in as the owner.'; notify('Could not save the daily limit.', 'error'); }
-  });
-  $('vfSwitch').addEventListener('click', async () => {
-    if (vfBusy) return; const want = !vf.on;
-    const ask = want ? 'Turn verification ON?\n\nThe old direct form will be refused by the database. Only turn this on after you tested the form with ?verify=1 and the switch-over checklist says so.' : 'Turn verification OFF?\n\nThe old direct form works again.';
-    if (!window.confirm(ask)) return;
-    vfBusy = true;
-    try { await own().fs.setDoc(own().fs.doc(own().db, 'content', 'guard'), { tokenRequired: want, at: Date.now() }, { merge: true }); vf.on = want; drawVf(); notify(want ? 'Verification is ON.' : 'Verification is OFF.', 'success'); }
-    catch (e) { notify('Could not change the switch.', 'error'); } finally { vfBusy = false; }
   });
   let floodTimer = 0;
   document.addEventListener('dash:page', e => {

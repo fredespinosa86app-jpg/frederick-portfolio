@@ -11,7 +11,7 @@ M=[('clients readable by everyone',"match /clients/{id} { allow read, write: if 
  ('visit id binding removed',"        && id == request.resource.data.sid + '_' + request.resource.data.type + '_' + request.resource.data.path\n",""),
  ('chat id binding removed',"        && id.matches('^' + request.resource.data.sessionId + '_[a-z0-9]{1,12}$')\n",""),
  ('capacity check removed',"        && capOpen()\n",""),
- ('busy-slot check removed',"        && slotFree()\n        && (","        && true\n        && ("),
+ ('busy-slot check removed',"        && slotFree()\n","        && true\n"),
  ('provider check removed',"        && request.auth.token.firebase.sign_in_provider == 'google.com';","        && true;"),
  ('verified e-mail check removed',"        && request.auth.token.email_verified == true\n",""),
  ('visitors may read visits',"      allow read, delete: if isOwner();\n    }\n    // E3","      allow read, delete: if true;\n    }\n    // E3"),
@@ -75,7 +75,8 @@ from mutations_sv1 import SV1
 from mutations_sv1_gen import SV1G
 from mutations_sv2a import SV2A
 from mutations_sv2b_gen import SV2BG
-M=M+W1+W2+W3+B1+B2+F5+D1+W5B+SV1+SV1G+SV2A+SV2BG
+from mutations_h1 import H1
+M=M+W1+W2+W3+B1+B2+F5+D1+W5B+SV1+SV1G+SV2A+SV2BG+H1
 def mk(rules_text):
     """a throw-away copy of the project parts the attack suite reads (rules + the page state machine used by the W1 case generator)"""
     d=tempfile.mkdtemp(); open(d+'/firestore.rules','w').write(rules_text); shutil.copy(ROOT+'/firestore.rules.strict',d)

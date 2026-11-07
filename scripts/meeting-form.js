@@ -79,19 +79,16 @@ if(VTZ)d.message=(d.message+'\n\n[Visitor time zone: '+VTZ+']').slice(0,2000);
 let last=0;try{last=+localStorage.getItem('lastReq')||0}catch(x){}
 if(Date.now()-last<60000){st.className='err';st.textContent='Please wait a minute before sending another request.';return}
 b.disabled=true;
-const FG=window.formGuard,gx=guardUi();let dec={token:false,status:null};
-if(FG){st.textContent='Checking…';try{dec=await FG.decide()}catch(x){dec={token:false,status:null}}}
+const FG=window.formGuard,gx=guardUi();let dec={token:true,status:null,error:'config'};   /* SE-H1: the verified path is the only path */
+if(FG){st.textContent='Checking…';try{dec=await FG.decide()}catch(x){dec={token:true,status:null,error:'unreachable'}}}
 const done=()=>{try{localStorage.setItem('lastReq',Date.now())}catch(x){}
 st.textContent='';mf.reset();pick.reset();syncService();mf.hidden=true;document.getElementById('mDone').hidden=false};
 const failed=(msg,fb,detail)=>{st.className='err';st.textContent=msg+(detail&&/(?:^|[?&])verify=1(?:&|#|$)/.test(location.search)?' [test detail: '+detail+']':'');if(fb)addFallback(st,d)};
-if(dec.token){
-/* Project F: verified path (switch on, or ?verify=1). The old direct path below is used otherwise. */
-if(dec.error){failed(FG.MSG[dec.error]||FG.MSG.failed,true)}
+/* Verified path only (Worker token, daily counter). The old direct write was removed: the database refuses it. */
+const MSGS=(FG&&FG.MSG)||{};
+if(dec.error){failed(MSGS[dec.error]||MSGS.config||'The safety check is not available right now. Please email me instead.',true)}
 else{st.textContent='';const r=await FG.submit(d,gx.hooks,dec.status);gx.hide();
-if(r.ok)done();else if(r.code==='cancelled'){st.textContent=''}else failed(r.message,true,r.detail)}}
-else{st.textContent='Sending…';
-try{if(!window.submitMeeting)throw 0;await Promise.race([window.submitMeeting(d),new Promise((_,j)=>setTimeout(j,15000))]);done()}
-catch(x){failed('Sorry, your request could not be sent. The time may have just been taken, or the connection failed.',true)}}
+if(r.ok)done();else if(r.code==='cancelled'){st.textContent=''}else failed(r.message,true,r.detail)}
 b.disabled=false});
 /* "Email me instead": a draft with what the visitor typed, so nobody is silently dropped */
 function addFallback(st,d){const em=window.contactsApi&&window.contactsApi.get('email');if(!em)return;const a=document.createElement('a');a.href=window.formGuard?window.formGuard.mailtoFor(em.value,d):em.href+'?subject=Meeting%20request';a.textContent='Email me instead';a.className='gfb';st.append(' ',a)}

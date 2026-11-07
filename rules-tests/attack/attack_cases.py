@@ -9,9 +9,22 @@ S=Sim(TXT); SS=Sim(STRICT)
 UID='3p2YvH4NSVYAAfA0E6HC2kkyc5F3'; EMAIL='fredespinosa86.app@gmail.com'
 OWN={'uid':UID,'email':EMAIL}
 STRANGER={'uid':'someoneelse123','email':'stranger@gmail.com'}
-def A(op,path,auth=None,new=None,old=None,docs=None,sim=S): return sim.allowed(op,path,auth,new,old,docs,NOW)
+# SE-H1: a booking needs a Worker token, and visits / chat questions need their daily-budget counter in the same batch.
+# A() stays the "plain public write" helper: it SUPPLIES the legitimate token / counter for those creates, so every shape check below still tests the shape rules.
+# Tests of the new rules themselves (no token, no counter, caps) use sim.allowed() directly in section 8k.
+import datetime as _d0
+_n=_d0.datetime.fromtimestamp(NOW/1000,_d0.timezone.utc); TODAY0=f'{_n.year}{_n.month:02d}{_n.day:02d}'
+TU0='m_abcDEF1234567890'; PREVD0=None; TV0={'uid':TU0,'provider':'custom','claims':{'form':'meeting'}}
+def A(op,path,auth=None,new=None,old=None,docs=None,sim=S,after=None):
+    if op=='create' and new is not None and after is None and auth is None:
+        if path.startswith('meetingRequests/'):
+            new=dict(new,day=TODAY0) if 'day' not in new else new; path='meetingRequests/'+TU0; auth=TV0
+            after={path:new,'reqCounters/'+TODAY0:{'count':1,'lastReq':TU0}}
+        elif path.startswith('visits/'): after={'anonCounters/v_'+TODAY0:{'count':1,'last':path.split('/',1)[1]}}
+        elif path.startswith('chatUnanswered/'): after={'anonCounters/c_'+TODAY0:{'count':1,'last':path.split('/',1)[1]}}
+    return sim.allowed(op,path,auth,new,old,docs,NOW,after)
 TSNOW=TS(NOW)
-REQ=lambda **k: dict({'name':'Ann','email':'ann@example.com','company':'Acme','date':'2026-12-01','time':'09:00','tz':'Asia/Manila','platform':'Zoom','message':'Hello','status':'new','createdAt':TSNOW},**k)
+REQ=lambda **k: dict({'name':'Ann','email':'ann@example.com','company':'Acme','date':'2027-02-01','time':'09:00','tz':'Asia/Manila','platform':'Zoom','message':'Hello','status':'new','createdAt':TSNOW},**k)
 CHAT=lambda **k: dict({'question':'Do you do FBA?','response':'x','sessionId':'abc123','context':'','status':'new','createdAt':TSNOW},**k)
 VIS=lambda **k: dict({'vid':'a'*24,'sid':'b'*24,'type':'view','path':'home','ref':'','device':'desktop','browser':'Chrome','createdAt':TSNOW},**k)
 RID='n1'; CID='abc123_x1'; VID='b'*24+'_view_home'
@@ -48,7 +61,7 @@ BAD=[('extra field isAdmin',REQ(isAdmin=True)),('extra field status2',REQ(status
  ('name empty',REQ(name='')),('name 101 chars',REQ(name='a'*101)),('name list',REQ(name=['a'])),('name number',REQ(name=5)),('name map',REQ(name={'a':1})),
  ('email no @',REQ(email='not-an-email')),('email spaces',REQ(email='a b@c.de')),('email 121 chars',REQ(email='a'*116+'@b.co')),('email too short',REQ(email='a@b')),
  ('message empty',REQ(message='')),('message 2001 chars',REQ(message='x'*2001)),('company 121',REQ(company='c'*121)),('platform 61',REQ(platform='p'*61)),
- ('date wrong format',REQ(date='12/01/2026')),('date with script',REQ(date='2026-12-01<script>')),('date long',REQ(date='2026-12-01'+'0'*50)),('time wrong',REQ(time='9am')),('time injection',REQ(time='09:00;DROP')),
+ ('date wrong format',REQ(date='12/01/2026')),('date with script',REQ(date='2027-02-01<script>')),('date long',REQ(date='2027-02-01'+'0'*50)),('time wrong',REQ(time='9am')),('time injection',REQ(time='09:00;DROP')),
  ('tz with spaces',REQ(tz='Asia Manila')),('tz script',REQ(tz='<script>')),('tz 61',REQ(tz='a'*61)),('service 61',REQ(service='s'*61)),('formId 41',REQ(formId='f'*41)),('formName 101',REQ(formName='f'*101)),('answers 4001',REQ(answers='a'*4001)),('answers number',REQ(answers=5)),
  ('__proto__ field',dict(REQ(),**{'__proto__':'x'})),('nested map extra',REQ(answers={'a':1}))]
 for n,d in BAD: chk('meeting request rejected: '+n,not A('create','meetingRequests/'+RID,None,d))
@@ -77,7 +90,7 @@ chk('PAUSE on: owner can still read and write the panel',A('get','clients/x',OWN
 chk('PAUSE off (false or absent): public creates work',A('create','visits/'+VID,None,VIS(),docs={'content/guard':{'pause':False}}) and A('create','visits/'+VID,None,VIS(),docs={}))
 chk('guard doc that is not a map-with-pause (string) does not block',A('create','visits/'+VID,None,VIS(),docs={'content/guard':{'pause':'yes'}}))
 chk('capacity full (open=false): meeting requests refused, chat and visits still work',not A('create','meetingRequests/'+RID,None,REQ(),docs={'content/capacity':{'open':False}}) and A('create','chatUnanswered/'+CID,None,CHAT(),docs={'content/capacity':{'open':False}}))
-chk('busy slot: request for a confirmed time refused; other time accepted',not A('create','meetingRequests/'+RID,None,REQ(),docs={'content/busy':{'keys':['2026-12-01T09:00']}}) and A('create','meetingRequests/'+RID,None,REQ(time='10:00'),docs={'content/busy':{'keys':['2026-12-01T09:00']}}))
+chk('busy slot: request for a confirmed time refused; other time accepted',not A('create','meetingRequests/'+RID,None,REQ(),docs={'content/busy':{'keys':['2027-02-01T09:00']}}) and A('create','meetingRequests/'+RID,None,REQ(time='10:00'),docs={'content/busy':{'keys':['2027-02-01T09:00']}}))
 # ---------------- 8. owner is still bound by the shape rules for visitor-created collections
 chk('owner cannot create a malformed meeting request or forged visit (no back door)',not A('create','meetingRequests/'+RID,OWN,REQ(status='confirmed')) and not A('create','visits/'+VID,OWN,VIS(createdAt=TS(3))))
 chk('owner can update and delete requests and chat questions (inbox actions)',A('update','meetingRequests/'+RID,OWN,REQ(status='confirmed'),REQ()) and A('delete','chatUnanswered/'+CID,OWN,None,CHAT()))
@@ -1140,18 +1153,18 @@ for nm,sim in (('transition',S),('strict',SS)):
     chk(f'F5 [{nm}] control: later request 5 -> 6, and 29 -> 30 (default cap) accepted',ok5(pre=5) and ok5(pre=29))
     chk(f'F5 [{nm}] cap: 30 -> 31 refused (counter), so the whole batch fails',not TB(sim,pre=30)[1] and not ok5(pre=30))
     chk(f'F5 [{nm}] cap raised to 50 by the owner: 30 -> 31 accepted; lowered to 5: 5 -> 6 refused; guard without cap keeps the default 30',ok5(pre=30,guard={'cap':50}) and not ok5(pre=5,guard={'cap':5}) and not ok5(pre=30,guard={'pause':False}))
-    chk(f'F5 [{nm}] switch off (absent / false / guard without the field): old direct form still accepted',A5(sim,'create','meetingRequests/n1',None,REQ()) and A5(sim,'create','meetingRequests/n1',None,REQ(),None,{'content/guard':{'tokenRequired':False}}) and A5(sim,'create','meetingRequests/n1',None,REQ(),None,{'content/guard':{'pause':False,'cap':30}}))
-    chk(f'F5 [{nm}] switch ON: old direct form refused (no sign-in, Google stranger, token account writing a legacy-shaped request)',not A5(sim,'create','meetingRequests/n1',None,REQ(),None,{'content/guard':{'tokenRequired':True}}) and not A5(sim,'create','meetingRequests/n1',STRANGER,REQ(),None,{'content/guard':{'tokenRequired':True}}) and not A5(sim,'create','meetingRequests/n1',TV,REQ(),None,{'content/guard':{'tokenRequired':True}}))
-    chk(f'F5 [{nm}] switch ON: token path still accepted',ok5(guard={'tokenRequired':True}) and ok5(pre=5,guard={'tokenRequired':True,'cap':30}))
-    chk(f'F5 [{nm}] switch must be exactly true: string "true" or 1 does not close the old path',A5(sim,'create','meetingRequests/n1',None,REQ(),None,{'content/guard':{'tokenRequired':'true'}}) and A5(sim,'create','meetingRequests/n1',None,REQ(),None,{'content/guard':{'tokenRequired':1}}))
+    DIRECT=lambda g=None,au=None: A5(sim,'create','meetingRequests/n1',au,REQ(),None,g)
+    chk(f'F5 [{nm}] SE-H1: the old direct form is refused whatever content/guard says (absent, tokenRequired false / true / "true" / 1, no field)',not any(DIRECT(g) for g in (None,{'content/guard':{'tokenRequired':False}},{'content/guard':{'pause':False,'cap':30}},{'content/guard':{'tokenRequired':True}},{'content/guard':{'tokenRequired':'true'}},{'content/guard':{'tokenRequired':1}})))
+    chk(f'F5 [{nm}] SE-H1: old direct form refused for no sign-in, a Google stranger and a token account writing a legacy-shaped request',not DIRECT() and not DIRECT(au=STRANGER) and not DIRECT(au=TV) and not DIRECT({'content/guard':{'tokenRequired':True}},STRANGER))
+    chk(f'F5 [{nm}] SE-H1: the token path is accepted whatever the old switch says',ok5() and ok5(guard={'tokenRequired':False}) and ok5(guard={'tokenRequired':True}) and ok5(pre=5,guard={'tokenRequired':True,'cap':30}))
     chk(f'F5 [{nm}] a direct (non-token) request cannot carry the day field',not A5(sim,'create','meetingRequests/n1',None,RQ()) and not A5(sim,'create','meetingRequests/n1',STRANGER,RQ()))
-    chk(f'F5 [{nm}] pause on: token submission refused as well; capacity full and busy slot too',not ok5(guard={'pause':True}) and not ok5(extra={'content/capacity':{'open':False}}) and not ok5(extra={'content/busy':{'keys':['2026-12-01T09:00']}}))
+    chk(f'F5 [{nm}] pause on: token submission refused as well; capacity full and busy slot too',not ok5(guard={'pause':True}) and not ok5(extra={'content/capacity':{'open':False}}) and not ok5(extra={'content/busy':{'keys':['2027-02-01T09:00']}}))
     chk(f'F5 [{nm}] token request keeps every normal field check (bad e-mail, long name, long message, wrong status, forged time, unknown field, missing company)',not any(TB(sim,req=RQ(**k))[0] for k in ({'email':'x'},{'name':''},{'name':'n'*101},{'message':'m'*2001},{'status':'confirmed'},{'createdAt':TS(NOW-1000)},{'admin':True},{'tz':'<b>'})) and not TB(sim,req={k:v for k,v in RQ().items() if k!='company'})[0])
     chk(f'F5 [{nm}] no sign-in, Google account, wrong claim value, claim on a non-custom provider: all refused',not any(ok5(auth=a) for a in (None,{'uid':TU,'provider':'google.com','email':'a@b.c'},{'uid':TU,'provider':'custom','claims':{'form':'x'}},{'uid':TU,'provider':'custom'},{'uid':TU,'provider':'anonymous','claims':{'form':'meeting'}})))
     chk(f'F5 [{nm}] token uid without the m_ shape, too short, or with bad characters is refused',not any(ok5(auth={'uid':u,'provider':'custom','claims':{'form':'meeting'}},uid=u) for u in ('abc','m_short','x_abcDEF1234567890','m_bad id 123456','m_'+'a'*41)))
     chk(f'F5 [{nm}] request ID different from the token uid refused (one request per token)',not A5(sim,'create',RPf('m_other_12345'),TV,RQ(),None,{},{RPf('m_other_12345'):RQ(),CPf():{'count':1,'lastReq':TU}}))
     chk(f'F5 [{nm}] request without a counter write in the same batch refused; stale counter stamped by another token refused',not A5(sim,'create',RPf(),TV,RQ(),None,{},{RPf():RQ()}) and not A5(sim,'create',RPf(),TV,RQ(),None,{CPf():{'count':5,'lastReq':'m_previous_000'}},{RPf():RQ(),CPf():{'count':5,'lastReq':'m_previous_000'}}))
-    chk(f'F5 [{nm}] request day field not today (yesterday, wrong format, number) refused',not any(TB(sim,req=RQ(day=d))[0] for d in (PREVD,'2026-12-01',20261201,'')))
+    chk(f'F5 [{nm}] request day field not today (yesterday, wrong format, number) refused',not any(TB(sim,req=RQ(day=d))[0] for d in (PREVD,'2027-02-01',20261201,'')))
     chk(f'F5 [{nm}] counter: stamp by another token, jump by 2, start at 2, decrement, extra field, no lastReq: all refused',not any(TB(sim,pre=p,cnt=c)[1] for p,c in ((5,{'count':6,'lastReq':'m_other_12345'}),(5,{'count':7,'lastReq':TU}),(None,{'count':2,'lastReq':TU}),(None,{'count':1,'lastReq':'m_other_12345'}),(None,{'count':1,'lastReq':TU,'x':1}),(None,{'count':1}),(5,{'count':4,'lastReq':TU}),(5,{'count':6,'lastReq':TU,'x':1}),(5,{'count':6}))))
     chk(f'F5 [{nm}] counter: other day key (create and update) refused; counter write without its request refused',not A5(sim,'create',CPf(PREVD),TV,{'count':1,'lastReq':TU},None,{},{RPf():RQ(),CPf(PREVD):{'count':1,'lastReq':TU}}) and not A5(sim,'update',CPf(PREVD),TV,{'count':6,'lastReq':TU},{'count':5,'lastReq':'m_p'},{CPf(PREVD):{'count':5,'lastReq':'m_p'}},{RPf():RQ(),CPf(PREVD):{'count':6,'lastReq':TU}}) and not A5(sim,'create',CPf(),TV,{'count':1,'lastReq':TU},None,{},{CPf():{'count':1,'lastReq':TU}}) and not A5(sim,'update',CPf(),TV,{'count':6,'lastReq':TU},{'count':5,'lastReq':'m_p'},{CPf():{'count':5,'lastReq':'m_p'}},{CPf():{'count':6,'lastReq':TU}}))
     chk(f'F5 [{nm}] counter cannot be written by the public, a Google stranger or the owner; nobody can delete it',not any(A5(sim,'create',CPf(),a,{'count':1,'lastReq':'x'},None,{},{RPf():RQ(),CPf():{'count':1,'lastReq':'x'}}) for a in (None,STRANGER,OWN)) and not any(A5(sim,'delete',CPf(),a,None,{'count':5},{CPf():{'count':5}}) for a in (None,TV,OWN)))
@@ -1430,6 +1443,57 @@ for nm,sim in (('transition',S),('strict',SS)):
         A5(sim,'get',AP(),OWN,None,ANSW(),{AP():ANSW()}) and A5(sim,'list','surveyAnswers',OWN) and A5(sim,'delete',AP(),OWN,None,ANSW(),{AP():ANSW()}) and not any(A5(sim,op,AP() if op!='list' else 'surveyAnswers',a,ANSW() if op=='update' else None,ANSW() if op!='list' else None,{AP():ANSW()}) for a in (None,STRANGER,TV) for op in ('get','list','update','delete'))
         and not A5(sim,'update',AP(),OWN,ANSW(q1=1),ANSW(),{AP():ANSW()}))
     chk(f'SV2b [{nm}] the new collections do not open anything else (testimonials, settings) and similar names are not matched',not any(A5(sim,'create',pth,OWN,TPL(),None,{}) for pth in ('surveyTemplate/Tpl12345678','surveyForm/'+SK,'surveyAnswer/'+SK,'surveyTemplates/Tpl12345678/sub/x')))
+# ---------------- 8p. SE-H1 (4.5.0): daily budgets for anonymous writes, booking date window, token-only booking (checked on BOTH rules files)
+import datetime as _dd
+VSID='b'*24; VID1=VSID+'_view_home'; VID2=VSID+'_summary_sections'; CID1='abc123_x1'
+def _AF(sim,op,path,au=None,new=None,old=None,docs=None,after=None,now=NOW):
+    try: return sim.allowed(op,path,au,new,old,docs,now,after)
+    except Exception: return False
+def VB(sim,pre=None,rid=VID1,rec=None,cnt=None,guard=None,extra=None,key=None,kind='v',now=NOW):
+    """one counted anonymous write = batch of (record create, counter create/update); returns (record verdict, counter verdict)"""
+    d=_dd.datetime.fromtimestamp(now/1000,_dd.timezone.utc); day=f'{d.year}{d.month:02d}{d.day:02d}'
+    ck=key or (kind+'_'+day); cp='anonCounters/'+ck
+    col='visits' if kind=='v' else 'chatUnanswered'
+    if rec is None: rec=(VIS() if rid==VID1 else {'vid':'a'*24,'sid':VSID,'type':'summary','path':'sections','ref':'','device':'desktop','browser':'Chrome','createdAt':TSNOW,'secs':['intro']}) if kind=='v' else CHAT()
+    if kind=='c' and rid==VID1: rid=CID1
+    docs=dict(extra or {})
+    if pre is not None: docs[cp]={'count':pre,'last':'previous'}
+    if guard is not None: docs['content/guard']=guard
+    nc=cnt if cnt is not None else {'count':1 if pre is None else pre+1,'last':rid}
+    af={col+'/'+rid:rec,cp:nc}
+    return (_AF(sim,'create',col+'/'+rid,None,rec,None,docs,af,now),_AF(sim,'create' if pre is None else 'update',cp,None,nc,None if pre is None else docs[cp],docs,af,now))
+for nm,sim in (('transition',S),('strict',SS)):
+    okv=lambda **k: all(VB(sim,**k))
+    chk(f'H1 [{nm}] visits: first counter of the day, a later one, the default cap 1499 -> 1500 all accepted (view and summary, chat too)',okv() and okv(pre=5) and okv(pre=1499) and okv(rid=VID2) and okv(kind='c') and okv(kind='c',pre=299))
+    chk(f'H1 [{nm}] visits: 1500 -> 1501 refused, chat 300 -> 301 refused (the counter fails, so the whole batch fails)',not VB(sim,pre=1500)[1] and not okv(pre=1500) and not VB(sim,kind='c',pre=300)[1] and not okv(kind='c',pre=300))
+    chk(f'H1 [{nm}] visitCap / chatCap in content/guard raise or lower the budget; a guard without them keeps the defaults; cap strings fail closed',okv(pre=1500,guard={'visitCap':2000}) and not okv(pre=10,guard={'visitCap':10}) and okv(pre=9,guard={'visitCap':10}) and okv(kind='c',pre=300,guard={'chatCap':400}) and not okv(kind='c',pre=5,guard={'chatCap':5}) and not okv(pre=1500,guard={'pause':False}) and not okv(pre=5,guard={'visitCap':'9999'}))
+    chk(f'H1 [{nm}] a visit or chat question WITHOUT its counter write in the batch is refused (and one whose counter points to another id)',not _AF(sim,'create','visits/'+VID1,None,VIS(),None,{},{'visits/'+VID1:VIS()}) and not _AF(sim,'create','chatUnanswered/'+CID1,None,CHAT(),None,{},{'chatUnanswered/'+CID1:CHAT()})
+        and not VB(sim,cnt={'count':1,'last':VSID+'_view_other'})[0] and not VB(sim,kind='c',cnt={'count':1,'last':'abc123_zz'})[0])
+    chk(f'H1 [{nm}] counter: jump by 2, start at 2, decrement, extra field, missing last, last not a string, bad id shape, stale last (record already exists): all refused',not any(VB(sim,pre=p,cnt=c)[1] for p,c in ((5,{'count':7,'last':VID1}),(None,{'count':1,'last':VID1,'x':1}),(None,{'count':2,'last':VID1}),(5,{'count':4,'last':VID1}),(5,{'count':6,'last':VID1,'x':1}),(5,{'count':6}),(5,{'count':6,'last':5}),(5,{'count':6,'last':'x'*50}),(5,{'count':6,'last':'../clients/x'})))
+        and not VB(sim,pre=5,extra={'visits/'+VID1:VIS()})[1] and not VB(sim,kind='c',pre=5,extra={'chatUnanswered/'+CID1:CHAT()})[1]
+        and not VB(sim,extra={'visits/'+VID1:VIS()})[1] and not VB(sim,kind='c',extra={'chatUnanswered/'+CID1:CHAT()})[1])
+    chk(f'H1 [{nm}] counter: yesterday or other-day key, wrong kind prefix, unknown key, a v_ counter tied to a chat record and a c_ counter tied to a visit: all refused',not any(VB(sim,key=k)[1] for k in ('v_'+PREVD,'v_20300101','x_'+TODAY0,'v_'+TODAY0+'x','vv_'+TODAY0,TODAY0)) and not any(VB(sim,key=k,pre=5,kind='c')[1] for k in ('c_'+PREVD,'c_20300101')) and not any(VB(sim,key=k,pre=5)[1] for k in ('v_'+PREVD,'v_20300101'))
+        and not _AF(sim,'create','anonCounters/v_'+TODAY0,None,{'count':1,'last':CID1},None,{},{'anonCounters/v_'+TODAY0:{'count':1,'last':CID1},'chatUnanswered/'+CID1:CHAT()})
+        and not _AF(sim,'create','anonCounters/c_'+TODAY0,None,{'count':1,'last':VID1},None,{},{'anonCounters/c_'+TODAY0:{'count':1,'last':VID1},'visits/'+VID1:VIS()}))
+    chk(f'H1 [{nm}] counter write without its record in the same batch refused (no empty bumps)',not _AF(sim,'create','anonCounters/v_'+TODAY0,None,{'count':1,'last':VID1},None,{},{'anonCounters/v_'+TODAY0:{'count':1,'last':VID1}}) and not _AF(sim,'update','anonCounters/c_'+TODAY0,None,{'count':6,'last':CID1},{'count':5,'last':'p'},{'anonCounters/c_'+TODAY0:{'count':5,'last':'p'}},{'anonCounters/c_'+TODAY0:{'count':6,'last':CID1}}))
+    cnt_only=lambda path,c,old=None,docs=None: _AF(sim,'create' if old is None else 'update',path,None,c,old,docs or {},{path:c})
+    chk(f'H1 [{nm}] counter write without its record in the same batch refused for all four forms (visits / chat, first / later of the day)',not cnt_only('anonCounters/v_'+TODAY0,{'count':1,'last':VID1}) and not cnt_only('anonCounters/c_'+TODAY0,{'count':1,'last':CID1}) and not cnt_only('anonCounters/v_'+TODAY0,{'count':6,'last':VID1},{'count':5,'last':'p'},{'anonCounters/v_'+TODAY0:{'count':5,'last':'p'}}) and not cnt_only('anonCounters/c_'+TODAY0,{'count':6,'last':CID1},{'count':5,'last':'p'},{'anonCounters/c_'+TODAY0:{'count':5,'last':'p'}}))
+    chk(f'H1 [{nm}] a budget of 0 in content/guard closes the counted writes at once (first of the day too); the summary create needs its own counter',not okv(guard={'visitCap':0}) and not okv(kind='c',guard={'chatCap':0}) and okv(guard={'visitCap':1})
+        and not _AF(sim,'create','visits/'+VID2,None,{'vid':'a'*24,'sid':VSID,'type':'summary','path':'sections','ref':'','device':'desktop','browser':'Chrome','createdAt':TSNOW,'secs':['intro']},None,{},{'visits/'+VID2:{'x':1}})
+        and not VB(sim,rid=VID2,cnt={'count':1,'last':VSID+'_summary_other'})[0])
+    chk(f'H1 [{nm}] counters: nobody but the owner reads or deletes; no signed-in stranger, token or owner can write them outside the batch rule',
+        not any(_AF(sim,op,'anonCounters/v_'+TODAY0,a,None,{'count':1,'last':'x'},{'anonCounters/v_'+TODAY0:{'count':1,'last':'x'}}) for op in ('get','list','delete') for a in (None,STRANGER,TV0))
+        and _AF(sim,'get','anonCounters/v_'+TODAY0,OWN,None,{'count':1,'last':'x'},{'anonCounters/v_'+TODAY0:{'count':1,'last':'x'}}) and _AF(sim,'delete','anonCounters/v_'+TODAY0,OWN,None,None,{'anonCounters/v_'+TODAY0:{'count':1,'last':'x'}}))
+    chk(f'H1 [{nm}] pause on: counted writes refused; capacity full does not stop visits or chat',not okv(guard={'pause':True}) and not okv(kind='c',guard={'pause':True}) and okv(extra={'content/capacity':{'open':False}}))
+    chk(f'H1 [{nm}] a summary UPDATE (growth) needs no counter (cost stays at the create), and an update cannot be used to bypass the counter on a NEW id',_AF(sim,'update','visits/'+VID2,None,{'vid':'a'*24,'sid':VSID,'type':'summary','path':'sections','ref':'','device':'desktop','browser':'Chrome','createdAt':TSNOW,'secs':['intro','faq']},{'vid':'a'*24,'sid':VSID,'type':'summary','path':'sections','ref':'','device':'desktop','browser':'Chrome','createdAt':TSNOW,'secs':['intro']},{}) and not _AF(sim,'update','visits/'+VSID+'_view_x',None,VIS(),VIS(),{}))
+    # booking date window: tested at three clock readings, including a year boundary
+    for now in (NOW,int(_dd.datetime(2027,12,31,23,0,tzinfo=_dd.timezone.utc).timestamp()*1000),int(_dd.datetime(2027,3,1,0,30,tzinfo=_dd.timezone.utc).timestamp()*1000),int(_dd.datetime(2027,9,9,0,30,tzinfo=_dd.timezone.utc).timestamp()*1000),int(_dd.datetime(2027,10,10,12,0,tzinfo=_dd.timezone.utc).timestamp()*1000)):
+        t=_dd.datetime.fromtimestamp(now/1000,_dd.timezone.utc); ds=lambda x:(x).strftime('%Y-%m-%d'); lo=t-_dd.timedelta(days=1); hi=t+_dd.timedelta(days=366)
+        def bk(date,now=now):
+            d=_dd.datetime.fromtimestamp(now/1000,_dd.timezone.utc); day=f'{d.year}{d.month:02d}{d.day:02d}'; rq=REQ(date=date,day=day,createdAt=TS(now))
+            return _AF(sim,'create','meetingRequests/'+TU0,TV0,rq,None,{},{'meetingRequests/'+TU0:rq,'reqCounters/'+day:{'count':1,'lastReq':TU0}},now)
+        chk(f'H1 [{nm}] date window at {ds(t)}: today, yesterday (UTC), and +366 days accepted',bk(ds(t)) and bk(ds(lo)) and bk(ds(hi)),ds(lo)+' '+ds(hi))
+        chk(f'H1 [{nm}] date window at {ds(t)}: two days ago, last year, +367 days and a far future date refused',not any(bk(x) for x in (ds(t-_dd.timedelta(days=2)),ds(t-_dd.timedelta(days=400)),ds(t+_dd.timedelta(days=367)),'2999-01-01','1999-01-01')))
 # ---------------- 9. cross-check: strict file equals transition file apart from the owner check
 a=re.sub(r'\s+','',TXT); b=re.sub(r'\s+','',re.sub(r'^//.*\n','',STRICT,flags=re.M))
 chk('strict rules differ from the transition rules only in the owner e-mail fallback',a.replace("&&(request.auth.uid==ownerUid()||request.auth.token.email=='fredespinosa86.app@gmail.com');","&&request.auth.uid==ownerUid();")==b,'')

@@ -9,7 +9,7 @@ if(FIREBASE_CONFIG){try{
 const B=new URL('../assets/vendor/firebase/10.12.2/',import.meta.url).href;   /* SE-E3: the Firebase SDK is served from this site (assets/vendor/firebase), not from Google. No query string on these addresses: the vendored files import each other without one. */
 const {initializeApp}=await import(B+'firebase-app.js');
 const {getAuth,GoogleAuthProvider,signInWithPopup,signOut,onAuthStateChanged,setPersistence,browserSessionPersistence,browserLocalPersistence}=await import(B+'firebase-auth.js');
-const {getFirestore,doc,onSnapshot,setDoc,collection,addDoc,serverTimestamp,query,orderBy,limit,updateDoc,deleteDoc,where,getDocs,getDoc,startAfter,getCountFromServer,writeBatch,runTransaction}=await import(B+'firebase-firestore.js');
+const {getFirestore,doc,onSnapshot,setDoc,collection,addDoc,serverTimestamp,query,orderBy,limit,updateDoc,deleteDoc,where,getDocs,getDoc,startAfter,getCountFromServer,writeBatch,runTransaction,increment}=await import(B+'firebase-firestore.js');
 const app=initializeApp(FIREBASE_CONFIG);
 /* Security S2 / SE-E1: App Check (reCAPTCHA Enterprise score key, free up to 10,000 assessments a month; or classic v3 if appCheckProvider is 'v3'). Active only when settings.js holds a site key; a failure never blocks the site. */
 if(window.coreAppCheck)await window.coreAppCheck.start(B,app,S);   /* SE-E1: shared helper, same for all three Firebase clients; never throws */
@@ -63,17 +63,20 @@ setDoc(ref,{chatWebhook:u,chatAuto:hookOn.checked&&!!u,updatedAt:Date.now()},{me
 const rdb=getFirestore(app);
 const hash=s=>{let x=5381;for(const c of s)x=((x<<5)+x+c.charCodeAt(0))>>>0;return x.toString(36)};
 /* Visitors: meeting request form (validated again by the Firestore rules) */
-window.submitMeeting=d=>addDoc(collection(rdb,'meetingRequests'),{...d,status:'new',createdAt:serverTimestamp()});
+/* SE-H1: there is no direct booking write any more; bookings go through scripts/form-guard.js (Worker token) only. */
 /* Visitors: questions the chatbot could not answer. The document id is session+question, so a repeated question
    is a second create on the same id, which the rules reject (no duplicate records). */
+/* SE-H1: visits and unanswered questions are COUNTED against a daily budget: the record and the counter bump (anonCounters/<v|c>_<UTC day>) are one batch, and the rules refuse the batch once the day's budget is used up.
+   A refused write is dropped quietly (analytics only; the site is never affected). Two visitors bumping at the same moment collide: one retries after a short random wait. */
+const counted=window.coreAnon.make({writeBatch,doc,increment,db:rdb});   /* scripts/core-anon.js (unit-tested) */
 window.recordUnanswered=r=>{const q=String(r.question||'').trim().slice(0,300);if(!q)return Promise.resolve();const sid=String(r.sessionId||'anon').slice(0,40);
-return setDoc(doc(rdb,'chatUnanswered',sid+'_'+hash(q.toLowerCase())),{question:q,response:String(r.response||'').slice(0,600),sessionId:sid,context:String(r.context||'').slice(0,300),status:'new',createdAt:serverTimestamp()}).catch(()=>{})};
+return counted('c','chatUnanswered',sid+'_'+hash(q.toLowerCase()),{question:q,response:String(r.response||'').slice(0,600),sessionId:sid,context:String(r.context||'').slice(0,300),status:'new',createdAt:serverTimestamp()}).catch(()=>{})};
 /* Owner dashboard bridge (every call is checked by the Firestore rules, not by the UI) */
 /* Phase 3: anonymous visit counter (rules allow create-only with a fixed set of fields) */
 /* Security S2: the id is session+type+page, so the same record can never be created twice (the rules check it) */
-window.recordVisit=d=>setDoc(doc(rdb,'visits',d.sid+'_'+d.type+'_'+d.path),{...d,createdAt:serverTimestamp()});
+window.recordVisit=d=>counted('v','visits',d.sid+'_'+d.type+'_'+d.path,{...d,createdAt:serverTimestamp()});
 /* Enhancement E2: one summary record per visit (rules: create once, then only grow) */
-window.recordSummary=(d,first)=>{const r=doc(rdb,'visits',d.sid+'_summary_sections');return first?setDoc(r,{...d,createdAt:serverTimestamp()}):updateDoc(r,{secs:d.secs})};
+window.recordSummary=(d,first)=>{const id=d.sid+'_summary_sections';return first?counted('v','visits',id,{...d,createdAt:serverTimestamp()}):updateDoc(doc(rdb,'visits',id),{secs:d.secs})};
 /* every owner write is counted so the dashboard can lock "View site" while a save is running */
 const busy=f=>(...a)=>{window.dashBusy&&window.dashBusy(1);return Promise.resolve(f(...a)).finally(()=>window.dashBusy&&window.dashBusy(-1))};
 window.OWN={db:rdb,ref,save,fs:{collection,addDoc:busy(addDoc),doc,setDoc:busy(setDoc),updateDoc:busy(updateDoc),deleteDoc:busy(deleteDoc),onSnapshot,query,orderBy,limit,startAfter,where,getDocs,getDoc,serverTimestamp,writeBatch:()=>{const b=writeBatch(rdb),c=b.commit.bind(b);b.commit=busy(c);return b},runTransaction:busy(runTransaction)},

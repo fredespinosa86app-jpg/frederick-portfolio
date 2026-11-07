@@ -44,8 +44,18 @@ service cloud.firestore {
     function guardDoc() { return /databases/$(database)/documents/content/guard; }
     // The daily limit lives in content/guard.cap (already read by intakeOpen(), so it adds no document lookup). Default 30.
     function underCap(n) { return (!exists(guardDoc()) && n <= 30) || (exists(guardDoc()) && n <= get(guardDoc()).data.get('cap', 30)); }
-    // The switch: while content/guard.tokenRequired is absent or false, the old direct form still works. true closes the old path.
-    function tokenRequired() { return exists(guardDoc()) && get(guardDoc()).data.get('tokenRequired', false) == true; }
+    // SE-H1 (4.5.0): the old direct booking path is gone. A booking needs a Worker token ALWAYS; a missing or edited content/guard cannot reopen it.
+    // Calendar day text YYYY-MM-DD from a timestamp (zero-padded without number functions: a lookup table), used for the date window below.
+    function p2(n) { return ['00','01','02','03','04','05','06','07','08','09','10','11','12','13','14','15','16','17','18','19','20','21','22','23','24','25','26','27','28','29','30','31'][n]; }
+    function dayStr(t) { return string(t.year()) + '-' + p2(t.month()) + '-' + p2(t.day()); }
+    // A booking date may not be in the past (yesterday UTC is allowed for time zones) and not more than 366 days ahead.
+    function dateWindowOk(d) { return d >= dayStr(request.time - duration.value(1, 'd')) && d <= dayStr(request.time + duration.value(366, 'd')); }
+    // SE-H1: daily budgets for anonymous writes (visits, unanswered chat questions). One counter per kind and UTC day (anonCounters/v_YYYYMMDD, c_YYYYMMDD).
+    // Every counted record is created in the same batch as a counter bump of exactly 1; the counter cannot pass content/guard.visitCap (default 1500) or chatCap (default 300).
+    function anonDoc(k) { return /databases/$(database)/documents/anonCounters/$(k); }
+    function visitDoc(id) { return /databases/$(database)/documents/visits/$(id); }
+    function chatDoc(id) { return /databases/$(database)/documents/chatUnanswered/$(id); }
+    function underAnon(field, dflt, n) { return (!exists(guardDoc()) && n <= dflt) || (exists(guardDoc()) && n <= get(guardDoc()).data.get(field, dflt)); }
     // P0 (4.5.0): Client ID registry helpers. An ID is A-Z, 0-9 and "-", 3 to 24 characters, starts with a letter, no "--", no trailing "-".
     function validClientId(id) { return id.matches('^[A-Z][A-Z0-9-]{1,22}[A-Z0-9]$') && !id.matches('.*--.*'); }
     function regDoc(cid) { return /databases/$(database)/documents/clientRegistry/$(cid); }
@@ -150,13 +160,10 @@ service cloud.firestore {
         && intakeOpen()
         && capOpen()
         && slotFree()
-        && (
-          // old direct path: no token, no day field. Closed when the owner sets content/guard.tokenRequired = true.
-          (!tokenRequired() && !('day' in request.resource.data.keys()))
-          // token path: one request per token (the document ID is the token's uid), counted in the same batch under today's counter
-          || (visitorTok() && id == request.auth.uid && request.resource.data.day == today()
-              && getAfter(capDoc(today())).data.lastReq == request.auth.uid)
-        );
+        && dateWindowOk(request.resource.data.date)
+        // token path only: one request per token (the document ID is the token's uid), counted in the same batch under today's counter
+        && visitorTok() && id == request.auth.uid && request.resource.data.day == today()
+        && getAfter(capDoc(today())).data.lastReq == request.auth.uid;
       // a visitor may confirm ONLY their own request (resolves a lost acknowledgement); no list, no update, no delete
       allow get: if visitorTok() && id == request.auth.uid;
       allow read, update, delete: if isOwner();
@@ -184,8 +191,23 @@ service cloud.firestore {
         && request.resource.data.sessionId is string && request.resource.data.sessionId.size() <= 40
         && request.resource.data.context is string && request.resource.data.context.size() <= 300
         && request.resource.data.status == 'new'
-        && request.resource.data.createdAt == request.time;
+        && request.resource.data.createdAt == request.time
+        && getAfter(anonDoc('c_' + today())).data.last == id;
       allow read, update, delete: if isOwner();
+    }
+    // SE-H1: the daily budget counters. Anyone may bump one by exactly 1, only together with a brand-new record it points to; nobody can lower or delete it except the owner.
+    match /anonCounters/{k} {
+      allow create: if request.resource.data.keys().hasOnly(['count','last']) && request.resource.data.count == 1 && request.resource.data.last is string
+        && ((k == 'v_' + today() && request.resource.data.last.matches('^[0-9a-f]{24}_(view|summary)_[A-Za-z0-9_-]{1,40}$')
+              && !exists(visitDoc(request.resource.data.last)) && existsAfter(visitDoc(request.resource.data.last)) && underAnon('visitCap', 1500, 1))
+         || (k == 'c_' + today() && request.resource.data.last.matches('^[a-z0-9]{1,20}_[a-z0-9]{1,12}$')
+              && !exists(chatDoc(request.resource.data.last)) && existsAfter(chatDoc(request.resource.data.last)) && underAnon('chatCap', 300, 1)));
+      allow update: if request.resource.data.keys().hasOnly(['count','last']) && request.resource.data.count == resource.data.count + 1 && request.resource.data.last is string
+        && ((k == 'v_' + today() && request.resource.data.last.matches('^[0-9a-f]{24}_(view|summary)_[A-Za-z0-9_-]{1,40}$')
+              && !exists(visitDoc(request.resource.data.last)) && existsAfter(visitDoc(request.resource.data.last)) && underAnon('visitCap', 1500, request.resource.data.count))
+         || (k == 'c_' + today() && request.resource.data.last.matches('^[a-z0-9]{1,20}_[a-z0-9]{1,12}$')
+              && !exists(chatDoc(request.resource.data.last)) && existsAfter(chatDoc(request.resource.data.last)) && underAnon('chatCap', 300, request.resource.data.count)));
+      allow read, delete: if isOwner();
     }
     match /activity/{id} {
       allow read, create, delete: if isOwner();
@@ -204,7 +226,8 @@ service cloud.firestore {
         && request.resource.data.ref is string && request.resource.data.ref.size() <= 100
         && request.resource.data.device in ['desktop','tablet','mobile']
         && request.resource.data.browser is string && request.resource.data.browser.size() <= 20
-        && request.resource.data.createdAt == request.time;
+        && request.resource.data.createdAt == request.time
+        && getAfter(anonDoc('v_' + today())).data.last == id;
       allow create: if intakeOpen()
         && request.resource.data.keys().hasOnly(['vid','sid','type','path','ref','device','browser','createdAt','secs'])
         && request.resource.data.keys().hasAll(['vid','sid','type','path','ref','device','browser','createdAt','secs'])
@@ -216,6 +239,7 @@ service cloud.firestore {
         && request.resource.data.device in ['desktop','tablet','mobile']
         && request.resource.data.browser is string && request.resource.data.browser.size() <= 20
         && request.resource.data.createdAt == request.time
+        && getAfter(anonDoc('v_' + today())).data.last == id
         && request.resource.data.secs is list && request.resource.data.secs.size() >= 1 && request.resource.data.secs.size() <= 12
         && request.resource.data.secs.hasOnly(['intro','services','training','experience','toolkit','process','testimonials','faq','thank-you','contact','schedule']);
       // E2: a session's summary may only GROW (same fields, more sections), a few times at most

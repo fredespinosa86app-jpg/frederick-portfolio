@@ -30,16 +30,14 @@ beforeEach(reset);
 const ui = (answers) => { const asked = []; const q = [...answers]; return { asked, askCode: async o => { asked.push(o); const a = q.shift(); return typeof a === 'function' ? a(o) : a; } }; };
 const submit = (u, d = DATA) => guard.submit(d, u, w.status);
 
-test('decide: old path while the switch is off; token path when on or with ?verify=1', async () => {
-  assert.deepEqual((await guard.decide()).token, false);
-  w.status.tokenRequired = true; assert.equal((await guard.decide()).token, true);
-  w.status.tokenRequired = false; G.search = '?verify=1'; assert.equal((await guard.decide()).token, true);
-  G.search = '?verify=10'; assert.equal((await guard.decide()).token, false); G.search = '?x=1&verify=1#schedule'; assert.equal((await guard.decide()).token, true); });
-test('decide: Worker unreachable -> old path (rules decide); with ?verify=1 -> token path that reports "unreachable"', async () => {
-  w.down = true; let d = await guard.decide(); assert.equal(d.token, false); assert.equal(d.error, null);
-  G.search = '?verify=1'; d = await guard.decide(); assert.equal(d.token, true); assert.equal(d.error, 'unreachable');
-  w.down = false; w.statusCode = 500; w.status = { error: 'config' }; G.search = ''; assert.equal((await guard.decide()).token, false); });
-test('decide: no Worker address configured -> old path; with ?verify=1 -> config message', async () => { G.api = ''; assert.equal((await guard.decide()).token, false); G.search = '?verify=1'; assert.equal((await guard.decide()).error, 'config'); });
+test('decide (SE-H1): the verified path is the only path, whatever the old switch or ?verify=1 say', async () => {
+  for (const [tr, search] of [[false, ''], [true, ''], [false, '?verify=1'], [undefined, '?verify=10']]) { reset(); if (tr !== undefined) w.status.tokenRequired = tr; G.search = search; const d = await guard.decide(); assert.equal(d.token, true); assert.equal(d.error, undefined); assert.equal(d.status.ok, true); } });
+test('decide (SE-H1): Worker unreachable, not configured or answering an error -> a plain problem, never the old direct path', async () => {
+  w.down = true; let d = await guard.decide(); assert.equal(d.token, true); assert.equal(d.error, 'unreachable'); assert.equal(d.status, null);
+  w.down = false; w.statusCode = 500; w.status = { error: 'config' }; d = await guard.decide(); assert.equal(d.token, true); assert.equal(d.error, 'unreachable');
+  reset(); G.api = ''; d = await guard.decide(); assert.equal(d.token, true); assert.equal(d.error, 'config'); });
+test('decide (SE-H1): offline is reported as offline', async () => { w.down = true; const nav = Object.getOwnPropertyDescriptor(globalThis, 'navigator'); Object.defineProperty(globalThis, 'navigator', { value: { onLine: false }, configurable: true });
+  try { const d = await guard.decide(); assert.equal(d.error, 'offline'); } finally { if (nav) Object.defineProperty(globalThis, 'navigator', nav); else delete globalThis.navigator; } });
 
 test('happy path: request id = token uid, counter 1, day from the Worker, server time, separate in-memory app, signed out afterwards', async () => {
   const u = ui(['123456']); const r = await submit(u); assert.deepEqual(r, { ok: true });

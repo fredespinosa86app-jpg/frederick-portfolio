@@ -1,7 +1,7 @@
 # F5 (4.5.0) mutations: each weakens ONE clause of the visitor-token / daily-counter / tokenRequired rules; attack_cases.py must fail for every one.
 # Names starting with 'EQUIV ' are guards that another rule already makes unreachable (defence in depth); they are listed separately.
 def X(name, a, b): return (name, a, b)
-TOK = "(visitorTok() && id == request.auth.uid && request.resource.data.day == today()\n              && getAfter(capDoc(today())).data.lastReq == request.auth.uid)"
+TOK = "&& visitorTok() && id == request.auth.uid && request.resource.data.day == today()\n        && getAfter(capDoc(today())).data.lastReq == request.auth.uid;"
 CNT_C = "allow create: if visitorTok() && day == today() && request.resource.data.keys().hasOnly(['count','lastReq'])"
 CNT_U = "allow update: if visitorTok() && day == today() && request.resource.data.keys().hasOnly(['count','lastReq'])"
 F5 = [
@@ -9,16 +9,11 @@ F5 = [
  X('F5 visitorTok: form claim check removed', "\n        && request.auth.token.form == 'meeting' && request.auth.uid.matches", "\n        && request.auth.uid.matches"),
  X('F5 visitorTok: uid shape check removed', " && request.auth.uid.matches('^m_[A-Za-z0-9_-]{8,40}$');\n    }\n    // UTC", ";\n    }\n    // UTC"),
  X('F5 visitorTok: uid minimum length loosened', "{8,40}$')", "{0,40}$')"),
- X('F5 token path: id == uid removed', "(visitorTok() && id == request.auth.uid && request.resource.data.day", "(visitorTok() && request.resource.data.day"),
- X('F5 token path: day == today removed', "&& id == request.auth.uid && request.resource.data.day == today()\n              && getAfter", "&& id == request.auth.uid\n              && getAfter"),
- X('F5 token path: stamp (getAfter) removed', TOK, "(visitorTok() && id == request.auth.uid && request.resource.data.day == today())"),
- X('F5 token path: stamp only checks that a counter exists', "getAfter(capDoc(today())).data.lastReq == request.auth.uid)\n        );", "getAfter(capDoc(today())).data.count >= 1)\n        );"),
- X('F5 token path: whole path open to any signed-in user', TOK, "(request.auth != null)"),
- X('F5 switch ignored: old path always allowed', "(!tokenRequired() && !('day' in request.resource.data.keys()))", "(!('day' in request.resource.data.keys()))"),
- X('F5 switch: old path allowed to carry a day field', "(!tokenRequired() && !('day' in request.resource.data.keys()))", "(!tokenRequired())"),
- X('F5 switch: always required (breaks the live form)', "(!tokenRequired() && !('day' in request.resource.data.keys()))", "(false)"),
- X('F5 switch: any truthy value closes it', "get('tokenRequired', false) == true", "get('tokenRequired', false) != false"),
- X('F5 switch: reads wrong field name', "get('tokenRequired', false) == true", "get('tokenrequired', false) == true"),
+ X('F5 token path: id == uid removed', "&& visitorTok() && id == request.auth.uid && request.resource.data.day", "&& visitorTok() && request.resource.data.day"),
+ X('F5 token path: day == today removed', "&& id == request.auth.uid && request.resource.data.day == today()\n        && getAfter", "&& id == request.auth.uid\n        && getAfter"),
+ X('F5 token path: stamp (getAfter) removed', TOK, "&& visitorTok() && id == request.auth.uid && request.resource.data.day == today();"),
+ X('F5 token path: stamp only checks that a counter exists', "getAfter(capDoc(today())).data.lastReq == request.auth.uid;", "getAfter(capDoc(today())).data.count >= 1;"),
+ X('F5 token path: whole path open to any signed-in user', TOK, "&& request.auth != null;"),
  X('F5 request day field removed from the allowed list', "'answers','day'])", "'answers'])"),
  X('F5 visitor may list requests', "allow get: if visitorTok() && id == request.auth.uid;", "allow read: if visitorTok();"),
  X('F5 visitor may read any request', "allow get: if visitorTok() && id == request.auth.uid;", "allow get: if visitorTok();"),

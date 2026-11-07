@@ -48,21 +48,18 @@
     return { status: r.status, ok: r.ok, json: j || {} };
   }
   const apiBase = () => String(G.api || '').replace(/\/+$/, '');
-  const useVerifyFlag = () => /(?:^|[?&])verify=1(?:&|#|$)/.test(G.search || (root.location && root.location.search) || '');
 
-  /* Decide which path this send uses. Returns {token: bool, status: obj|null}.
-     token path when the owner's switch (content/guard.tokenRequired) is on, or when the address has ?verify=1 (owner test before the switch-over).
-     Otherwise the old direct path, unchanged. If the Worker cannot be reached and the switch state is unknown, the old path is tried
-     (the rules decide; a refusal shows the normal failure message with the email fallback). */
+  /* SE-H1: the verified path is the ONLY path (the database refuses a booking without a Worker token), so decide() no longer chooses.
+     It reads the Worker status (paused, daily cap) and reports a plain problem when the Worker cannot be reached or is not configured:
+     { token: true, status: obj } | { token: true, status: null, error: 'config' | 'unreachable' | 'offline' }. */
   async function decide() {
     G.api = G.api || apiBase();
-    const verify = useVerifyFlag();
-    if (!G.api) return { token: verify, status: null, error: verify ? 'config' : null };
+    if (!G.api) return { token: true, status: null, error: 'config' };
     try {
       const r = await call('/v1/status', 'GET');
-      if (r.ok && r.json && r.json.ok) return { token: !!r.json.tokenRequired || verify, status: r.json };
-      return { token: verify, status: null, error: verify ? 'unreachable' : null };
-    } catch (e) { return { token: verify, status: null, error: verify ? (isNet(e) && root.navigator && root.navigator.onLine === false ? 'offline' : 'unreachable') : null }; }
+      if (r.ok && r.json && r.json.ok) return { token: true, status: r.json };
+      return { token: true, status: null, error: 'unreachable' };
+    } catch (e) { return { token: true, status: null, error: isNet(e) && root.navigator && root.navigator.onLine === false ? 'offline' : 'unreachable' }; }
   }
 
   async function sdk() {

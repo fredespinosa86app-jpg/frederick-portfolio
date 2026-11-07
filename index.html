@@ -1008,13 +1008,13 @@ function doPost(e) {
 <p class="dhelp" id="secGuard" role="status"></p>
 <p class="dhelp">Pausing makes the database refuse new visits, meeting requests and chatbot questions from visitors until you resume. Your own panel keeps working. There is no background monitor on the free plan, so this only watches while the panel is open.</p></div>
 <div class="dcard"><h2>Form verification (Discovery Call request form)</h2>
-<p class="dhelp">Visitors type a six-digit code, then a one-time pass lets the form save one request. The database refuses anything beyond your <strong>daily limit</strong>. The code is a speed bump, not a CAPTCHA.</p>
+<p class="dhelp">Visitors pass the Cloudflare check (or type a six-digit code), then a one-time pass lets the form save one request. The database refuses anything beyond your <strong>daily limit</strong>. The code is a speed bump, not a CAPTCHA.</p>
 <p class="dhelp" id="vfToday" role="status">Requests counted today: checking…</p>
 <div class="ab"><label class="fld">Daily limit (1 to 200)<input type="number" id="vfCap" min="1" max="200" step="1" inputmode="numeric"></label><button type="button" class="dbtn" id="vfCapSave">Save daily limit</button></div>
 <p class="dhelp" id="vfCapMsg" role="status"></p>
-<div class="ab"><button type="button" class="dbtn" id="vfSwitch">Turn verification ON</button></div>
-<p class="dhelp" id="vfState" role="status"></p>
-<p class="dhelp"><strong>Leave verification OFF until the switch-over checklist says to turn it on.</strong> While it is off the form works as before. When it is on, the old direct form is refused by the database. Turning it off again is the instant rollback. Counts use the UTC day (it changes at 8:00 AM Philippine time).</p></div>
+<p class="dhelp" id="vfState" role="status">Verification is always on: the database refuses a booking that does not carry a one-time pass from the Worker. There is no switch any more (SE-H1).</p>
+<p class="dhelp" id="vfBudget" role="status">Daily budgets for visit records and unanswered chat questions: checking…</p>
+<p class="dhelp">Each counted visit record and each unanswered question uses one unit of a daily budget (default 1500 visit records and 300 questions per UTC day, stored in <code>content/guard</code> as <code>visitCap</code> and <code>chatCap</code>). When a budget is used up the database refuses more until the UTC day changes; the site and bookings are not affected. Counts use the UTC day (it changes at 8:00 AM Philippine time).</p></div>
 <div class="dcard" id="authCard"><h2>Monthly cleanup: form sign-in users (m_)</h2>
 <p class="dhelp">Each verified form attempt creates a Firebase sign-in user whose ID starts with <strong>m_</strong>. They hold no name, email or phone, but they pile up, so delete them about once a month. This page only reminds you; you delete them in the Firebase Console.</p>
 <p class="dhelp" id="authLast" role="status"></p>
@@ -1144,6 +1144,7 @@ function doPost(e) {
 <script src="scripts/owner-entry.js?v=b3"></script>
 <script src="scripts/owner-seo.js?v=s2c3"></script>
 <script src="scripts/content-cache.js?v=r1"></script>
-<script type="module" src="scripts/owner-panel.js?v=se3"></script>
+<script src="scripts/core-anon.js?v=h1"></script>
+<script type="module" src="scripts/owner-panel.js?v=h1"></script>
 </body>
 </html>

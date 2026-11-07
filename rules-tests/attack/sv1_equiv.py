@@ -15,6 +15,18 @@ SV1_EQUIV = {
  "SV1G comparison flipped >->>=: tus == 'sent' && get(svInv(k)).data.expiresAt > request.time": 'the invite flip checks the same expiry on the invite, and both writes of the batch must pass',
  "SV1G clause removed: request.resource.data.ownerStatus in ['approved','rejected']": 'the two branches below require the exact word approved or rejected',
  "SV1G clause removed: request.resource.data.keys().hasAll(['rating','comment','best','recommend','videoUrl','displayName','displayRo": 'a missing field already fails its own type, size or equality check in the same rule, so the required-field list changes no verdict',
- "SV1G clause removed: request.resource.data.keys().hasAll(['rating','comment','best','recommend','videoUrl','displayName','displayRo [989]": 'a missing field already fails its own type, size or equality check in the same rule, so the required-field list changes no verdict',
+ "SV1G clause removed: request.resource.data.keys().hasAll(['rating','comment','best','recommend','videoUrl','displayName','displayRo [990]": 'a missing field already fails its own type, size or equality check in the same rule, so the required-field list changes no verdict',
  'SV1G clause removed: request.resource.data.testimonialId is string': 'matches() on a non-text id is an evaluation error, which refuses the write',
 }
+
+# SE-H1 moved the rules text: carry every line-numbered note to its new line number (see b2_equiv.py)
+import re as _re, difflib as _dl, os as _os
+_old=_os.path.join(_os.path.dirname(__file__),'rules_before_h1.txt'); _new=_os.path.join(_os.path.dirname(__file__),'..','..','firestore.rules.strict')
+if _os.path.exists(_old):
+    _a=open(_old).read().split('\n'); _b=open(_new).read().split('\n'); _map={}
+    for _t,_i1,_i2,_j1,_j2 in _dl.SequenceMatcher(None,_a,_b,autojunk=False).get_opcodes():
+        if _t=='equal':
+            for _d in range(_i2-_i1): _map[_i1+_d+1]=_j1+_d+1
+    for _k,_v in list(SV1_EQUIV.items()):
+        _m=_re.search(r' \[(\d+)\]$',_k)
+        if _m and int(_m.group(1)) in _map: SV1_EQUIV.setdefault(_k[:_m.start()]+' ['+str(_map[int(_m.group(1))])+']',_v)

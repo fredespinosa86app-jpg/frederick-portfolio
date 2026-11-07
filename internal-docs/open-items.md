@@ -107,3 +107,6 @@ Five items recorded in `4.5.0-security-enhancement-review.md`, each needing the 
 
 ## Update 2026-11-07: SE-E5 built (review pack and owner checklist)
 `SECURITY-REVIEW-PACK.md`, `SECURITY-REVIEW-OWNER-CHECKLIST.md`. Owner: pick a reviewer, run the free scans, confirm the published rules file. Waiting: SE-E1 day-7 numbers on 2026-11-14. Remaining security items: E4 (needs the calendar provider choice), E2 (only if the domain moves).
+
+## Update 2026-11-07: SE-H1 built (fail-closed booking, daily budgets, date window), awaiting publish + live test
+`SE-H1-CHECKLIST.md`. Order: upload files, green Actions emulator run, then publish rules, then live test. Not yet approved from the QA review: F-02 shared single-use challenge consumption, F-01 Turnstile-first code path, optional removal of `style-src 'unsafe-inline'`, moving `internal-docs/` and the review pack out of the public repo. Still waiting: SE-E1 day-7 numbers on 2026-11-14.
