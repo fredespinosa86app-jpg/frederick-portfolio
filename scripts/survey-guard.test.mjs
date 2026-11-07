@@ -18,7 +18,7 @@ const P = CSP.parse(cspText);
 test('survey.html has exactly one CSP and it is as strict as designed', () => {
   assert.equal((page.match(/Content-Security-Policy/g) || []).length, 1);
   assert.deepEqual(P['default-src'], ["'none'"]);
-  assert.deepEqual(P['script-src'], ["'self'", 'https://www.gstatic.com', 'https://www.google.com/recaptcha/']);   // SE-E1: App Check (reCAPTCHA) script
+  assert.deepEqual(P['script-src'], ["'self'", 'https://www.gstatic.com/recaptcha/', 'https://www.google.com/recaptcha/']);   // SE-E1/E3: reCAPTCHA scripts only; the SDK is served from this site
   assert.deepEqual(P['connect-src'], ['https://firestore.googleapis.com', 'https://www.google.com', 'https://recaptchaenterprise.googleapis.com', 'https://content-firebaseappcheck.googleapis.com']);   // SE-E1
   assert.deepEqual(P['frame-src'], ['https://www.google.com/recaptcha/', 'https://recaptcha.google.com/recaptcha/']); assert.deepEqual(P['form-action'], ["'none'"]); assert.deepEqual(P['base-uri'], ["'none'"]); assert.deepEqual(P['object-src'], ["'none'"]);
   assert.deepEqual(P['style-src'], ["'self'"]); assert.deepEqual(P['img-src'], ["'self'", 'data:']); assert.deepEqual(P['font-src'], ["'self'"]);
@@ -50,8 +50,8 @@ test('survey-page.js never turns employer text into markup and never uses the ne
   }
   const imports = [...js.matchAll(/import\(([^)]*)\)/g)].map(m => m[1]); assert.ok(imports.length >= 2);
   for (const i of imports) assert.match(i, /^B \+ 'firebase-(app|firestore)\.js'$/);
-  assert.match(js, /const B = 'https:\/\/www\.gstatic\.com\/firebasejs\/10\.12\.2\/'/);
-  assert.match(rd('scripts/owner-panel.js'), /firebasejs\/10\.12\.2\//, 'SDK version must match the owner panel');
+  assert.match(js, /const B = new URL\('\.\.\/assets\/vendor\/firebase\/10\.12\.2\/', import\.meta\.url\)\.href/);
+  assert.match(rd('scripts/owner-panel.js'), /assets\/vendor\/firebase\/10\.12\.2\//, 'SDK version must match the owner panel');
 });
 test('survey page keeps the key out of the network: it is read from the #fragment and removed after use; no key in any query string', () => {
   assert.match(js, /keyFromHash\(location\.hash\)/); assert.match(js, /history\.replaceState\(null, '', location\.pathname\)/);

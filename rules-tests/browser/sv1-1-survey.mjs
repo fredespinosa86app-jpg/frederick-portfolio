@@ -19,9 +19,9 @@ const inviteOk = o => Object.assign({ status: 'sent', employerName: 'Ana Cruz', 
 async function emp(hash, { docs = {}, fake = {}, viewport = { width: 1000, height: 900 } } = {}) {
   const ctx = await b.newContext({ viewport }); const reqs = [];
   ctx.on('request', r => reqs.push(r.url()));
-  await ctx.route('https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js', r => r.fulfill({ contentType: 'text/javascript', body: FAKE_APP }));
-  await ctx.route('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js', r => r.fulfill({ contentType: 'text/javascript', body: FAKE_FS }));
-  await ctx.route('https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check.js', r => r.fulfill({ contentType: 'text/javascript', body: 'export class ReCaptchaEnterpriseProvider{constructor(k){this.k=k}} export class ReCaptchaV3Provider{constructor(k){this.k=k}} export const initializeAppCheck=()=>{};' }));   // SE-E1: App Check module stand-in
+  await ctx.route(/\/assets\/vendor\/firebase\/10\.12\.2\/firebase-app\.js$/, r => r.fulfill({ contentType: 'text/javascript', body: FAKE_APP }));
+  await ctx.route(/\/assets\/vendor\/firebase\/10\.12\.2\/firebase-firestore\.js$/, r => r.fulfill({ contentType: 'text/javascript', body: FAKE_FS }));
+  await ctx.route(/\/assets\/vendor\/firebase\/10\.12\.2\/firebase-app-check\.js$/, r => r.fulfill({ contentType: 'text/javascript', body: 'export class ReCaptchaEnterpriseProvider{constructor(k){this.k=k}} export class ReCaptchaV3Provider{constructor(k){this.k=k}} export const initializeAppCheck=()=>{};' }));   // SE-E1: App Check module stand-in
   await ctx.route(/googleapis\.com|evil\.example/, r => r.abort());
   const pg = await ctx.newPage(); const perr = []; pg.on('pageerror', e => perr.push(String(e)));
   const cons = []; pg.on('console', m => { if (m.type() === 'error') cons.push(m.text()); });
@@ -83,7 +83,7 @@ const D1 = { [`surveyInvites/${KEY}`]: inviteOk() };
   // consent
   await pg.fill('#fVideo', ''); await pg.uncheck('#fConsent'); await pg.click('#svSend'); await pg.waitForTimeout(80);
   check('B without consent nothing is sent', (await pg.textContent('#eConsent')).length > 0 && (await pg.evaluate(() => window.__commits.length)) === 0);
-  check('B no storage, no cookies, no third-party request', (await pg.evaluate(() => localStorage.length + sessionStorage.length + document.cookie.length)) === 0 && reqs.every(u => u.startsWith(base) || /gstatic\.com\/firebasejs\/10\.12\.2\/firebase-(app|firestore|app-check)\.js$/.test(u)), JSON.stringify(reqs.filter(u => !u.startsWith(base))));
+  check('B no storage, no cookies, no request that leaves the site (SE-E3: the SDK is served from the site)', (await pg.evaluate(() => localStorage.length + sessionStorage.length + document.cookie.length)) === 0 && reqs.every(u => u.startsWith(base)), JSON.stringify(reqs.filter(u => !u.startsWith(base))));
   check('B no page errors or console errors', perr.length === 0 && cons.length === 0, JSON.stringify([perr, cons]));
   await ctx.close();
 }

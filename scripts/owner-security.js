@@ -14,10 +14,11 @@
   const CHECKS = [
     ['signin', 'Only Google sign-in is turned on', 'Firebase console > Authentication > Sign-in method: Google enabled, every other provider disabled (no Anonymous, no Email/Password).'],
     ['domains', 'Authorised domains are only your own', 'Authentication > Settings > Authorised domains: keep localhost only while testing; remove anything you do not own.'],
-    ['apikey', 'Web API key is restricted to your site', 'Google Cloud console > APIs & Services > Credentials > your browser key > Websites: add only your site address and the firebaseapp.com address.'],
+    ['apikey', 'Web API key is restricted to your site', 'Google Cloud console > APIs & Services > Credentials > your browser key > Websites: add only your site address and the firebaseapp.com address. Under API restrictions the list must include Firebase App Check API (without it App Check is blocked).'],
     ['rules', 'Published rules match the file in this project', 'Firestore Database > Rules: the published text equals firestore.rules (Security S1 version), then press Publish.'],
     ['appcheck', 'App Check is registered and in monitoring mode', 'Firebase console > App Check > Apps: register this site with the reCAPTCHA Enterprise provider and the PUBLIC site key (the key is already in scripts/settings.js), watch the Firestore request graph for 7 days. Check that visits from the main page, the form and the survey page show as verified.'],
     ['enforce', 'App Check is enforced for Cloud Firestore', 'App Check > APIs > Cloud Firestore > Enforce, only after the graph shows your own visits as verified.'],
+    ['sdk', 'Firebase SDK version reviewed (every 3 months)', 'The site serves its own copy of the Firebase SDK (assets/vendor/firebase). Every 3 months read the Firebase release notes for security fixes; if there is one, ask for an SDK update (tools/vendor-firebase.mjs).'],
     ['budget', 'Budget alert is set', 'Google Cloud console > Billing > Budgets & alerts: a low alert (for example 1 USD) so any surprise charge is noticed. The project stays on the free plan.']
   ];
   const lsGet = (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch (e) { return d; } };

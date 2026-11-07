@@ -1,0 +1,40 @@
+{
+  "package": "firebase",
+  "version": "10.12.2",
+  "tarballIntegrity": "sha512-ZxEdtSvP1I9su1yf32D8TIdgxtPgxwr6z3jYAR1TXS/t+fVfpoPc/N1/N2bxOco9mNjUoc+od34v5Fn4GeKs6Q==",
+  "source": "npm registry (firebase@10.12.2)",
+  "edits": [
+    "import of firebase-app.js: Google address -> ./firebase-app.js",
+    "trailing sourceMappingURL comment removed"
+  ],
+  "files": {
+    "firebase-app.js": {
+      "originalSha256": "08b83f02859328aabb9acea9370d600ffe739d9e2c251b6668b6f6ff56a2e1d1",
+      "originalBytes": 101721,
+      "removedTail": "\n\n//# sourceMappingURL=firebase-app.js.map\r\n",
+      "vendoredSha256": "a7e55e82cc249f1e2765fdc38adad8952ddf545eb88ac8cefc772184f5348855",
+      "vendoredBytes": 101678
+    },
+    "firebase-auth.js": {
+      "originalSha256": "9b2ebba6ffced4657e12300f4187d53c8fc1762e98188e5e2005407a86e926b6",
+      "originalBytes": 150996,
+      "removedTail": "\n\n//# sourceMappingURL=firebase-auth.js.map\n",
+      "vendoredSha256": "8c5bb0e51da85d0afe7ac74bafd9abd0c23d473a80704da9d94316e88c8b1f0b",
+      "vendoredBytes": 150912
+    },
+    "firebase-firestore.js": {
+      "originalSha256": "aecb2b5b722d1a45426326cd144bc025d5bea8c48f3a53eca3914ad587361bd4",
+      "originalBytes": 436574,
+      "removedTail": "\n\n//# sourceMappingURL=firebase-firestore.js.map\n",
+      "vendoredSha256": "13b74eb81332a39caeef3cffee684f70ffe49f091ff38c8eee2b26abe9bd8996",
+      "vendoredBytes": 436485
+    },
+    "firebase-app-check.js": {
+      "originalSha256": "8d63723fc3ad5b7342230bbea4a6a60af91a3672703fc0b4e4f9d60169182403",
+      "originalBytes": 25039,
+      "removedTail": "\n\n//# sourceMappingURL=firebase-app-check.js.map\n",
+      "vendoredSha256": "5f0d6dd904cedb167e89346e8af770600fd74919ab5198b42e50cf1592c7cc46",
+      "vendoredBytes": 24950
+    }
+  }
+}

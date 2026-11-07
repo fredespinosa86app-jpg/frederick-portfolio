@@ -98,3 +98,6 @@ Five items recorded in `4.5.0-security-enhancement-review.md`, each needing the 
 
 ## Update 2026-11-07: SE-E1 stage A built (App Check monitoring), awaiting live test
 `SE-E1-CHECKLIST.md`. Next for E1: after 7 days of clean numbers the owner decides on enforcement (console only, separate step). Remaining security items: E3, E6, E5, E4, E2 (recommended order E3, E6, E5, E4, E2; each needs approval first).
+
+## Update 2026-11-07: SE-E3 built (Firebase SDK served from this site), awaiting live test
+`SE-E3-CHECKLIST.md`, `assets/vendor/firebase/README.md`. SE-E1 stage A still in its 7-day monitoring window (decision on enforcement on 2026-11-14). Remaining security items: E6, E5, E4, E2 (each needs approval first). Possible later: SDK upgrade as its own item.

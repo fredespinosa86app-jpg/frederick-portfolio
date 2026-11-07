@@ -81,3 +81,6 @@ No open defects.
 
 ## SE-E1 stage A (App Check monitoring): BUILT, setup problems found in the live test and fixed (owner re-test pending, `SE-E1-CHECKLIST.md`)
 - Nothing is enforced. Three Google-side causes, none in the code: (1) the web API key was restricted and did not list Firebase App Check API (403 API_KEY_SERVICE_BLOCKED); (2) the reCAPTCHA Enterprise API was not enabled (400 FAILED_PRECONDITION); (3) the first key was made on the old reCAPTCHA admin page and was not in the project's Fraud Defense key list (the same 400, also the cause of the earlier attempt's HTTP 400). A new key made in Cloud console fixed (3). Remaining check: real token issue and the 7-day verified/unverified graph. The survey page now allows the reCAPTCHA hosts (a small, tested widening of its CSP). Console noise: `.js.map` CSP lines appear only while developer tools are open and are harmless.
+
+## SE-E3 (Firebase SDK served from this site): BUILT, awaiting the owner's live test (`SE-E3-CHECKLIST.md`)
+- Open points: equality with the CDN copy is an optional owner check (checklist step 11); the SDK stays on 10.12.2 until a separate upgrade item; updates are manual (quarterly reminder in Owner Panel > Security). The earlier `.js.map` blocked-log noise should disappear.

@@ -29,7 +29,7 @@ const stub = () => {
   window.OWN = OWN;
 };
 const b = await chromium.launch(); 
-async function fresh(opts0 = {}) { const { init, initArg, ...opts } = opts0; const ctx = await b.newContext(Object.assign({ viewport: { width: 1200, height: 800 } }, opts)); await ctx.route(/gstatic|googleapis|google\.com|recaptcha|workers\.dev/, r => r.abort()); const pg = await ctx.newPage(); pg.on('pageerror', e => errs.push(String(e))); await pg.addInitScript(stub); if (init) await pg.addInitScript(init, initArg); await pg.goto(base); await pg.waitForFunction(() => window.wtApi && window.__wtFloat); return { ctx, pg }; }
+async function fresh(opts0 = {}) { const { init, initArg, ...opts } = opts0; const ctx = await b.newContext(Object.assign({ viewport: { width: 1200, height: 800 } }, opts)); await ctx.route(/gstatic|googleapis|google\.com|recaptcha|workers\.dev|\/assets\/vendor\/firebase\//, r => r.abort());   /* SE-E3: the vendored SDK is blocked too, so these suites run exactly as before (no real Firebase) */ const pg = await ctx.newPage(); pg.on('pageerror', e => errs.push(String(e))); await pg.addInitScript(stub); if (init) await pg.addInitScript(init, initArg); await pg.goto(base); await pg.waitForFunction(() => window.wtApi && window.__wtFloat); return { ctx, pg }; }
 const errs = [];
 const signIn = pg => pg.evaluate(() => document.dispatchEvent(new CustomEvent('own:auth', { detail: { ok: true, email: 't@x.com' } })));
 const signOut = pg => pg.evaluate(() => document.dispatchEvent(new CustomEvent('own:auth', { detail: { ok: false } })));

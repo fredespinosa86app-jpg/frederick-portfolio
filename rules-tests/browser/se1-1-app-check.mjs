@@ -15,9 +15,9 @@ const invite = { status: 'sent', employerName: 'Ana Cruz', company: 'Acme Ltd', 
 async function open({ ac }) {
   const ctx = await b.newContext({ viewport: { width: 1000, height: 900 } }); const csp = []; const reqs = [];
   ctx.on('request', r => reqs.push(r.url()));
-  await ctx.route('https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js', r => r.fulfill({ contentType: 'text/javascript', body: FAKE_APP }));
-  await ctx.route('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js', r => r.fulfill({ contentType: 'text/javascript', body: FAKE_FS }));
-  await ctx.route('https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check.js', r => ac === 'ok' ? r.fulfill({ contentType: 'text/javascript', body: FAKE_AC }) : ac === 'broken' ? r.fulfill({ contentType: 'text/javascript', body: 'throw new Error("boom")' }) : r.abort());
+  await ctx.route(/\/assets\/vendor\/firebase\/10\.12\.2\/firebase-app\.js$/, r => r.fulfill({ contentType: 'text/javascript', body: FAKE_APP }));
+  await ctx.route(/\/assets\/vendor\/firebase\/10\.12\.2\/firebase-firestore\.js$/, r => r.fulfill({ contentType: 'text/javascript', body: FAKE_FS }));
+  await ctx.route(/\/assets\/vendor\/firebase\/10\.12\.2\/firebase-app-check\.js$/, r => ac === 'ok' ? r.fulfill({ contentType: 'text/javascript', body: FAKE_AC }) : ac === 'broken' ? r.fulfill({ contentType: 'text/javascript', body: 'throw new Error("boom")' }) : r.abort());
   const pg = await ctx.newPage(); const perr = []; pg.on('pageerror', e => perr.push(String(e)));
   pg.on('console', m => { if (/Content Security Policy|Refused to/i.test(m.text())) csp.push(m.text()); });
   await pg.addInitScript(d => { window.__docs = d; window.__order = []; window.__commits = []; }, { ['surveyInvites/' + KEY]: invite });
@@ -32,7 +32,7 @@ const shown = pg => pg.evaluate(() => ['svLoading', 'svInvalid', 'svThanks', 'sv
   const o = await r.pg.evaluate(() => window.__order), ac = await r.pg.evaluate(() => window.__ac);
   check('A order: initializeApp, then App Check, then Firestore', JSON.stringify(o) === '["initializeApp","initializeAppCheck","getFirestore"]', JSON.stringify(o));
   check('A site key, enterprise provider, auto refresh on', ac && ac.key === SITE && ac.t === 'enterprise' && ac.auto === true && ac.hasCfg, JSON.stringify(ac));
-  check('A the module came from the same SDK folder and nothing else left the site', r.reqs.every(u => u.startsWith(base) || /^https:\/\/www\.gstatic\.com\/firebasejs\/10\.12\.2\/firebase-(app|firestore|app-check)\.js$/.test(u)), JSON.stringify(r.reqs.filter(u => !u.startsWith(base))));
+  check('A the SDK folder is on this site and nothing left the site', r.reqs.every(u => u.startsWith(base)), JSON.stringify(r.reqs.filter(u => !u.startsWith(base))));
   check('A no page error and no CSP violation', r.perr.length === 0 && r.csp.length === 0, JSON.stringify([r.perr, r.csp]));
   // the employer can still answer: the batch is written as before
   await r.pg.click('.sv-star:nth-child(5)'); await r.pg.fill('#fComment', 'She was reliable, fast and always kept me informed about progress.'); await r.pg.click('input[name=recommend][value=yes]'); await r.pg.check('#fConsent');

@@ -6,7 +6,7 @@ const notify=(m,t)=>window.dashNotify?window.dashNotify(m,t||(/^(Could not|Pleas
 const FIREBASE_CONFIG=S.firebase||null;
 const OWNER=S.ownerEmail;
 if(FIREBASE_CONFIG){try{
-const B='https://www.gstatic.com/firebasejs/10.12.2/';
+const B=new URL('../assets/vendor/firebase/10.12.2/',import.meta.url).href;   /* SE-E3: the Firebase SDK is served from this site (assets/vendor/firebase), not from Google. No query string on these addresses: the vendored files import each other without one. */
 const {initializeApp}=await import(B+'firebase-app.js');
 const {getAuth,GoogleAuthProvider,signInWithPopup,signOut,onAuthStateChanged,setPersistence,browserSessionPersistence,browserLocalPersistence}=await import(B+'firebase-auth.js');
 const {getFirestore,doc,onSnapshot,setDoc,collection,addDoc,serverTimestamp,query,orderBy,limit,updateDoc,deleteDoc,where,getDocs,getDoc,startAfter,getCountFromServer,writeBatch,runTransaction}=await import(B+'firebase-firestore.js');
