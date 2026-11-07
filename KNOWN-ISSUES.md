@@ -85,7 +85,10 @@ No open defects.
 ## SE-E3 (Firebase SDK served from this site): BUILT, awaiting the owner's live test (`SE-E3-CHECKLIST.md`)
 - Open points: equality with the CDN copy is an optional owner check (checklist step 11); the SDK stays on 10.12.2 until a separate upgrade item; updates are manual (quarterly reminder in Owner Panel > Security). The earlier `.js.map` blocked-log noise should disappear.
 
-## SE-H1 (fail-closed booking, daily budgets, date window): BUILT, awaiting live test (`SE-H1-CHECKLIST.md`)
+## R4 (rejected survey answer retention + drawer search): BUILT, awaiting live test (`R4-CHECKLIST.md`)
+- Open points: default stays "keep" until the owner picks a period; privacy sentence wording needs the owner's approval; cleanup is manual; custom-survey answers are not covered; the drawer search finds sections only.
+
+## SE-H1 (fail-closed booking, daily budgets, date window): LIVE-TESTED 2026-11-07, steps 1-6 passed, emulator run green, strict rules published (`SE-H1-CHECKLIST.md`)
 - Open points: publish the site files first, wait for the green GitHub Actions emulator run, then publish the rules; the official emulator could not be run in the build environment; budgets are per UTC day and approximate under simultaneous writes; `anonCounters` documents accumulate (2 per day, owner may delete). Not done from the review: F-02 (single-use challenges are per Worker instance) and F-01 (code fallback bypasses Turnstile by design); `style-src 'unsafe-inline'` remains a documented residual risk.
 
 ## SE-E6 (Turnstile on the booking form + chatbot AI-to-scripted switch): LIVE-TESTED 2026-11-07, all 12 steps passed (`SE-E6-CHECKLIST.md`)

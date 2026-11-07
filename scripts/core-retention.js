@@ -52,6 +52,15 @@
   function bannerDue(lastMs, now) { const l = Number(lastMs); return !isFinite(l) || l <= 0 || l > now || now - l >= 7 * DAY; }
   /* preview rows never show the whole email */
   function mask(email) { const m = String(email || '').match(/^([^@\s])[^@\s]*(@.+)$/); return m ? m[1] + '***' + m[2] : '***'; }
-  const api = { DEFAULTS, LIMITS, settings, classify, meetingEnd, queryCutoff, bannerDue, mask };
+  /* R4 (4.5.0): rejected employer-survey answers. Default is KEEP (no period) until the owner picks one. Counted from the day the owner pressed Reject (decidedAt).
+     Only answers whose ownerStatus is exactly 'rejected' are ever due; approved, pending, unknown and answers with no readable decision date are kept. */
+  const SV_REJ_CHOICES = [30, 90, 180, 365];
+  function svRejectedDays(r) { r = r && typeof r === 'object' ? r : {}; const n = Number(r.svRejected); return SV_REJ_CHOICES.includes(n) ? n : 0; }   // 0 = keep until the owner deletes
+  function svRejectedDue(d, now, days) {
+    if (!days || !d || typeof d !== 'object' || d.ownerStatus !== 'rejected') return false;
+    const t = ms(d.decidedAt); if (!isFinite(t) || !isFinite(now)) return false;
+    return now - t > days * DAY;
+  }
+  const api = { DEFAULTS, LIMITS, settings, classify, meetingEnd, queryCutoff, bannerDue, mask, SV_REJ_CHOICES, svRejectedDays, svRejectedDue };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.coreRetention = api;
 })(typeof window !== 'undefined' ? window : globalThis);

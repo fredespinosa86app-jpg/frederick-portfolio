@@ -55,3 +55,29 @@ test('weekly banner: first time, after 7 days, not before, bad values show it', 
   assert.equal(R.bannerDue(NOW - 6.9 * DAY, NOW), false); assert.equal(R.bannerDue(NOW - 7 * DAY, NOW), true); assert.equal(R.bannerDue(NOW + DAY, NOW), true);
 });
 test('mask hides most of the email', () => { assert.equal(R.mask('maria@example.com'), 'm***@example.com'); assert.equal(R.mask('bad'), '***'); assert.equal(R.mask(null), '***'); });
+
+/* ---- R4: rejected survey answers ---- */
+const rej = (days, extra) => Object.assign({ ownerStatus: 'rejected', decidedAt: ago(days) }, extra);
+test('R4 svRejectedDays: only 30/90/180/365 are accepted; anything else means keep (0)', () => {
+  assert.deepEqual([30, 90, 180, 365].map(n => R.svRejectedDays({ svRejected: n })), [30, 90, 180, 365]);
+  for (const bad of [undefined, null, 0, -1, 1, 7, 29, 31, 45, 366, '90x', NaN, 9999, {}, [], 'keep']) assert.equal(R.svRejectedDays({ svRejected: bad }), 0, String(bad));
+  assert.equal(R.svRejectedDays(null), 0); assert.equal(R.svRejectedDays('x'), 0); assert.equal(R.svRejectedDays({ svRejected: '90' }), 90);
+});
+test('R4 default is keep: with no period nothing is ever due', () => assert.equal(R.svRejectedDue(rej(5000), NOW, 0), false));
+test('R4 edge days 89 / 90 / 91 for a 90-day period (due only when older than the period)', () => {
+  assert.equal(R.svRejectedDue(rej(89), NOW, 90), false); assert.equal(R.svRejectedDue(rej(90), NOW, 90), false); assert.equal(R.svRejectedDue(rej(91), NOW, 90), true);
+});
+test('R4 every period counts from decidedAt', () => { for (const d of [30, 90, 180, 365]) { assert.equal(R.svRejectedDue(rej(d), NOW, d), false); assert.equal(R.svRejectedDue(rej(d + 1), NOW, d), true); } });
+test('R4 only exactly "rejected" is due: approved, pending, answered, unknown, missing, wrong case are kept', () => {
+  for (const st of ['approved', 'pending', 'answered', '', undefined, null, 'Rejected', 'REJECTED', 'rejected ', 1, true]) assert.equal(R.svRejectedDue({ ownerStatus: st, decidedAt: ago(2000) }, NOW, 30), false, String(st));
+});
+test('R4 a rejected answer with no readable decision date is kept (never deleted on a guess)', () => {
+  for (const t of [undefined, null, '', 'yesterday', NaN, {}, [], Infinity]) assert.equal(R.svRejectedDue({ ownerStatus: 'rejected', decidedAt: t }, NOW, 30), false, String(t));
+});
+test('R4 decidedAt may be a Firestore timestamp or a Date; bad inputs are kept', () => {
+  assert.equal(R.svRejectedDue({ ownerStatus: 'rejected', decidedAt: { toMillis: () => ago(40) } }, NOW, 30), true);
+  assert.equal(R.svRejectedDue({ ownerStatus: 'rejected', decidedAt: new Date(ago(40)) }, NOW, 30), true);
+  assert.equal(R.svRejectedDue(null, NOW, 30), false); assert.equal(R.svRejectedDue('x', NOW, 30), false); assert.equal(R.svRejectedDue(rej(40), NaN, 30), false);
+  assert.equal(R.svRejectedDue(rej(-3), NOW, 30), false);   // decided in the future (clock skew): kept
+});
+test('R4 the existing request settings are unchanged by the new key', () => assert.deepEqual(R.settings({ svRejected: 90 }), R.settings({})));

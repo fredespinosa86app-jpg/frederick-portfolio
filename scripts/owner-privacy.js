@@ -97,9 +97,9 @@
   });
 
   /* ------------------------------------------------------------ 2. retention + cleanup */
-  const RET = [['rtVisits', 'visits', [30, 60, 90, 180, 365], 90], ['rtChat', 'chat', [30, 90, 180, 365, 730], 180], ['rtReq', 'requests', [180, 365, 730, 1095], 730], ['rtFlag', 'reqFlag', [30, 60, 90, 180], 90], ['rtStale', 'reqStale', [180, 365, 730], 365], ['rtAct', 'activity', [90, 180, 365], 180]];
+  const RET = [['rtVisits', 'visits', [30, 60, 90, 180, 365], 90], ['rtChat', 'chat', [30, 90, 180, 365, 730], 180], ['rtReq', 'requests', [180, 365, 730, 1095], 730], ['rtFlag', 'reqFlag', [30, 60, 90, 180], 90], ['rtStale', 'reqStale', [180, 365, 730], 365], ['rtAct', 'activity', [90, 180, 365], 180], ['rtSvRej', 'svRejected', [0, 30, 90, 180, 365], 0]];
   const retVals = () => { const o = {}; RET.forEach(([id, k, , d]) => { o[k] = parseInt($(id).value, 10) || d; }); return o; };
-  const lbl = n => n >= 365 && n % 365 === 0 ? (n / 365) + (n === 365 ? ' year' : ' years') : n + ' days';
+  const lbl = n => n === 0 ? 'Keep until I delete them' : n >= 365 && n % 365 === 0 ? (n / 365) + (n === 365 ? ' year' : ' years') : n + ' days';
   function fillRet() {
     const r = Object.assign({}, cfg.retention || {});
     RET.forEach(([id, k, vals, d]) => { const s = $(id); s.replaceChildren(...vals.map(v => el('option', { value: String(v) }, lbl(v)))); const want = [].concat(vals).includes(+r[k]) ? +r[k] : d; s.value = String(want); });
@@ -145,26 +145,34 @@
     out.capped = true; return out;
   }
   const sampleRow = x => { const d = x.doc.data(), c = ms(d.createdAt); return RT.mask(d.email) + ' · ' + (d.status || '?') + ' · received ' + (c ? new Date(c).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '?') + ' · ' + x.why; };
-  let dueSets = null, reqScan = null;
+  /* R4: rejected employer-survey answers. One query on ownerStatus only (no composite index); the date test is core-retention's svRejectedDue. */
+  async function scanSvRejected() {
+    const days = RT.svRejectedDays(retVals()), out = { days, due: [], capped: false }; if (!days) return out;
+    const o = own(), f = o.fs, now = Date.now(), sn = await f.getDocs(f.query(f.collection(o.db, 'surveyResponses'), f.where('ownerStatus', '==', 'rejected'), f.limit(400)));
+    sn.docs.forEach(d => { if (RT.svRejectedDue(d.data(), now, days)) out.due.push(d); });
+    out.capped = sn.docs.length >= 400; return out;
+  }
+  let dueSets = null, reqScan = null, svScan = null;
   $('rtCheck').addEventListener('click', async () => {
     $('rtState').textContent = 'Checking…'; $('rtDel').disabled = true;
     try {
       dueSets = []; const rows = [];
       for (const [c, name, days, keep] of RULES) { const d = await due(c, days(), keep); dueSets.push([c, name, d]); rows.push(el('li', {}, name + ': ' + d.length + ' older than ' + lbl(days()))); }
-      reqScan = await scanRequests();
+      reqScan = await scanRequests(); svScan = await scanSvRejected();
       const by = w => reqScan.due.filter(x => x.why === w).length, set = reqScan.set;
       rows.push(el('li', {}, 'Discovery call requests to delete: ' + reqScan.due.length + ' (finished ' + by('finished') + ', unanswered ' + by('unanswered') + ', confirmed meetings long past ' + by('confirmed, meeting long past') + ')'));
       rows.push(el('li', {}, 'Discovery call requests to review (not deleted): ' + reqScan.flag.length + ' (unanswered over ' + lbl(set.flagDays) + ' or a confirmed meeting that is over: open the Inbox and set a status)'));
+      rows.push(el('li', {}, RT.svRejectedDays(retVals()) ? 'Rejected survey answers to delete: ' + svScan.due.length + ' (rejected more than ' + lbl(svScan.days) + ' ago; the answer and its link are removed together)' : 'Rejected survey answers: kept until you delete them (no period chosen)'));
       reqScan.due.slice(0, 5).forEach(x => rows.push(el('li', { class: 'dhelp' }, 'e.g. ' + sampleRow(x))));
       if (reqScan.capped) rows.push(el('li', { class: 'dhelp' }, 'More records may be due: delete these, then check again.'));
       $('rtList').replaceChildren(...rows);
-      const tot = dueSets.reduce((a, x) => a + x[2].length, 0) + reqScan.due.length;
+      const tot = dueSets.reduce((a, x) => a + x[2].length, 0) + reqScan.due.length + svScan.due.length;
       $('rtState').textContent = tot ? tot + ' records are past their retention period.' : 'Nothing is due. Everything is within the retention periods.';
       $('rtDel').disabled = !tot;
     } catch (e) { $('rtState').textContent = 'Could not check. ' + errText(e); }
   });
   $('rtDel').addEventListener('click', async () => {
-    if (!dueSets || !reqScan) return; const tot = dueSets.reduce((a, x) => a + x[2].length, 0) + reqScan.due.length; if (!tot) return;
+    if (!dueSets || !reqScan || !svScan) return; const tot = dueSets.reduce((a, x) => a + x[2].length, 0) + reqScan.due.length + svScan.due.length; if (!tot) return;
     const lb = priv.lastBackupAt, bk = lb ? 'Your last backup was ' + Math.max(0, Math.floor((Date.now() - lb) / DAY)) + ' day(s) ago.' : 'You have no backup yet.';
     if (!await confirmBox('Delete ' + tot + ' old records?', 'They are permanently deleted. ' + bk + ' A fresh backup first is wise (Backup above); press Delete anyway to continue without one. Clients are never deleted automatically.', 'Delete anyway')) return;
     $('rtDel').disabled = true; const o = own(), f = o.fs; let n = 0, skipped = 0;
@@ -179,8 +187,16 @@
         await f.deleteDoc(ref); n++;
         if (++k % 25 === 0) $('rtState').textContent = 'Deleting… ' + n + ' so far';
       }
+      /* a rejected answer is read again right before deletion; the answer, its invite and the private e-mail record go together (the invite would otherwise show as "Answered, to review") */
+      for (const x of svScan.due) {
+        const rref = f.doc(o.db, 'surveyResponses', x.id), cur = await f.getDoc(rref); if (!cur.exists()) continue;
+        if (!RT.svRejectedDue(cur.data(), Date.now(), svScan.days)) { skipped++; continue; }
+        await f.deleteDoc(rref); n++;
+        try { await f.deleteDoc(f.doc(o.db, 'surveyInvitesPrivate', x.id)); } catch (e) { /* the private record may already be gone */ }
+        try { await f.deleteDoc(f.doc(o.db, 'surveyInvites', x.id)); } catch (e) { /* the invite may already be gone */ }
+      }
       await savePriv({ lastPurgeAt: Date.now() }); o.log('Old personal data deleted (' + n + ' records)'); fillRet();
-      $('rtState').textContent = n + ' records deleted' + (skipped ? ', ' + skipped + ' kept because they changed since the check' : '') + '.'; $('rtList').replaceChildren(); dueSets = null; reqScan = null; notify(n + ' old records deleted.', 'success');
+      $('rtState').textContent = n + ' records deleted' + (skipped ? ', ' + skipped + ' kept because they changed since the check' : '') + '.'; $('rtList').replaceChildren(); dueSets = null; reqScan = null; svScan = null; notify(n + ' old records deleted.', 'success');
     } catch (e) { $('rtState').textContent = 'Stopped after ' + n + ' deletions. Press Check again to continue. ' + errText(e); }
   });
 

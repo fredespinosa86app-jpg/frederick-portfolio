@@ -40,7 +40,7 @@
 <script>try{if(localStorage.getItem('portfolio-dark')==='1')document.documentElement.setAttribute('data-theme','dark')}catch(e){}</script>
 <link rel="stylesheet" href="styles/main.css?v=b3">
 <link rel="stylesheet" href="styles/components.css?v=sv1c">
-<link rel="stylesheet" href="styles/owner.css?v=sv1b">
+<link rel="stylesheet" href="styles/owner.css?v=r4">
 <link rel="stylesheet" href="styles/themes.css?v=b3">
 <link rel="stylesheet" href="styles/responsive.css?v=b3">
 </head>
@@ -298,7 +298,7 @@
 <p>Only the owner, in a private database (Google Firebase) that visitors cannot read. The website is hosted on GitHub Pages. No data is shared with advertisers.</p>
 <h3>Your rights</h3>
 <p><strong>Spam check on the booking form.</strong> To keep the booking form free of spam, it may run a Cloudflare Turnstile check. Cloudflare receives technical information from your browser to decide whether you are a person, and the booking form’s server asks Cloudflare to confirm the result. If the check cannot run, you can type a six-digit code instead.</p>
-<p><strong>Employer feedback survey.</strong> If the owner sends you a personal survey link, the survey collects what you type: your star rating, message, an optional video link, and the name, role and company you want shown. Nothing is published without your tick-box consent. Only the owner sees your answer, and the owner may publish it on this site as a testimonial. The owner keeps your e-mail address only to send the link. You may ask the owner to remove your answer or testimonial at any time.</p>
+<p><strong>Employer feedback survey.</strong> If the owner sends you a personal survey link, the survey collects what you type: your star rating, message, an optional video link, and the name, role and company you want shown. Nothing is published without your tick-box consent. Only the owner sees your answer, and the owner may publish it on this site as a testimonial. The owner keeps your e-mail address only to send the link. An answer the owner decides not to use is <span id="pvSvRej">kept until the owner deletes it</span>. You may ask the owner to remove your answer or testimonial at any time.</p>
 <p>You may ask to see, correct, export or delete your data, object to its use, or withdraw consent, and you may complain to the National Privacy Commission (privacy.gov.ph). Requests are answered personally.</p>
 <label class="tog"><input type="checkbox" id="privOpt"> Do not count my visits</label><p class="dhelp" id="privState" role="status"></p>
 <p><button type="button" class="btn gold" id="privClose">Close</button></p></div></dialog>
@@ -338,6 +338,7 @@
 <div class="dash" id="dash" data-nosnippet role="dialog" aria-modal="true" aria-labelledby="dtitle" hidden>
 <aside class="dside" id="dside" aria-label="Dashboard navigation">
 <div class="dbrand"><span>Owner dashboard<small>Frederick Espinosa</small></span></div>
+<div class="dsearch"><label for="navSearch" class="dsr">Find a section</label><input type="search" id="navSearch" placeholder="Find a section…" autocomplete="off" spellcheck="false" maxlength="40" aria-describedby="navSearchMsg"><p id="navSearchMsg" class="dsmsg" role="status" aria-live="polite"></p></div>
 <div class="dnav" role="navigation" aria-label="Dashboard sections">
 <h2>Overview</h2>
 <button type="button" data-page="dashboard"><svg aria-hidden="true"><use href="#ic-home"/></svg><span class="dlabel">Dashboard</span></button>
@@ -964,7 +965,7 @@ function doPost(e) {
 <div class="ab"><button type="button" class="dbtn danger" id="rsGo" disabled>Restore selected</button></div></div>
 <div class="dcard"><h2>How long personal data is kept</h2>
 <p class="dhelp">Discovery call requests: finished ones (completed or cancelled) are deleted after the first period. Unanswered ones (new or pending) are flagged after the second and deleted after the third. A confirmed meeting is never touched while it is ahead; 30 days after its date it counts as finished. There is no background job on the free plan, so cleanup runs when you press the button below, and a reminder appears on your dashboard once a week when something is due. The periods you choose are shown to visitors in the privacy notice. Clients are never deleted automatically.</p>
-<div class="ab"><label class="fld">Visit records<select id="rtVisits"></select></label><label class="fld">Chatbot questions<select id="rtChat"></select></label><label class="fld">Delete finished discovery call requests after<select id="rtReq"></select></label><label class="fld">Flag unanswered requests after<select id="rtFlag"></select></label><label class="fld">Delete unanswered requests after<select id="rtStale"></select></label><label class="fld">Activity log<select id="rtAct"></select></label></div>
+<div class="ab"><label class="fld">Visit records<select id="rtVisits"></select></label><label class="fld">Chatbot questions<select id="rtChat"></select></label><label class="fld">Delete finished discovery call requests after<select id="rtReq"></select></label><label class="fld">Flag unanswered requests after<select id="rtFlag"></select></label><label class="fld">Delete unanswered requests after<select id="rtStale"></select></label><label class="fld">Activity log<select id="rtAct"></select></label><label class="fld">Rejected survey answers (counted from the day you rejected them)<select id="rtSvRej"></select></label></div>
 <label class="fld">Contact for privacy requests, shown in the notice (optional email or https link)<input type="text" id="pvContact" maxlength="120" autocomplete="off" placeholder="you@example.com"></label>
 <div class="ab"><button type="button" class="dbtn primary" id="rtSave">Save periods and contact</button><button type="button" class="dbtn" id="rtCheck">Check what is due</button><button type="button" class="dbtn danger" id="rtDel" disabled>Delete due records</button></div>
 <ul id="rtList" class="seclist"></ul><p class="dstate-line" id="rtState" role="status"></p><p class="dhelp" id="rtLast"></p></div>
@@ -1089,7 +1090,7 @@ function doPost(e) {
 <script src="scripts/availability.js?v=b3"></script>
 <script src="scripts/capacity.js?v=b3"></script>
 <script src="scripts/core-booking.js?v=c1"></script>
-<script src="scripts/core-retention.js?v=r3"></script>
+<script src="scripts/core-retention.js?v=r4"></script>
 <script src="scripts/service-forms.js?v=c1"></script>
 <script src="scripts/app-check.js?v=se1"></script>
 <script src="scripts/form-guard.js?v=se6"></script>
@@ -1108,9 +1109,11 @@ function doPost(e) {
 <script src="scripts/core-connlog.js?v=s2c2"></script>
 <script src="scripts/owner-s2.js?v=s2c2"></script>
 <script src="scripts/owner-phase7.js?v=b3"></script>
+<script src="scripts/core-navsearch.js?v=r4"></script>
+<script src="scripts/owner-navsearch.js?v=r4"></script>
 <script src="scripts/owner-security.js?v=f6"></script>
 <script src="scripts/backup-core.js?v=c1"></script>
-<script src="scripts/owner-privacy.js?v=r3"></script>
+<script src="scripts/owner-privacy.js?v=r4"></script>
 <script src="scripts/owner-library.js?v=t2"></script>
 <script src="scripts/core-ids.js?v=b3"></script>
 <script src="scripts/owner-clientids.js?v=t2"></script>
@@ -1140,7 +1143,7 @@ function doPost(e) {
 <script src="scripts/core-schedule.js?v=b3"></script>
 <script src="scripts/owner-due.js?v=b3"></script>
 <script src="scripts/owner-google.js?v=b3"></script>
-<script src="scripts/privacy-notice.js?v=r3"></script>
+<script src="scripts/privacy-notice.js?v=r4"></script>
 <script src="scripts/owner-entry.js?v=b3"></script>
 <script src="scripts/owner-seo.js?v=s2c3"></script>
 <script src="scripts/content-cache.js?v=r1"></script>

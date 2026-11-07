@@ -30,4 +30,4 @@ What changed in plain words
 2. Restore the old site files from the rollback ZIP and delete: `scripts/core-anon.js`, `scripts/core-anon.test.mjs`, `rules-tests/attack/mutations_h1.py`, `rules-tests/browser/seh1-1-token-only-and-budgets.mjs`, `rules-tests/emulator/anon-budget-h1.test.mjs`, `SE-H1-CHECKLIST.md`.
 
 ## Result
-(to fill in after your live test)
+2026-11-07, owner's live test: steps 1 to 6 passed. GitHub Actions emulator run green before publishing. Published `firestore.rules.strict`. Owner Panel shows "always on" and the budget line (visit records 5 of 1500; unanswered questions 1 of 300). The red console lines in the normal window were browser-extension blocks (`ERR_BLOCKED_BY_CLIENT`), Google sign-in popup and reCAPTCHA messages, not Firestore permission-denied; the private window was clean.

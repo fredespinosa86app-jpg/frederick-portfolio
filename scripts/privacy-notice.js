@@ -10,6 +10,8 @@
     [['pvVisits', 'visits'], ['pvChat', 'chat'], ['pvReq', 'requests'], ['pvStale', 'reqStale']].forEach(([id, k]) => {
       const e = document.getElementById(id), n = Number(r[k]); if (e) e.textContent = lbl(n >= 1 && n <= 3650 ? Math.round(n) : D[k]);
     });
+    const sv = document.getElementById('pvSvRej'), sn = Number(r.svRejected);   // R4: rejected survey answers; no valid period = kept until the owner deletes them
+    if (sv) sv.textContent = [30, 90, 180, 365].includes(sn) ? 'kept up to ' + lbl(sn) + ' after that decision' : 'kept until the owner deletes it';
     const line = document.getElementById('pvContactLine'), ct = String(c.privacyContact || '').trim();
     if (!line) return;
     if (!line.dataset.def) line.dataset.def = line.textContent; else line.textContent = line.dataset.def;   // back to the standard sentence unless a valid contact follows
