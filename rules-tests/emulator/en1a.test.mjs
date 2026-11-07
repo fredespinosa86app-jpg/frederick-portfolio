@@ -32,8 +32,8 @@ for (const [label, path] of FILES) describe(`EN-1A on ${label}`, () => {
   test('weekday goals: wrong sizes and non-lists are refused', async () => {
     for (const bad of [[], [60], Array(6).fill(60), Array(8).fill(60), '60,60,60,60,60,60,60', 60, null, { 0: 60 }, true]) await assertFails(put(owner(), PF({ weekdayGoalMin: bad })));
   });
-  test('weekday goals: each of the 7 places refuses -1, 1441, a fraction, text, true and a list', async () => {
-    for (let i = 0; i < 7; i++) for (const bad of [-1, 1441, 1.5, '60', true, [60]]) { const l = Array(7).fill(60); l[i] = bad; await assertFails(put(owner(), PF({ weekdayGoalMin: l }))); }
+  test('weekday goals: each of the 7 places refuses -1, 1441, a fraction, text, true and a map (a list inside a list cannot even be sent: Firestore does not allow nested arrays, so the Python simulator covers that case only)', async () => {
+    for (let i = 0; i < 7; i++) for (const bad of [-1, 1441, 1.5, '60', true, { a: 1 }]) { const l = Array(7).fill(60); l[i] = bad; await assertFails(put(owner(), PF({ weekdayGoalMin: l }))); }
   });
   test('weekday goals: an extra key, no daily goal, a forged time and another id are refused', async () => {
     await assertFails(put(owner(), PF({ weekdayGoalMin: W7, x: 1 }))); await assertFails(put(owner(), { weekdayGoalMin: W7, updatedAt: serverTimestamp() }));
