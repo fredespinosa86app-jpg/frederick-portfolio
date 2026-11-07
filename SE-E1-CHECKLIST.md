@@ -1,9 +1,11 @@
 # SE-E1 stage A live test (4.5.0): App Check in monitoring mode
 
-**Before the upload (2 minutes, no site change):**
-- A. Confirm that the key you gave me came from the field labelled **Site key** (not **Secret key**). If it was the Secret key, tell me before you commit anything: it must be replaced and the secret key rotated.
-- B. Firebase console > App Check > Apps > your web app > register with the **reCAPTCHA Enterprise** provider and the SITE key. Leave **Cloud Firestore enforcement OFF**. Do not turn enforcement on in this stage.
-- C. No Firestore rules change in this stage: do NOT republish rules. Upload the files, then hard refresh (Ctrl+Shift+R).
+**Before the upload (set up once in Google Cloud and Firebase; no site change). These four were needed in the live setup:**
+- A. Google Cloud console > Security > Fraud Defense > **Keys**: a **Website**, score-based (no checkbox) key for the domain `fredespinosa86app-jpg.github.io` must exist IN THIS PROJECT. Its Key ID is the public site key in `scripts/settings.js`. A key made on the old reCAPTCHA admin page did NOT appear here and caused HTTP 400 ("site key is not from the same project"). Do not enable billing.
+- B. Google Cloud console > APIs & Services > Enabled APIs: **reCAPTCHA Enterprise API** and **Firebase App Check API** must both be enabled (without the first: HTTP 400 FAILED_PRECONDITION).
+- C. Google Cloud console > APIs & Services > Credentials > **Browser key** > API restrictions: add **Firebase App Check API** to the allowed list (without it: HTTP 403 API_KEY_SERVICE_BLOCKED). Keep the other APIs and the website restriction.
+- D. Firebase console > App Check > Apps > your web app > **Fraud Defense (reCAPTCHA Enterprise)** with the same Key ID, token lifetime 7 days. Leave **Cloud Firestore enforcement OFF**.
+- E. No Firestore rules change: do NOT republish rules. Upload the files, clear the site data once (F12 > Application > Storage > Clear site data: Firebase pauses App Check for a day after a failed attempt), hard refresh.
 
 1. Public page opens and shows your content as usual. Pass: yes / no
 2. Press F12 > Console on the public page: no red message that mentions "Content Security Policy", "recaptcha" or "App Check could not start". Pass: yes / no

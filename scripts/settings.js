@@ -33,7 +33,7 @@ window.portfolioSettings = {
      Security comes from Google sign-in + the Firestore rules in README.md. */
   /* Security S2: public reCAPTCHA SITE key for Firebase App Check (never the secret key). Leave empty until registered.
      appCheckProvider: "enterprise" = Google Cloud reCAPTCHA Enterprise / Fraud Defense key (type "Score based v3" in the key page); "v3" = old classic key (deprecated). */
-  appCheckSiteKey: "6LcVBBQuAAAAAJLlxCPmanbsPVqCpaglYUrKOxEJ",   /* SE-E1: PUBLIC site key (never the secret key) */
+  appCheckSiteKey: "6LeC_RMuAAAAAELcd2_Knc3OuYpetZgz5bBZMmoc",   /* SE-E1: PUBLIC reCAPTCHA Enterprise key ID (Cloud console > Security > Fraud Defense > Keys; Enterprise keys have no secret) */
   appCheckProvider: "enterprise",
 
   firebase: {

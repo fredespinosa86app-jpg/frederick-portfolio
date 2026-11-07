@@ -2,7 +2,7 @@
 // The Firebase SDK and the App Check module are in-page fakes; the test records the order of calls and any CSP violation.
 import { b, base, check, results, srv } from './w5-harness.mjs';
 
-const KEY = 'Kq7Zr2Lm9Xc4Vb8Nt3Hy6Wd1Sf5Gj0Pa', SITE = '6LcVBBQuAAAAAJLlxCPmanbsPVqCpaglYUrKOxEJ';
+const KEY = 'Kq7Zr2Lm9Xc4Vb8Nt3Hy6Wd1Sf5Gj0Pa', SITE = '6LeC_RMuAAAAAELcd2_Knc3OuYpetZgz5bBZMmoc';
 const FAKE_APP = 'export const initializeApp = c => { window.__order.push("initializeApp"); return { cfg: c }; };';
 const FAKE_FS = `export const getFirestore = a => { window.__order.push("getFirestore"); return {}; };
 export const doc = (db, col, id) => ({ path: col + '/' + id, id });
