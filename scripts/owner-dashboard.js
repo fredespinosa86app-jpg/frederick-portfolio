@@ -24,6 +24,7 @@
     const e = document.createElement(tag);
     Object.entries(props || {}).forEach(([k, v]) => {
       if (k === 'class') e.className = v;
+      else if (k === 'style') { if (v != null && v !== false) e.style.cssText = String(v); }  /* CSP: setAttribute('style') is blocked once style-src has no 'unsafe-inline'; the CSSOM is allowed */
       else if (k.startsWith('on')) { if (typeof v === 'function') e.addEventListener(k.slice(2), v); }
       else if (v !== false && v != null) e.setAttribute(k, v === true ? '' : v);
     });

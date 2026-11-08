@@ -48,3 +48,6 @@ main h3{font-size:calc(21px*var(--s,1))}
 /* Hero portrait: keeps its aspect ratio (432x578) at every screen size */
 .photo{position:relative;justify-self:center;width:min(100%,clamp(240px,32vw,430px));margin:0}
 .photo img{display:block;width:100%;height:auto;max-height:min(82vh,640px);aspect-ratio:432/578;object-fit:contain;object-position:center bottom}
+
+/* CSP: replaces style="position:absolute" on the two hidden icon sheets in index.html */
+.svg-sprite{position:absolute}
