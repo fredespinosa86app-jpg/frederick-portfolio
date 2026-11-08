@@ -221,3 +221,12 @@ test('EN-1C mailtoUrl: encodes everything, uses CRLF line breaks, refuses a bad 
   assert.equal(G.mailtoUrl('a@b.com', 'S\r\nBcc: x@y.com', 'B').url.includes('%0D'), false);   // line breaks in the subject become spaces
   const long = G.mailtoUrl('a@b.com', 'S', 'x'.repeat(2000)); assert.equal(long.ok, false); assert.equal(long.reason, 'long'); assert.ok(G.mailtoUrl('a@b.com', 'S', 'x'.repeat(500)).url.length < G.MAILTO_MAX);
 });
+
+test('reportable: only a week with focus time or a completed task is worth sharing', () => {
+  assert.equal(G.reportable({ noData: false, focusSecs: 60, completed: 0 }), true);
+  assert.equal(G.reportable({ noData: false, focusSecs: 0, completed: 2 }), true);
+  assert.equal(G.reportable({ noData: false, focusSecs: 0, completed: 0 }), false);
+  assert.equal(G.reportable({ noData: false, focusSecs: 0, completed: null }), false);
+  assert.equal(G.reportable({ noData: true }), false);
+  assert.equal(G.reportable(null), false);
+});

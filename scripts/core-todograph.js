@@ -181,6 +181,8 @@
     if (url.length > MAILTO_MAX) return { ok: false, reason: 'long', error: 'This message is too long for a mail link. Use "Copy text" and paste it into your mail.' };
     return { ok: true, url };
   }
-  const api = { COLORS, PATTERNS, RANGES, WINDOW_DAYS, WEEKS, TOP, dayList, dailyBuckets, firstDay, lastCompletedWeek, weeklySummary, summaryText, cleanAddress, mailtoUrl, MAILTO_MAX, fmtHm, fmtDay, weekdayIndex, cleanWeekday, goalPlan, stackModel, streak, weekStart, weeklyCompleted, usedVsAllotted, statusCounts, csvCell, dailyCsv, weeklyCsv, nameMap, letter };
+  /* EN-1C v2: a week is worth sharing only if it has focus time or a completed task */
+  const reportable = s => !!s && !s.noData && ((s.focusSecs || 0) > 0 || (s.completed || 0) > 0);
+  const api = { reportable, COLORS, PATTERNS, RANGES, WINDOW_DAYS, WEEKS, TOP, dayList, dailyBuckets, firstDay, lastCompletedWeek, weeklySummary, summaryText, cleanAddress, mailtoUrl, MAILTO_MAX, fmtHm, fmtDay, weekdayIndex, cleanWeekday, goalPlan, stackModel, streak, weekStart, weeklyCompleted, usedVsAllotted, statusCounts, csvCell, dailyCsv, weeklyCsv, nameMap, letter };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.coreTodoGraph = api;
 })(typeof window !== 'undefined' ? window : globalThis);
