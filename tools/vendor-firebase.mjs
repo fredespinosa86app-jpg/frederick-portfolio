@@ -10,8 +10,8 @@
    ========================================================================== */
 import fs from 'node:fs'; import path from 'node:path'; import os from 'node:os'; import crypto from 'node:crypto'; import { execFileSync } from 'node:child_process'; import { fileURLToPath } from 'node:url';
 
-export const VERSION = '10.12.2';
-export const INTEGRITY = 'sha512-ZxEdtSvP1I9su1yf32D8TIdgxtPgxwr6z3jYAR1TXS/t+fVfpoPc/N1/N2bxOco9mNjUoc+od34v5Fn4GeKs6Q==';   // published by the npm registry for firebase@10.12.2
+export const VERSION = '12.19.0';
+export const INTEGRITY = 'sha512-kwXCLcI0ly2lkwygkbuRx6SsX3DSO96355YrWh9SWZ5ncsxK/y5cirn3sY6nZVSiBVE++2nL6Hchzu1EB8uohQ==';   // published by the npm registry for firebase@12.19.0
 export const FILES = ['firebase-app.js', 'firebase-auth.js', 'firebase-firestore.js', 'firebase-app-check.js'];
 export const ABS_IMPORT = 'from"https://www.gstatic.com/firebasejs/' + VERSION + '/firebase-app.js"';
 export const REL_IMPORT = 'from"./firebase-app.js"';

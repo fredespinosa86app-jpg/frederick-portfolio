@@ -50,8 +50,8 @@ test('survey-page.js never turns employer text into markup and never uses the ne
   }
   const imports = [...js.matchAll(/import\(([^)]*)\)/g)].map(m => m[1]); assert.ok(imports.length >= 2);
   for (const i of imports) assert.match(i, /^B \+ 'firebase-(app|firestore)\.js'$/);
-  assert.match(js, /const B = new URL\('\.\.\/assets\/vendor\/firebase\/10\.12\.2\/', import\.meta\.url\)\.href/);
-  assert.match(rd('scripts/owner-panel.js'), /assets\/vendor\/firebase\/10\.12\.2\//, 'SDK version must match the owner panel');
+  assert.match(js, /const B = new URL\('\.\.\/assets\/vendor\/firebase\/12\.19\.0\/', import\.meta\.url\)\.href/);
+  assert.match(rd('scripts/owner-panel.js'), /assets\/vendor\/firebase\/12\.19\.0\//, 'SDK version must match the owner panel');
 });
 test('survey page keeps the key out of the network: it is read from the #fragment and removed after use; no key in any query string', () => {
   assert.match(js, /keyFromHash\(location\.hash\)/); assert.match(js, /history\.replaceState\(null, '', location\.pathname\)/);

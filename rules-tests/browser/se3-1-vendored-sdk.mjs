@@ -1,8 +1,8 @@
-// SE-E3: the REAL Firebase SDK files served from this site (assets/vendor/firebase/10.12.2/), under the real page CSP. No fakes for the SDK.
+// SE-E3: the REAL Firebase SDK files served from this site (assets/vendor/firebase/12.19.0/), under the real page CSP. No fakes for the SDK.
 // Google addresses are blocked, so Firestore itself cannot answer: the proof is that the modules load, link to each other as ONE copy, start, and nothing asks Google for the SDK.
 import { b, base, check, results, srv } from './w5-harness.mjs';
 
-const KEY = 'Kq7Zr2Lm9Xc4Vb8Nt3Hy6Wd1Sf5Gj0Pa', V = '/assets/vendor/firebase/10.12.2/', FILES = ['firebase-app.js', 'firebase-auth.js', 'firebase-firestore.js', 'firebase-app-check.js'];
+const KEY = 'Kq7Zr2Lm9Xc4Vb8Nt3Hy6Wd1Sf5Gj0Pa', V = '/assets/vendor/firebase/12.19.0/', FILES = ['firebase-app.js', 'firebase-auth.js', 'firebase-firestore.js', 'firebase-app-check.js'];
 async function open(page, hash = '') {
   const ctx = await b.newContext({ viewport: { width: 1200, height: 800 } }); const reqs = [], fails = [];
   ctx.on('request', r => reqs.push(r.url())); ctx.on('response', r => { if (r.url().startsWith(base) && r.status() >= 400) fails.push(r.status() + ' ' + r.url()); });
@@ -30,7 +30,7 @@ const count = (reqs, f) => reqs.filter(u => u.split('?')[0].endsWith(V + f)).len
     const a2 = app.initializeApp({ apiKey: 'x', projectId: 'p', appId: '1:1:web:1' }, 'se3test'); const db = fs.getFirestore(a2);
     return { shared, ver: app.SDK_VERSION, path: fs.doc(db, 'a', 'b').path, auth: typeof au.getAuth(a2).signOut, popup: typeof au.signInWithPopup, ac: typeof ac.initializeAppCheck, prov: typeof ac.ReCaptchaEnterpriseProvider };
   }, V);
-  check('C real SDK: version 10.12.2, Firestore document path works, Auth and App Check exports exist', c.ver === '10.12.2' && c.path === 'a/b' && c.auth === 'function' && c.popup === 'function' && c.ac === 'function' && c.prov === 'function', JSON.stringify(c));
+  check('C real SDK: version 12.19.0, Firestore document path works, Auth and App Check exports exist', c.ver === '12.19.0' && c.path === 'a/b' && c.auth === 'function' && c.popup === 'function' && c.ac === 'function' && c.prov === 'function', JSON.stringify(c));
   check('C real SDK: the page and a later import share ONE firebase-app.js (the page\'s default app is visible)', c.shared === true && count(r.reqs, 'firebase-app.js') === 1);
   await r.ctx.close();
 }

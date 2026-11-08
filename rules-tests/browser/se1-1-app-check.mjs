@@ -15,9 +15,9 @@ const invite = { status: 'sent', employerName: 'Ana Cruz', company: 'Acme Ltd', 
 async function open({ ac }) {
   const ctx = await b.newContext({ viewport: { width: 1000, height: 900 } }); const csp = []; const reqs = [];
   ctx.on('request', r => reqs.push(r.url()));
-  await ctx.route(/\/assets\/vendor\/firebase\/10\.12\.2\/firebase-app\.js$/, r => r.fulfill({ contentType: 'text/javascript', body: FAKE_APP }));
-  await ctx.route(/\/assets\/vendor\/firebase\/10\.12\.2\/firebase-firestore\.js$/, r => r.fulfill({ contentType: 'text/javascript', body: FAKE_FS }));
-  await ctx.route(/\/assets\/vendor\/firebase\/10\.12\.2\/firebase-app-check\.js$/, r => ac === 'ok' ? r.fulfill({ contentType: 'text/javascript', body: FAKE_AC }) : ac === 'broken' ? r.fulfill({ contentType: 'text/javascript', body: 'throw new Error("boom")' }) : r.abort());
+  await ctx.route(/\/assets\/vendor\/firebase\/12\.19\.0\/firebase-app\.js$/, r => r.fulfill({ contentType: 'text/javascript', body: FAKE_APP }));
+  await ctx.route(/\/assets\/vendor\/firebase\/12\.19\.0\/firebase-firestore\.js$/, r => r.fulfill({ contentType: 'text/javascript', body: FAKE_FS }));
+  await ctx.route(/\/assets\/vendor\/firebase\/12\.19\.0\/firebase-app-check\.js$/, r => ac === 'ok' ? r.fulfill({ contentType: 'text/javascript', body: FAKE_AC }) : ac === 'broken' ? r.fulfill({ contentType: 'text/javascript', body: 'throw new Error("boom")' }) : r.abort());
   const pg = await ctx.newPage(); const perr = []; pg.on('pageerror', e => perr.push(String(e)));
   pg.on('console', m => { if (/Content Security Policy|Refused to/i.test(m.text())) csp.push(m.text()); });
   await pg.addInitScript(d => { window.__docs = d; window.__order = []; window.__commits = []; }, { ['surveyInvites/' + KEY]: invite });

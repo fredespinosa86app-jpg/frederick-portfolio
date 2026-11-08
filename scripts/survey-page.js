@@ -14,7 +14,7 @@ const key = SV.keyFromHash(location.hash);
   if (!SV || !CFG || !key) return show('svInvalid');
   let fs, invRef, respRef, db;
   try {
-    const B = new URL('../assets/vendor/firebase/10.12.2/', import.meta.url).href;   // SE-E3: the Firebase SDK comes from this site (assets/vendor/firebase), no query string
+    const B = new URL('../assets/vendor/firebase/12.19.0/', import.meta.url).href;   // SE-E3: the Firebase SDK comes from this site (assets/vendor/firebase), no query string
     const { initializeApp } = await import(B + 'firebase-app.js');
     fs = await import(B + 'firebase-firestore.js');
     const app = initializeApp(CFG);

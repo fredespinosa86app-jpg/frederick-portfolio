@@ -13,7 +13,7 @@
 (function (root) {
   'use strict';
   /* SE-E3: the Firebase SDK is served from this site (assets/vendor/firebase/<version>/), found from this script's own address; no query string (the vendored files import each other without one) */
-  const SDK_DIR = 'assets/vendor/firebase/10.12.2/';
+  const SDK_DIR = 'assets/vendor/firebase/12.19.0/';
   const SDK = (function () { try { const d = root.document; const s = d && d.currentScript && d.currentScript.src; if (s) return new URL('../' + SDK_DIR, s).href; if (d && d.baseURI) return new URL(SDK_DIR, d.baseURI).href; } catch (e) { } return './' + SDK_DIR; })();
   const MAX_CHALLENGES = 3, MAX_WRITES = 3, FETCH_MS = 8000, WRITE_MS = 15000;
   const G = { fb: null, sdk: null, handle: null, fetch: null, now: () => Date.now(), sleep: ms => new Promise(r => setTimeout(r, ms)), api: '', cfg: null, search: '' };

@@ -1,6 +1,6 @@
 # Firebase web SDK, served from this site (SE-E3)
 
-These four files are the official Firebase SDK 10.12.2 (`firebase-app`, `firebase-auth`, `firebase-firestore`, `firebase-app-check`), taken from the npm package `firebase@10.12.2` and checked against the checksum npm publishes for that package (see `manifest.json`).
+These four files are the official Firebase SDK 12.19.0 (`firebase-app`, `firebase-auth`, `firebase-firestore`, `firebase-app-check`), taken from the npm package `firebase@12.19.0` and checked against the checksum npm publishes for that package (see `manifest.json`).
 
 Only two edits were made to each file, both listed in `manifest.json`: the import of `firebase-app.js` points to the sibling file instead of a Google address, and the trailing `sourceMappingURL` comment was removed. `scripts/vendor-firebase.test.mjs` proves this: undoing the two edits gives back the official file's hash.
 

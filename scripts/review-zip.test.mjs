@@ -2,7 +2,7 @@
 import test from 'node:test'; import assert from 'node:assert/strict'; import { pick, scan, allowList, SKIP_PATH, FAKE } from '../tools/build-review-zip.mjs'; import { privateRoot, privateList } from '../tools/private-docs.mjs'; import path0 from 'node:path';
 const files = pick(), allow = allowList();
 test('the clean list has the code, tests, rules and pack, and no pictures, fonts or tool packages (the SDK files are kept so the hash tests can run)', () => {
-  for (const f of ['index.html', 'firestore.rules.strict', 'server/portfolio-forms-worker.js', 'scripts/form-guard.js', 'assets/vendor/firebase/manifest.json', 'assets/vendor/firebase/10.12.2/firebase-app.js']) assert.ok(files.includes(f), f);
+  for (const f of ['index.html', 'firestore.rules.strict', 'server/portfolio-forms-worker.js', 'scripts/form-guard.js', 'assets/vendor/firebase/manifest.json', 'assets/vendor/firebase/12.19.0/firebase-app.js']) assert.ok(files.includes(f), f);
   assert.ok(!files.some(f => /^assets\/(images|fonts|videos)\//.test(f) || /node_modules|__pycache__|\.zip$|\.png$|\.woff2$/.test(f))); });
 test('no file in the list contains secret-shaped text (only the public web key, the public site key and two fake test strings)', () => {
   const fs = require_fs(); const bad = []; for (const f of files) bad.push(...scan(f, fs.readFileSync(new URL('../' + f, import.meta.url), 'utf8'), allow)); assert.deepEqual(bad, []); });

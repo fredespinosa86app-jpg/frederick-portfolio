@@ -19,9 +19,9 @@ const inviteOk = o => Object.assign({ status: 'sent', employerName: 'Ana Cruz', 
 async function emp(hash, { docs = {}, fake = {}, viewport = { width: 1000, height: 900 } } = {}) {
   const ctx = await b.newContext({ viewport }); const reqs = [];
   ctx.on('request', r => reqs.push(r.url()));
-  await ctx.route(/\/assets\/vendor\/firebase\/10\.12\.2\/firebase-app\.js$/, r => r.fulfill({ contentType: 'text/javascript', body: FAKE_APP }));
-  await ctx.route(/\/assets\/vendor\/firebase\/10\.12\.2\/firebase-firestore\.js$/, r => r.fulfill({ contentType: 'text/javascript', body: FAKE_FS }));
-  await ctx.route(/\/assets\/vendor\/firebase\/10\.12\.2\/firebase-app-check\.js$/, r => r.fulfill({ contentType: 'text/javascript', body: 'export class ReCaptchaEnterpriseProvider{constructor(k){this.k=k}} export class ReCaptchaV3Provider{constructor(k){this.k=k}} export const initializeAppCheck=()=>{};' }));   // SE-E1: App Check module stand-in
+  await ctx.route(/\/assets\/vendor\/firebase\/12\.19\.0\/firebase-app\.js$/, r => r.fulfill({ contentType: 'text/javascript', body: FAKE_APP }));
+  await ctx.route(/\/assets\/vendor\/firebase\/12\.19\.0\/firebase-firestore\.js$/, r => r.fulfill({ contentType: 'text/javascript', body: FAKE_FS }));
+  await ctx.route(/\/assets\/vendor\/firebase\/12\.19\.0\/firebase-app-check\.js$/, r => r.fulfill({ contentType: 'text/javascript', body: 'export class ReCaptchaEnterpriseProvider{constructor(k){this.k=k}} export class ReCaptchaV3Provider{constructor(k){this.k=k}} export const initializeAppCheck=()=>{};' }));   // SE-E1: App Check module stand-in
   await ctx.route(/googleapis\.com|evil\.example/, r => r.abort());
   const pg = await ctx.newPage(); const perr = []; pg.on('pageerror', e => perr.push(String(e)));
   const cons = []; pg.on('console', m => { if (m.type() === 'error') cons.push(m.text()); });
