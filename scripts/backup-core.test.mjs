@@ -76,3 +76,25 @@ test('4.5.0: client ID registry and its history are saved but never restored', a
 test('SV2a: survey collections are saved in a backup for your records but never restored (visitors create answers; the rules tie each write to the clock)', () => {
   for (const c of ['surveyInvites', 'surveyInvitesPrivate', 'surveyResponses', 'surveyReminders', 'surveyTemplates', 'surveyForms', 'surveyAnswers']) { assert.ok(BC.EXPORT_ONLY.includes(c), c); assert.ok(!BC.RESTORABLE.includes(c), c); assert.ok(BC.LABEL[c], c); }
 });
+
+// ---- BK-1: reminder threshold (7 days) and the new export-only collection
+test('BK-1: backupStatus: none / ok / due at exactly 7 days', () => {
+  const now = Date.UTC(2026, 10, 9, 12), D = 864e5;
+  assert.equal(BC.BACKUP_DUE_DAYS, 7);
+  assert.deepEqual(BC.backupStatus(undefined, now), { state: 'none', days: null });
+  assert.deepEqual(BC.backupStatus(0, now), { state: 'none', days: null });
+  assert.deepEqual(BC.backupStatus(NaN, now), { state: 'none', days: null });
+  assert.deepEqual(BC.backupStatus(now - 6 * D - 1000, now), { state: 'ok', days: 6 });
+  assert.deepEqual(BC.backupStatus(now - 7 * D, now), { state: 'due', days: 7 });
+  assert.deepEqual(BC.backupStatus(now - 40 * D, now), { state: 'due', days: 40 });
+  assert.deepEqual(BC.backupStatus(now + 5 * D, now), { state: 'ok', days: 0 });   // a clock set in the future is never "due"
+});
+test('BK-1: workSchedules is export-only (the rules tie each edit to the clock) and is saved', async () => {
+  assert.ok(BC.EXPORT_ONLY.includes('workSchedules') && !BC.RESTORABLE.includes('workSchedules'));
+  const b = await BC.build({ workSchedules: [{ id: 'default', data: { fb: 15, lu: 60, lb: 15, rev: 1 } }] });
+  assert.equal(b.counts.workSchedules, 1);
+  const v = await BC.validate(JSON.stringify(b));
+  assert.ok(v.ok, JSON.stringify(v.errors));
+  assert.ok(v.warnings.some(w => /WorkTrack break schedules/.test(w) && /not restored/.test(w)));
+  assert.equal(BC.plan(v.data, ['workSchedules']).length, 0, 'export-only: never written back');
+});

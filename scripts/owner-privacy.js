@@ -40,21 +40,33 @@
     download((prefix || 'portfolio-backup') + '-' + stamp() + '.json', JSON.stringify(b, null, 1));
     return b;
   }
-  const chosenCols = () => ['settings', 'content', 'ownerPrivate', 'clients', 'meetingRequests', 'chatUnanswered', 'activity', 'visits', 'clientRegistry', 'clientRegistryAudit', 'workState', 'workSessions', 'workEvents', 'workAssign', 'workAssignAudit', 'workCorrections', 'workSeals', 'workChain', 'workSettings', 'billingProfiles', 'billingProfileAudit', 'billableEntries', 'billableEntryAudit', 'billingMigration', 'invoices', 'invoiceAudit', 'payments', 'paymentReversals', 'invoiceAdjustments', 'invoiceDueDates', 'periodSkips', 'reqCounters', 'ownerDocs', 'surveyInvites', 'surveyInvitesPrivate', 'surveyResponses', 'surveyReminders', 'surveyTemplates', 'surveyForms', 'surveyAnswers', 'todoTasks', 'todoSessions', 'todoNotes', 'todoState', 'todoEvents', 'todoPrefs', 'ownerPrefs'].filter(c => { const e = $('bk_' + c); return e && e.checked; });
+  const chosenCols = () => ['settings', 'content', 'ownerPrivate', 'clients', 'meetingRequests', 'chatUnanswered', 'activity', 'visits', 'clientRegistry', 'clientRegistryAudit', 'workState', 'workSessions', 'workEvents', 'workAssign', 'workAssignAudit', 'workCorrections', 'workSeals', 'workChain', 'workSettings', 'workSchedules', 'billingProfiles', 'billingProfileAudit', 'billableEntries', 'billableEntryAudit', 'billingMigration', 'invoices', 'invoiceAudit', 'payments', 'paymentReversals', 'invoiceAdjustments', 'invoiceDueDates', 'periodSkips', 'reqCounters', 'ownerDocs', 'surveyInvites', 'surveyInvitesPrivate', 'surveyResponses', 'surveyReminders', 'surveyTemplates', 'surveyForms', 'surveyAnswers', 'todoTasks', 'todoSessions', 'todoNotes', 'todoState', 'todoEvents', 'todoPrefs', 'ownerPrefs'].filter(c => { const e = $('bk_' + c); return e && e.checked; });
   function backupAge() {
-    const t = priv.lastBackupAt, n = $('bkLast');
-    if (!n) return;
-    if (!t) { n.textContent = 'No backup has been downloaded from this panel yet.'; n.className = 'dstate-line warn'; return; }
-    const d = Math.floor((Date.now() - t) / DAY);
-    n.textContent = 'Last backup: ' + fmtDate(t) + ' (' + (d <= 0 ? 'today' : d + ' day' + (d === 1 ? '' : 's') + ' ago') + ').' + (d > 30 ? ' It is more than 30 days old: download a new one.' : '');
-    n.className = 'dstate-line ' + (d > 30 ? 'warn' : 'ok');
+    const n = $('bkLast'); if (!n) return;
+    const st = BC.backupStatus(priv.lastBackupAt, Date.now());
+    if (st.state === 'none') { n.textContent = 'No backup has been downloaded from this panel yet.'; n.className = 'dstate-line warn'; return; }
+    n.textContent = 'Last backup: ' + fmtDate(priv.lastBackupAt) + ' (' + (st.days <= 0 ? 'today' : st.days + ' day' + (st.days === 1 ? '' : 's') + ' ago') + ').' + (st.state === 'due' ? ' It is ' + BC.BACKUP_DUE_DAYS + ' days old or more: download a new one.' : '');
+    n.className = 'dstate-line ' + (st.state === 'due' ? 'warn' : 'ok');
+  }
+  /* BK-1: reminder card on the dashboard home when the last backup is 7+ days old (or none). It never blocks anything; "Later" hides it until the next sign-in. */
+  const bkBanner = $('bkBanner');
+  function showBkBanner() {
+    if (!bkBanner) return;
+    const st = BC.backupStatus(priv.lastBackupAt, Date.now());
+    if (st.state === 'ok') { bkBanner.hidden = true; return; }
+    $('bkBannerTxt').textContent = st.state === 'none' ? 'No backup has been downloaded from this panel yet. A backup file is your only copy outside the database.' : 'Your last backup is ' + st.days + ' days old. A fresh backup takes about a minute.';
+    bkBanner.hidden = false;
+  }
+  if (bkBanner) {
+    $('bkLater').addEventListener('click', () => { bkBanner.hidden = true; });
+    $('bkReview').addEventListener('click', () => { bkBanner.hidden = true; const b = document.querySelector('.dnav [data-page="privacy"]'); if (b) b.click(); });
   }
   $('bkGo').addEventListener('click', async () => {
     const cols = chosenCols(); if (!cols.length) return notify('Tick at least one thing to back up.', 'error');
     $('bkGo').disabled = true; $('bkpState').textContent = 'Reading the database…';
     try {
       const b = await makeBackup(cols);
-      await savePriv({ lastBackupAt: Date.now() }); own().log('Backup downloaded'); backupAge(); flagNav();
+      await savePriv({ lastBackupAt: Date.now() }); own().log('Backup downloaded'); backupAge(); flagNav(); showBkBanner();
       $('bkpState').textContent = 'Saved ' + Object.keys(b.counts).map(c => BC.LABEL[c] + ': ' + b.counts[c]).join(' · ') + '. Keep the file somewhere private: it contains client and visitor details.';
       notify('Backup downloaded.', 'success');
     } catch (e) { $('bkpState').textContent = ''; notify('Could not create the backup. ' + errText(e), 'error'); }
@@ -250,10 +262,10 @@
 
   /* ------------------------------------------------------------ incident shortcut + wiring */
   $('icPause').addEventListener('click', () => { const b = document.querySelector('.dnav [data-page="security"]'); if (b) b.click(); });
-  /* a small "!" on the menu item when no backup exists or the last one is over 30 days old (no toast: toasts lock the View site button) */
+  /* a small "!" on the menu item when no backup exists or the last one is 7 or more days old (no toast: toasts lock the View site button) */
   function flagNav() {
     const b = document.querySelector('.dnav [data-page="privacy"]'); if (!b) return;
-    const late = !priv.lastBackupAt || Date.now() - priv.lastBackupAt > 30 * DAY; let m = b.querySelector('.dwarn');
+    const late = BC.backupStatus(priv.lastBackupAt, Date.now()).state !== 'ok'; let m = b.querySelector('.dwarn');
     if (late && !m) { m = el('span', { class: 'dwarn', title: 'Backup needed' }, '!'); m.append(el('span', { class: 'sr' }, ' Backup needed')); b.append(m); }
     if (!late && m) m.remove();
   }
@@ -265,7 +277,7 @@
   document.addEventListener('own:auth', async e => {
     if (!(e.detail && e.detail.ok)) { priv = {}; return; }
     await loadPriv(); cfg = window.__lastCfg || cfg;
-    flagNav(); maybeBanner();
+    flagNav(); showBkBanner(); maybeBanner();
   });
   fillRet(); backupAge();
 })();
