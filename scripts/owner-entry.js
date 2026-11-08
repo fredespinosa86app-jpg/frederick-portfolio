@@ -16,7 +16,8 @@
     const foot = $('ownerLogin'), fbReady = !!foot && !foot.hidden && !signedIn || signedIn;   /* Firebase is configured and loaded */
     const allowed = cfgShow() === 'everyone' || LS('ownerDevice') === '1' || location.hash === '#owner' || signedIn;
     hdr.hidden = !(fbReady && allowed);
-    const label = signedIn ? 'Owner panel' : 'Owner login';
+    const label = signedIn ? 'Owner panel' : 'Sign in with Google';
+    hdr.classList.toggle('gsi', !signedIn);   /* signed out: Google's official button artwork; signed in: the plain Owner panel button */
     hdr.setAttribute('aria-label', label); hdr.querySelector('.hl-t').textContent = label;
   }
   hdr.addEventListener('click', () => {

@@ -109,9 +109,10 @@ const trap = pg => pg.evaluate(() => { window.__mailto = ''; window.__mailCount 
   check('no goals: the goal and streak lines are left out, focus time stays', !facts.includes('Goal days met') && !facts.includes('Streak at week end') && facts.includes('Focus time') && !/Goal days|Streak/.test(await val(pg, 'tdWSText')));
   await ctx.close();
 }
-/* time zone change moves the week */
+const shiftInit = iso => { const real = Date.now.bind(Date), off = Date.parse(iso) - real(), RD = Date; class SD extends RD { constructor(...a) { if (a.length) super(...a); else super(real() + off); } static now() { return real() + off; } } window.Date = SD; const rf = window.fetch.bind(window); window.fetch = (u, o) => /\?clock=/.test(String(u)) ? Promise.resolve(new Response('', { headers: { Date: new Date(real() + off).toUTCString() } })) : rf(u, o); };
+/* time zone change moves the week (clock pinned to a Wednesday so the result does not depend on the hour the test runs: with the real clock, Pacific/Kiritimati is already on Monday every Sunday after 10:00 UTC) */
 {
-  const { ctx, pg } = await mk(); await signIn(pg); await pg.waitForTimeout(300); await seedWeek(pg); await openG(pg);
+  const { ctx, pg } = await mk({ init: shiftInit, initArg: '2026-11-04T12:00:00Z' }); await signIn(pg); await pg.waitForTimeout(300); await seedWeek(pg); await openG(pg);
   await pg.evaluate(() => { window.OWN.fs.setDoc(window.OWN.fs.doc({}, 'ownerPrefs', 'main'), { tz: 'Pacific/Kiritimati', prevTz: '', rev: 1, updatedAt: 1 }); }); await pg.evaluate(() => document.querySelector('.dnav button[data-page="general"]').click()); await pg.waitForTimeout(300);
   await setIn2(pg); await pg.waitForTimeout(500);
   check('the card follows the General time zone', /\(Pacific\/Kiritimati\)/.test(await txt(pg, '#tdWSum')) && (await val(pg, 'tdWSText')).includes('(Pacific/Kiritimati)'));
@@ -164,7 +165,6 @@ for (const [w, h, name, mobile] of [[1280, 900, 'desktop 1280'], [768, 1000, 'ta
 }
 /* other time zones: the week, the label, the message and the mail subject all use the General zone (the clock is set so New York is still on Sunday while Manila and Auckland are already on Monday) */
 const FROZEN = '2026-11-08T17:00:00Z';
-const shiftInit = iso => { const real = Date.now.bind(Date), off = Date.parse(iso) - real(), RD = Date; class SD extends RD { constructor(...a) { if (a.length) super(...a); else super(real() + off); } static now() { return real() + off; } } window.Date = SD; const rf = window.fetch.bind(window); window.fetch = (u, o) => /\?clock=/.test(String(u)) ? Promise.resolve(new Response('', { headers: { Date: new Date(real() + off).toUTCString() } })) : rf(u, o); };
 const zoneRun = async zone => {
   const { ctx, pg } = await mk({ init: shiftInit, initArg: FROZEN }); await signIn(pg); await pg.waitForTimeout(300); await trap(pg);
   await pg.click('#dashOpen'); await pg.waitForTimeout(400); await pg.evaluate(() => document.querySelector('.dnav button[data-page="general"]').click()); await pg.waitForTimeout(400);
