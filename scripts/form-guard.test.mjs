@@ -154,3 +154,38 @@ test('Turnstile: paused 503, rate limit 429, 410 expired, 500 config and a netwo
   const u = tsUi([{ token: 'T' }, { token: 'T2' }]); w.verifyQueue.push({ s: 200, o: { token: 'TOKEN', uid: w.uid, day: '20261105', expiresInS: 600 } });
   assert.deepEqual(await submit(u), { ok: true }); assert.equal(w.challenges, 2); }));
 test('Turnstile: no secret or token text appears in visitor messages', () => { for (const k of ['tsfail', 'tsnote']) assert.ok(guard.MSG[k].length > 10 && !/token|secret|0x4/i.test(guard.MSG[k])); });
+
+/* ---- F-01: Turnstile first (the Worker says codeFallback:false) ---- */
+const strict = fn => withTs(async () => { w.status.codeFallback = false; try { await fn(); } finally { delete w.status.codeFallback; } });
+test('F-01: the widget gets codeAllowed:false when the Worker says codeFallback:false, true otherwise (also for an older Worker with no field)', withTs(async () => {
+  w.status.codeFallback = false; let u = tsUi([{ token: 'T' }]); w.verifyQueue.push({ s: 200, o: { token: 'TOKEN', uid: w.uid, day: '20261105', expiresInS: 600 } }); await submit(u); assert.equal(u.tsAsked[0].codeAllowed, false);
+  reset(); globalThis.portfolioSettings = { turnstileSiteKey: SK }; w.status.turnstile = true; w.status.codeFallback = true; u = tsUi([{ token: 'T' }]); w.verifyQueue.push({ s: 200, o: { token: 'TOKEN', uid: w.uid, day: '20261105', expiresInS: 600 } }); await submit(u); assert.equal(u.tsAsked[0].codeAllowed, true);
+  reset(); globalThis.portfolioSettings = { turnstileSiteKey: SK }; w.status.turnstile = true; u = tsUi([{ token: 'T' }]); w.verifyQueue.push({ s: 200, o: { token: 'TOKEN', uid: w.uid, day: '20261105', expiresInS: 600 } }); await submit(u); assert.equal(u.tsAsked[0].codeAllowed, true); }));
+test('F-01: widget unavailable / no token / "use code" click while the code is not allowed -> tsblocked, no code box, no code ever sent', strict(async () => {
+  for (const first of [{ unavailable: true }, { useCode: true }, { token: '' }, {}]) {
+    reset(); globalThis.portfolioSettings = { turnstileSiteKey: SK }; w.status.turnstile = true; w.status.codeFallback = false; const u = tsUi([first], ['123456']);
+    const r = await submit(u); assert.equal(r.ok, false); assert.equal(r.code, 'tsblocked'); assert.equal(u.asked.length, 0); assert.ok(verifyBodies().every(b => !('code' in b))); } }));
+test('F-01: the ui throwing counts as unavailable -> tsblocked while the code is not allowed', strict(async () => {
+  const u = tsUi([], ['123456']); u.turnstile = async () => { throw new Error('boom'); }; const r = await submit(u); assert.equal(r.code, 'tsblocked'); assert.equal(u.asked.length, 0); }));
+test('F-01: 503 tsdown WITH a backup pass -> code box on the same challenge, the code goes with {challenge, code, fb}', strict(async () => {
+  const u = tsUi([{ token: 'T' }], ['123456']); w.verifyQueue.push({ s: 503, o: { error: 'tsdown', fb: '1790000000000.abcDEF_-123' } }, { s: 200, o: { token: 'TOKEN', uid: w.uid, day: '20261105', expiresInS: 600 } });
+  assert.deepEqual(await submit(u), { ok: true }); assert.equal(w.challenges, 1); assert.equal(u.asked[0].error, 'tsnote');
+  assert.deepEqual(verifyBodies(), [{ challenge: 'CH1', ts: 'T' }, { challenge: 'CH1', code: '123456', fb: '1790000000000.abcDEF_-123' }]); }));
+test('F-01: 503 tsdown WITHOUT a (usable) backup pass while the code is not allowed -> tsblocked; an oversized pass is ignored', strict(async () => {
+  for (const o of [{ error: 'tsdown' }, { error: 'tsdown', fb: 5 }, { error: 'tsdown', fb: 'x'.repeat(200) }]) {
+    reset(); globalThis.portfolioSettings = { turnstileSiteKey: SK }; w.status.turnstile = true; w.status.codeFallback = false; const u = tsUi([{ token: 'T' }], ['123456']); w.verifyQueue.push({ s: 503, o });
+    const r = await submit(u); assert.equal(r.code, 'tsblocked'); assert.equal(u.asked.length, 0); } }));
+test('F-01: the backup pass is NOT carried to a new challenge: the next challenge starts with Turnstile again', strict(async () => {
+  const u = tsUi([{ token: 'T' }, { token: 'T2' }], ['111111']); w.verifyQueue.push({ s: 503, o: { error: 'tsdown', fb: '1790000000000.abc' } }, { s: 410, o: {} }, { s: 200, o: { token: 'TOKEN', uid: w.uid, day: '20261105', expiresInS: 600 } });
+  const r = await submit(u); assert.equal(r.ok, true); const b = verifyBodies(); assert.equal(b[1].fb, '1790000000000.abc'); assert.deepEqual(b[2], { challenge: 'CH2', ts: 'T2' }); }));
+test('F-01: a Worker answer 400 needts on the code path -> tsblocked (never loops)', strict(async () => {
+  const u = tsUi([{ token: 'T' }], ['123456', '123456']); w.verifyQueue.push({ s: 503, o: { error: 'tsdown', fb: '1790000000000.abc' } }, { s: 400, o: { error: 'needts' } });
+  const r = await submit(u); assert.equal(r.code, 'tsblocked'); assert.equal(verifyBodies().length, 2); }));
+test('F-01: with the emergency switch (codeFallback true) or an older Worker the old fallback still works', withTs(async () => {
+  for (const cf of [true, undefined]) { reset(); globalThis.portfolioSettings = { turnstileSiteKey: SK }; w.status.turnstile = true; if (cf !== undefined) w.status.codeFallback = cf; const u = tsUi([{ useCode: true }], ['123456']); w.verifyQueue.push({ s: 200, o: { token: 'TOKEN', uid: w.uid, day: '20261105', expiresInS: 600 } });
+    assert.deepEqual(await submit(u), { ok: true }); assert.deepEqual(verifyBodies(), [{ challenge: 'CH1', code: '123456' }]); } }));
+test('F-01: without Turnstile at the Worker the code path is unchanged (codeFallback:false is ignored)', async () => { w.status.turnstile = false; w.status.codeFallback = false;
+  const u = tsUi([], ['123456']); w.verifyQueue.push({ s: 200, o: { token: 'TOKEN', uid: w.uid, day: '20261105', expiresInS: 600 } }); try { assert.deepEqual(await submit(u), { ok: true }); } finally { delete w.status.codeFallback; } });
+test('F-01: the new messages are plain, short and never say "code" when the code is not offered', () => {
+  for (const k of ['tsblocked', 'tsfail2']) { assert.ok(guard.MSG[k].length > 10 && !/token|secret|error|exception|undefined/i.test(guard.MSG[k]), k); }
+  assert.ok(!/code/i.test(guard.MSG.tsfail2) && !/code/i.test(guard.MSG.tsblocked)); assert.match(guard.MSG.tsblocked, /email me/i); });

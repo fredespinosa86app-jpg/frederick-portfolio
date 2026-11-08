@@ -104,12 +104,12 @@ const code=document.getElementById('gCode'),inp=document.getElementById('gInput'
 const M=window.formGuard.MSG;
 return{hide(){tsStop();box.hidden=true;msg.textContent='';inp.value='';if(tsBox)tsBox.hidden=true;if(codeBox)codeBox.hidden=false},hooks:{
 async turnstile(o){if(!tsBox||!tsEl||!tsCode||!tsNo)return{unavailable:true};
-box.hidden=false;codeBox.hidden=true;tsBox.hidden=false;tsStop();msg.textContent=o.error==='tsfail'?M.tsfail:'Checking that you are a person…';
+box.hidden=false;codeBox.hidden=true;tsBox.hidden=false;tsStop();tsCode.hidden=o.codeAllowed===false;msg.textContent=o.error==='tsfail'?(o.codeAllowed===false?M.tsfail2:M.tsfail):'Checking that you are a person…';
 const api=await loadTs();if(!api){tsStop();tsBox.hidden=true;codeBox.hidden=false;return{unavailable:true}}
 return new Promise(res=>{let over=false;const fin=v=>{if(over)return;over=true;tsCode.onclick=tsNo.onclick=null;tsStop();tsBox.hidden=true;if(v&&v.token)msg.textContent='Checking…';else codeBox.hidden=false;res(v)};
 try{wid=api.render(tsEl,{sitekey:o.siteKey,action:o.action||'meeting',theme:'light',callback:t=>fin({token:String(t||'')}),'error-callback':()=>{fin({unavailable:true});return true},'timeout-callback':()=>{try{api.reset(wid)}catch(e){}},'expired-callback':()=>{try{api.reset(wid)}catch(e){}}})}catch(e){fin({unavailable:true});return}
 tsCode.onclick=()=>fin({useCode:true});tsNo.onclick=()=>fin(null);
-box.scrollIntoView({block:'center'});tsCode.focus()})},
+box.scrollIntoView({block:'center'});(o.codeAllowed===false?tsNo:tsCode).focus()})},
 askCode(o){return new Promise(res=>{
 tsBox&&(tsBox.hidden=true);codeBox&&(codeBox.hidden=false);box.hidden=false;code.textContent=o.code;code.setAttribute('aria-label','Your code: '+o.code.split('').join(' '));
 msg.textContent=o.error==='wrong'?M.wrong+' '+o.left+(o.left===1?' try left.':' tries left.'):o.error==='expired'?M.expired:o.error==='tsnote'?M.tsnote:o.error==='tsfail'?M.tsfail:o.fresh?'Here is a new code.':'';

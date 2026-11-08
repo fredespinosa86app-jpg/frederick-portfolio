@@ -72,9 +72,9 @@ test('per-visitor limit: many wrong codes from one address end in 429 even acros
   assert.equal(last, 429); });
 test('window resets after ten minutes', async () => { const real = Date.now; try { for (let i = 0; i < LIMITS.ipChallenges; i++) await call('/v1/challenge', 'POST', undefined, { ip: '3.3.3.9' }); assert.equal((await call('/v1/challenge', 'POST', undefined, { ip: '3.3.3.9' })).status, 429);
   Date.now = () => real() + LIMITS.ipWindowMs + 1000; assert.equal((await call('/v1/challenge', 'POST', undefined, { ip: '3.3.3.9' })).status, 200); } finally { Date.now = real; } });
-test('status: no guard document means open, switch off, cap 30', async () => { const j = await (await call('/v1/status', 'GET')).json(); assert.deepEqual({ ...j, day: undefined }, { ok: true, open: true, paused: false, tokenRequired: false, cap: 30, day: undefined, rl: false, turnstile: false }); assert.match(j.day, /^\d{8}$/); });
+test('status: no guard document means open, switch off, cap 30', async () => { const j = await (await call('/v1/status', 'GET')).json(); assert.deepEqual({ ...j, day: undefined }, { ok: true, open: true, paused: false, tokenRequired: false, cap: 30, day: undefined, rl: false, turnstile: false, codeFallback: true }); assert.match(j.day, /^\d{8}$/); });
 test('status reads pause, tokenRequired and cap from content/guard', async () => { guardStatus = 200; guardFields = { pause: { booleanValue: true }, tokenRequired: { booleanValue: true }, cap: { integerValue: '45' } };
-  const j = await (await call('/v1/status', 'GET')).json(); assert.deepEqual({ ...j, day: undefined }, { ok: true, open: false, paused: true, tokenRequired: true, cap: 45, day: undefined, rl: false, turnstile: false }); });
+  const j = await (await call('/v1/status', 'GET')).json(); assert.deepEqual({ ...j, day: undefined }, { ok: true, open: false, paused: true, tokenRequired: true, cap: 45, day: undefined, rl: false, turnstile: false, codeFallback: true }); });
 test('pause: challenge and verify answer 503 and no token is issued', async () => { const c = await chal(); guardStatus = 200; guardFields = { pause: { booleanValue: true } }; _guardReset();
   assert.equal((await call('/v1/challenge', 'POST')).status, 503); assert.equal((await call('/v1/verify', 'POST', { challenge: c.challenge, code: c.code })).status, 503); });
 function _guardReset() { _reset(); }

@@ -32,6 +32,8 @@
     failed: 'Sorry, your request could not be sent. The time may have just been taken, or the connection failed. You can email me instead.',
     config: 'The safety check is not available right now. Please email me instead.',
     tsfail: 'The safety check did not pass. Please try again, or use the code instead.',
+    tsfail2: 'The safety check did not pass. Please try again.',
+    tsblocked: 'The safety check could not run in this browser. Please allow it for this site or try another browser, or email me instead.',
     tsnote: 'The automatic check is not available, so please use the six-digit code instead.'
   };
   /* SE-E6: public Turnstile site key shape (the secret never appears in this site) */
@@ -89,25 +91,28 @@
     let challenges = 0, notice = '';
     /* SE-E6: Turnstile first when the Worker has it on, the site key is valid and the page can show it; any problem falls back to the six-digit code on the same challenge */
     const sk = root.portfolioSettings && root.portfolioSettings.turnstileSiteKey;
+    /* F-01: when the Worker says codeFallback:false, the six-digit code is offered only with a backup pass the Worker itself hands out when it cannot check Turnstile (an older Worker sends no such field: code allowed, as before) */
+    const codeOk = !(status && status.turnstile === true) || status.codeFallback !== false;
     let useTs = !!(status && status.turnstile === true && typeof sk === 'string' && TS_KEY_RE.test(sk) && ui && typeof ui.turnstile === 'function');
+    const tsFirst = useTs;      /* F-01: while the code is not allowed, every NEW challenge starts with Turnstile again (a backup pass belongs to one challenge) */
     while (challenges < MAX_CHALLENGES) {
-      challenges++;
+      challenges++; if (!codeOk) useTs = tsFirst;
       let c;
       try { c = await call('/v1/challenge', 'POST'); } catch (e) { return fail(isNet(e) && root.navigator && root.navigator.onLine === false ? 'offline' : 'unreachable'); }
       if (c.status === 429) return fail('slow'); if (c.status === 503) return fail('paused'); if (c.status === 500) return fail('config');
       if (!c.ok || !c.json.challenge || !/^\d{6}$/.test(String(c.json.code || ''))) return fail('unreachable');
-      let left = 3, error = notice; notice = '';
+      let left = 3, error = notice, fb = ''; notice = '';
       for (;;) {
         if (useTs) {
-          let r = null; try { r = await ui.turnstile({ siteKey: sk, action: 'meeting', error }); } catch (e) { r = { unavailable: true }; }
+          let r = null; try { r = await ui.turnstile({ siteKey: sk, action: 'meeting', error, codeAllowed: codeOk }); } catch (e) { r = { unavailable: true }; }
           if (r === null || r === undefined) return fail('cancelled');
-          if (r.useCode || r.unavailable) { useTs = false; error = r.unavailable ? 'tsnote' : error; continue; }
-          if (!r.token || typeof r.token !== 'string' || r.token.length > 2048) { useTs = false; error = 'tsnote'; continue; }
+          if (r.useCode || r.unavailable) { if (!codeOk && !fb) return fail('tsblocked'); useTs = false; error = r.unavailable ? 'tsnote' : error; continue; }
+          if (!r.token || typeof r.token !== 'string' || r.token.length > 2048) { if (!codeOk && !fb) return fail('tsblocked'); useTs = false; error = 'tsnote'; continue; }
           let tv;
           try { tv = await call('/v1/verify', 'POST', { challenge: c.json.challenge, ts: r.token }); } catch (e) { return fail(isNet(e) && root.navigator && root.navigator.onLine === false ? 'offline' : 'unreachable'); }
           if (tv.status === 200 && tv.json.token && tv.json.uid) return { ok: true, token: tv.json.token, uid: tv.json.uid, day: tv.json.day, expiresInS: tv.json.expiresInS, issuedAt: G.now() };
           if (tv.status === 400 && tv.json.error === 'turnstile') { notice = 'tsfail'; break; }
-          if (tv.status === 503 && tv.json.error === 'tsdown') { useTs = false; error = 'tsnote'; continue; }
+          if (tv.status === 503 && tv.json.error === 'tsdown') { if (typeof tv.json.fb === 'string' && tv.json.fb.length <= 80) fb = tv.json.fb; if (!codeOk && !fb) return fail('tsblocked'); useTs = false; error = 'tsnote'; continue; }
           if (tv.status === 410) { notice = 'expired'; break; }
           if (tv.status === 429) return fail('slow');
           if (tv.status === 503) return fail('paused'); if (tv.status === 500) return fail('config');
@@ -117,8 +122,9 @@
         if (ans === null || ans === undefined) return fail('cancelled');
         if (ans && (ans.expired || ans.renew)) { notice = ans.renew ? '' : 'expired'; break; }
         let v;
-        try { v = await call('/v1/verify', 'POST', { challenge: c.json.challenge, code: String(ans) }); } catch (e) { return fail(isNet(e) && root.navigator && root.navigator.onLine === false ? 'offline' : 'unreachable'); }
+        try { v = await call('/v1/verify', 'POST', fb ? { challenge: c.json.challenge, code: String(ans), fb } : { challenge: c.json.challenge, code: String(ans) }); } catch (e) { return fail(isNet(e) && root.navigator && root.navigator.onLine === false ? 'offline' : 'unreachable'); }
         if (v.status === 200 && v.json.token && v.json.uid) return { ok: true, token: v.json.token, uid: v.json.uid, day: v.json.day, expiresInS: v.json.expiresInS, issuedAt: G.now() };
+        if (v.status === 400 && v.json.error === 'needts') return fail('tsblocked');
         if (v.status === 401) { left = typeof v.json.left === 'number' ? v.json.left : left - 1; error = 'wrong'; if (left <= 0) { notice = 'wrong'; break; } continue; }
         if (v.status === 410) { notice = 'expired'; break; }
         if (v.status === 429) { if (v.json.error === 'tries') { notice = 'wrong'; break; } return fail('slow'); }

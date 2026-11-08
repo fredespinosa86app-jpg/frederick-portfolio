@@ -25,8 +25,10 @@
    (SE-E6) With TURNSTILE_SECRET set: /v1/verify accepts {challenge, ts} (Turnstile token) or the old {challenge, code}.
      ts valid (success, hostname is one of ALLOWED_ORIGINS, action "meeting") -> token. ts refused -> 400 {error:'turnstile'}.
      Cloudflare unreachable / 5xx / secret misconfigured -> 503 {error:'tsdown'}: the page then shows the six-digit code (the try is not used up).
-     The code path stays open but is tighter than before (LIMITS.ipTokensCode tokens and LIMITS.ipWrongCode wrong codes per visitor address per window),
-     so it is never weaker than today. GET /v1/status adds turnstile:true/false.
+     (F-01) Turnstile first: with TURNSTILE_SECRET set, a code request is refused (400 {error:'needts'}) unless it carries `fb`, a signed backup pass that the
+     Worker returns inside the 503 tsdown answer (only when IT could not check Turnstile; valid 3 minutes, one challenge, any instance), or the owner set
+     the text setting CODE_FALLBACK = on (emergency switch: the old behaviour; delete it to go back to strict). The tighter code limits below still apply.
+     GET /v1/status adds turnstile:true/false and codeFallback:true/false (false = the page must not offer the code).
    (F6: status and verify also return `day`, the Worker's UTC date as YYYYMMDD.)          */
 const enc = new TextEncoder();
 const b64u = b => btoa(String.fromCharCode(...new Uint8Array(b))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -41,6 +43,7 @@ export const LIMITS = {
   ipWrong: 12,                     // wrong codes per visitor address per window
   bodyMax: 2048,
   bodyMaxTs: 4096,                 // (SE-E6) with Turnstile on: a Turnstile token can be up to 2048 characters
+  fbMs: 3 * 60 * 1000,             // (F-01) a backup pass (code allowed although Turnstile is on) lives 3 minutes
   tsMax: 2048,                     // longest accepted Turnstile token
   tsTimeoutMs: 4000,               // how long the Worker waits for Cloudflare before it falls back to the code
   ipTokensCode: 2,                 // tokens per visitor address per window on the CODE path while Turnstile is on (the normal limit is ipTokens)
@@ -118,6 +121,18 @@ export const TS_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify
 export const TS_ACTION = 'meeting';
 const tsEnabled = env => typeof env.TURNSTILE_SECRET === 'string' && env.TURNSTILE_SECRET.length >= 10;
 const allowedHosts = env => { const out = new Set(); for (const o of String(env.ALLOWED_ORIGINS || '').split(',').map(x => x.trim()).filter(Boolean)) { try { out.add(new URL(o).hostname); } catch (e) { /* ignore a bad entry */ } } return out; };
+/* (F-01) With Turnstile on, the six-digit code is refused unless (a) the owner set CODE_FALLBACK=on (emergency switch), or (b) the request carries a signed
+   backup pass for THIS challenge. The Worker hands out a pass only when it could not check Turnstile itself (Cloudflare unreachable / 5xx / bad secret),
+   so a script cannot ask for one. A pass is HMAC(CH_SECRET, nonce + expiry): valid on every Worker instance, 3 minutes, one challenge. */
+const codeFallbackOn = env => String(env.CODE_FALLBACK || '').trim().toLowerCase() === 'on';
+const fbSig = async (secret, nonce, exp) => b64u(await hmac(secret, 'fb|' + nonce + '|' + exp));
+export async function fbPass(secret, nonce, nowMs) { const exp = nowMs + LIMITS.fbMs; return exp + '.' + await fbSig(secret, nonce, exp); }
+export async function fbValid(secret, nonce, pass, nowMs) {
+  if (typeof pass !== 'string' || pass.length > 80) return false;
+  const [exp, sig, extra] = pass.split('.'); if (extra !== undefined || !/^\d{13}$/.test(exp || '') || !sig) return false;
+  if (nowMs > Number(exp) || Number(exp) > nowMs + LIMITS.fbMs + 1000) return false;
+  return safeEq(sig, await fbSig(secret, nonce, exp));
+}
 /* -> { ok:true, hostname, action } | { invalid:true } (Cloudflare refused the token) | { down:true } (could not be checked: network, timeout, 5xx, bad secret) */
 async function turnstileVerify(env, token, ip) {
   const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), LIMITS.tsTimeoutMs);
@@ -161,7 +176,7 @@ export default {
     if (p === '/v1/status' && req.method === 'GET') {
       if (!await rateOk(env, RL.status, ip)) return slow(h);
       const g = await readGuard(env, nowMs);
-      return J(200, { ok: true, open: !g.paused, paused: g.paused, tokenRequired: g.tokenRequired, cap: g.cap, day: utcDay(nowMs), rl: rlBound(env), turnstile: tsEnabled(env) }, h);
+      return J(200, { ok: true, open: !g.paused, paused: g.paused, tokenRequired: g.tokenRequired, cap: g.cap, day: utcDay(nowMs), rl: rlBound(env), turnstile: tsEnabled(env), codeFallback: !tsEnabled(env) || codeFallbackOn(env) }, h);
     }
     if (p === '/v1/challenge' && req.method === 'POST') {
       if (!await rateOk(env, RL.challenge, ip)) return slow(h);
@@ -183,12 +198,13 @@ export default {
       if (extra !== undefined || !/^[A-Za-z0-9_-]{16}$/.test(nonce || '') || !/^\d{13}$/.test(exp || '') || !sig) return J(400, { error: 'bad' }, h);
       if (!safeEq(sig, await chalSig(env.CH_SECRET, nonce, exp))) return J(400, { error: 'bad' }, h);
       if (nowMs > Number(exp)) return J(410, { error: 'expired' }, h);
+      if (!useTs && tsOn && !codeFallbackOn(env) && !await fbValid(env.CH_SECRET, nonce, b.fb, nowMs)) return J(400, { error: 'needts' }, h);   // (F-01) Turnstile first: no code without a backup pass
       const g = await readGuard(env, nowMs); if (g.paused) return J(503, { error: 'paused' }, h);
       const n = (triesByNonce.get(nonce) || 0) + 1; triesByNonce.set(nonce, n); if (triesByNonce.size > LIMITS.mapMax) triesByNonce.delete(triesByNonce.keys().next().value);
       if (n > LIMITS.maxTries) return J(429, { error: 'tries' }, h);
       if (useTs) {
         const v = await turnstileVerify(env, b.ts, ip);
-        if (v.down) { triesByNonce.set(nonce, n - 1); return J(503, { error: 'tsdown' }, h); }        // could not be checked: the page falls back to the code, this try is not used up
+        if (v.down) { triesByNonce.set(nonce, n - 1); return J(503, { error: 'tsdown', fb: await fbPass(env.CH_SECRET, nonce, nowMs) }, h); }        // could not be checked: the page falls back to the code, this try is not used up
         if (!v.ok || v.action !== TS_ACTION || !allowedHosts(env).has(v.hostname)) {
           if (!hit(ip, 'w', LIMITS.ipWrong, nowMs)) return J(429, { error: 'slow' }, h);
           return J(400, { error: 'turnstile' }, h);

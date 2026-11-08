@@ -1,7 +1,7 @@
 // SE-E6 Part A: Cloudflare Turnstile in the forms Worker.  Run:  node --test server/portfolio-forms-turnstile.test.mjs
 // Cloudflare is replaced by a fake (never contacted); the service account is a throwaway in-memory key.
 import test, { beforeEach } from 'node:test'; import assert from 'node:assert/strict'; import { generateKeyPairSync } from 'node:crypto';
-import worker, { LIMITS, _reset, TS_URL, TS_ACTION } from './portfolio-forms-worker.js';
+import worker, { LIMITS, _reset, TS_URL, TS_ACTION, fbPass, fbValid } from './portfolio-forms-worker.js';
 const { privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
 const SA = { client_email: 'portfolio-form-signer@demo-proj.iam.gserviceaccount.com', project_id: 'demo-proj', private_key: privateKey.export({ type: 'pkcs8', format: 'pem' }) };
 const SECRET = '1x0000000000000000000000000000000AA';          // Cloudflare's published always-pass TEST secret shape; not a real secret
@@ -64,17 +64,19 @@ test('Cloudflare cannot be checked (network, 500, not JSON, internal error, wron
   const real = LIMITS.tsTimeoutMs; LIMITS.tsTimeoutMs = 40;
   try {
     for (const mode of ['throw', '500', 'html', 'internal', 'badsecret', 'badreq', 'hang']) {
-      _reset(); ts.mode = mode; const c = await chal({}); const t0 = Date.now();
-      for (let i = 0; i < 4; i++) { const r = await call('/v1/verify', 'POST', { challenge: c.challenge, ts: TOKEN }, {}); assert.equal(r.status, 503, mode + ' #' + i); assert.deepEqual(await r.json(), { error: 'tsdown' }); }   // 4 > maxTries 3: proves the try is refunded
+      _reset(); ts.mode = mode; const c = await chal({}); const t0 = Date.now(); const passes = [];
+      for (let i = 0; i < 4; i++) { const r = await call('/v1/verify', 'POST', { challenge: c.challenge, ts: TOKEN }, {}); assert.equal(r.status, 503, mode + ' #' + i); const j = await r.json(); assert.equal(j.error, 'tsdown'); assert.match(j.fb, /^\d{13}\.[A-Za-z0-9_-]+$/); passes.push(j.fb); }   // 4 > maxTries 3: proves the try is refunded
       assert.ok(Date.now() - t0 < 2000, mode + ' answered within the timeout');
-      const ok = await call('/v1/verify', 'POST', { challenge: c.challenge, code: c.code }, {}); assert.equal(ok.status, 200, mode + ' then the code works');
+      const strict = await call('/v1/verify', 'POST', { challenge: c.challenge, code: c.code }, {}); assert.equal(strict.status, 400, mode + ': the code alone is refused (F-01)'); assert.deepEqual(await strict.json(), { error: 'needts' });
+      const ok = await call('/v1/verify', 'POST', { challenge: c.challenge, code: c.code, fb: passes[0] }, {}); assert.equal(ok.status, 200, mode + ' then the code works with the backup pass');
     }
   } finally { LIMITS.tsTimeoutMs = real; }
 });
-test('the code path stays open while Turnstile is on but is tighter: 2 tokens then slow, 6 wrong codes then slow', async () => {
-  const ok = async ip => { const c = await chal({ ip }); return call('/v1/verify', 'POST', { challenge: c.challenge, code: c.code }, { ip }); };
+test('with the emergency switch CODE_FALLBACK=on the code path is open but tighter: 2 tokens then slow, 6 wrong codes then slow', async () => {
+  const envOn = Object.assign({}, env, { CODE_FALLBACK: 'on' });
+  const ok = async ip => { const c = await chal({ ip }); return call('/v1/verify', 'POST', { challenge: c.challenge, code: c.code }, { ip }, envOn); };
   assert.equal((await ok('7.7.7.7')).status, 200); assert.equal((await ok('7.7.7.7')).status, 200); const third = await ok('7.7.7.7'); assert.equal(third.status, 429); assert.deepEqual(await third.json(), { error: 'slow' });
-  let wrong = 0; for (let k = 0; k < 3; k++) { const c = await chal({ ip: '8.8.8.8' }); for (let i = 0; i < 3 && wrong < 7; i++) { const r = await call('/v1/verify', 'POST', { challenge: c.challenge, code: bad(c) }, { ip: '8.8.8.8' }); wrong++; assert.equal(r.status, wrong <= 6 ? 401 : 429, 'wrong #' + wrong); } }
+  let wrong = 0; for (let k = 0; k < 3; k++) { const c = await chal({ ip: '8.8.8.8' }); for (let i = 0; i < 3 && wrong < 7; i++) { const r = await call('/v1/verify', 'POST', { challenge: c.challenge, code: bad(c) }, { ip: '8.8.8.8' }, envOn); wrong++; assert.equal(r.status, wrong <= 6 ? 401 : 429, 'wrong #' + wrong); } }
   assert.equal(wrong, 7);
   assert.equal(LIMITS.ipTokensCode < LIMITS.ipTokens && LIMITS.ipWrongCode < LIMITS.ipWrong, true, 'never weaker than the normal limits');
 });
@@ -93,7 +95,7 @@ test('Turnstile path limits: 3 tokens per address, refused tokens count as wrong
 });
 test('a challenge solved with Turnstile cannot be used again, by token or by code', async () => {
   const { c, r } = await viaTs({}); assert.equal(r.status, 200);
-  assert.equal((await call('/v1/verify', 'POST', { challenge: c.challenge, ts: TOKEN })).status, 429); assert.equal((await call('/v1/verify', 'POST', { challenge: c.challenge, code: c.code })).status, 429);
+  assert.equal((await call('/v1/verify', 'POST', { challenge: c.challenge, ts: TOKEN })).status, 429); assert.equal((await call('/v1/verify', 'POST', { challenge: c.challenge, code: c.code }, {}, Object.assign({}, env, { CODE_FALLBACK: 'on' }))).status, 429);
 });
 test('cheap refusals never reach Cloudflare: tampered/expired challenge, pause, bad body, rate limiter', async () => {
   const c = await chal({}); const [n, e, s] = c.challenge.split('.');
@@ -116,4 +118,49 @@ test('the secret never appears in any response body or header, and nothing is lo
 });
 test('origin rules are unchanged for the new field: an unlisted origin is refused before anything else', async () => {
   const c = await chal({}); const r = await call('/v1/verify', 'POST', { challenge: c.challenge, ts: TOKEN }, { headers: { Origin: 'https://evil.example' } }); assert.equal(r.status, 403); assert.equal(ts.calls.length, 0);
+});
+
+/* ---------- F-01: Turnstile first ---------- */
+test('F-01: with Turnstile on, a code request without a backup pass is refused (400 needts), whatever the code; no try is used up, no token, no Cloudflare call', async () => {
+  const c = await chal({}); for (let i = 0; i < 6; i++) { const r = await call('/v1/verify', 'POST', { challenge: c.challenge, code: c.code }, {}); assert.equal(r.status, 400); assert.deepEqual(await r.json(), { error: 'needts' }); }
+  assert.equal(ts.calls.length, 0);
+  const viaTsNow = await call('/v1/verify', 'POST', { challenge: c.challenge, ts: TOKEN }, {}); assert.equal(viaTsNow.status, 200, 'the challenge is still fresh: refused code tries burned nothing');
+});
+test('F-01: status says codeFallback false while Turnstile is on and strict; true with the switch; true when Turnstile is not set up', async () => {
+  assert.equal((await (await call('/v1/status', 'GET')).json()).codeFallback, false);
+  assert.equal((await (await call('/v1/status', 'GET', undefined, {}, Object.assign({}, env, { CODE_FALLBACK: 'on' }))).json()).codeFallback, true);
+  assert.equal((await (await call('/v1/status', 'GET', undefined, {}, base)).json()).codeFallback, true);
+  for (const v of ['off', '', 'true', '1', 'ON ', 'yes']) { const j = await (await call('/v1/status', 'GET', undefined, {}, Object.assign({}, env, { CODE_FALLBACK: v }))).json(); assert.equal(j.codeFallback, v.trim().toLowerCase() === 'on', JSON.stringify(v)); }
+});
+test('F-01: CODE_FALLBACK=on brings back the old behaviour (code works without a pass); Turnstile not set up is unchanged', async () => {
+  const c = await chal({ ip: '5.5.5.5' }); assert.equal((await call('/v1/verify', 'POST', { challenge: c.challenge, code: c.code }, { ip: '5.5.5.5' }, Object.assign({}, env, { CODE_FALLBACK: 'on' }))).status, 200);
+  const d = await chal({ ip: '5.5.5.6' }); assert.equal((await call('/v1/verify', 'POST', { challenge: d.challenge, code: d.code }, { ip: '5.5.5.6' }, base)).status, 200);
+});
+test('F-01: the backup pass is valid only for its own challenge, for 3 minutes, and cannot be forged or changed', async () => {
+  const S = env.CH_SECRET, now = Date.now(), nonce = 'AAAAAAAAAAAAAAAA', other = 'BBBBBBBBBBBBBBBB';
+  const pass = await fbPass(S, nonce, now);
+  assert.equal(await fbValid(S, nonce, pass, now), true); assert.equal(await fbValid(S, nonce, pass, now + LIMITS.fbMs - 1000), true);
+  assert.equal(await fbValid(S, nonce, pass, now + LIMITS.fbMs + 1), false, 'expired');
+  assert.equal(await fbValid(S, other, pass, now), false, 'other challenge');
+  assert.equal(await fbValid('x'.repeat(40), nonce, pass, now), false, 'other secret');
+  const [exp, sig] = pass.split('.'); assert.equal(await fbValid(S, nonce, (Number(exp) + 60000) + '.' + sig, now), false, 'longer life asked');
+  assert.equal(await fbValid(S, nonce, exp + '.' + (sig[0] === 'A' ? 'B' : 'A') + sig.slice(1), now), false, 'sig changed');
+  for (const junk of [undefined, null, 5, '', '.', 'a.b', exp, exp + '.', '.' + sig, pass + '.x', 'x'.repeat(200)]) assert.equal(await fbValid(S, nonce, junk, now), false, String(junk));
+});
+test('F-01: the pass is handed out only when Cloudflare could not be checked, never when the visitor failed the check; a pass for another challenge or an old one is refused', async () => {
+  ts.mode = 'invalid'; const a = await chal({}); const r1 = await call('/v1/verify', 'POST', { challenge: a.challenge, ts: TOKEN }, {}); assert.equal(r1.status, 400); assert.deepEqual(await r1.json(), { error: 'turnstile' });
+  _reset(); ts.mode = '500'; const c = await chal({}), d = await chal({ ip: '2.2.2.2' });
+  const down = await (await call('/v1/verify', 'POST', { challenge: c.challenge, ts: TOKEN }, {})).json(); assert.equal(down.error, 'tsdown'); assert.ok(down.fb);
+  const wrongChal = await call('/v1/verify', 'POST', { challenge: d.challenge, code: d.code, fb: down.fb }, { ip: '2.2.2.2' }); assert.equal(wrongChal.status, 400);
+  assert.equal((await call('/v1/verify', 'POST', { challenge: c.challenge, code: c.code, fb: 123 }, {})).status, 400);
+  assert.equal((await call('/v1/verify', 'POST', { challenge: c.challenge, code: c.code, fb: down.fb }, {})).status, 200);
+});
+test('F-01: a backup pass works on another Worker instance (state reset) and a second use gives the same uid (F-02)', async () => {
+  ts.mode = '500'; const c = await chal({}); const down = await (await call('/v1/verify', 'POST', { challenge: c.challenge, ts: TOKEN }, {})).json();
+  const a = await (await call('/v1/verify', 'POST', { challenge: c.challenge, code: c.code, fb: down.fb }, {})).json(); _reset();
+  const r = await call('/v1/verify', 'POST', { challenge: c.challenge, code: c.code, fb: down.fb }, {}); assert.equal(r.status, 200); assert.equal((await r.json()).uid, a.uid);
+});
+test('F-01: wrong codes with a valid pass still count (401 with tries left) and the code limits per address still apply', async () => {
+  ts.mode = '500'; const c = await chal({}); const down = await (await call('/v1/verify', 'POST', { challenge: c.challenge, ts: TOKEN }, {})).json();
+  const r = await call('/v1/verify', 'POST', { challenge: c.challenge, code: bad(c), fb: down.fb }, {}); assert.equal(r.status, 401); assert.equal((await r.json()).left, 2);
 });
