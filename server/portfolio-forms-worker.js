@@ -5,6 +5,7 @@
 
    HONEST LIMITS: the six-digit code is shown to the page, so a script can read it. It is a speed bump, not a CAPTCHA. The real limits are
    the per-visitor throttles below (kept per Worker instance, approximate), the single-use token, and the daily cap in the rules (exact).
+   (F-02) A solved challenge can be redeemed only once in the DATABASE: the token's uid is derived from the challenge, and the rules allow one request per uid.
 
    Settings (Worker > Settings > Variables and Secrets):
      SA_JSON              Secret  the whole JSON key of the role-less service account "portfolio-form-signer". Never put it in a file or in chat.
@@ -78,6 +79,11 @@ const chalSig = async (secret, nonce, exp) => b64u(await hmac(secret, 'chal|' + 
 // so a visitor whose own clock is wrong cannot break the daily counter (the rules compare it with Firestore's server time).
 export const utcDay = ms => { const d = new Date(ms); return String(d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate()); };
 const randId = n => b64u(crypto.getRandomValues(new Uint8Array(n)));
+/* (F-02) The token's uid is derived from the challenge (HMAC with CH_SECRET), not random. The Firestore rules allow ONE request per uid (the request's document ID
+   must equal the token's uid and it can only be created once), so a challenge that is solved again, on another Worker instance or after a restart, gets the
+   SAME uid and the database refuses the second request. Shape: 'm_' + 16 URL-safe characters (the rules need ^m_[A-Za-z0-9_-]{8,40}$). Not linkable to the
+   challenge without CH_SECRET. */
+export async function uidFor(secret, nonce) { return 'm_' + b64u((await hmac(secret, 'uid|' + nonce)).slice(0, 12)); }
 function pemToDer(pem) { const s = atob(pem.replace(/-----[^-]+-----/g, '').replace(/\s+/g, '')); return Uint8Array.from(s, c => c.charCodeAt(0)); }
 // The service-account key is parsed and imported once per instance, not on every request.
 function loadSa(env) {
@@ -196,7 +202,7 @@ export default {
         if (!hit(ip, tsOn ? 'tc' : 't', tsOn ? LIMITS.ipTokensCode : LIMITS.ipTokens, nowMs)) return J(429, { error: 'slow' }, h);
       }
       triesByNonce.set(nonce, LIMITS.maxTries);                         // a solved challenge cannot be solved again on this instance
-      const uid = 'm_' + randId(12);                                    // 'm_' + 16 random URL-safe characters; unrelated to the challenge
+      const uid = await uidFor(env.CH_SECRET, nonce);                   // (F-02) same challenge -> same uid -> one request in the database, on every Worker instance
       let token; try { token = await customToken(loadSa(env), uid, { form: 'meeting' }, nowS); } catch (e) { return J(500, { error: 'sign' }, h); }
       return J(200, { token, uid, expiresInS: LIMITS.tokenS, day: utcDay(nowMs) }, h);
     }

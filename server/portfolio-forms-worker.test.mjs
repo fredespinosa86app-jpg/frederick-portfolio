@@ -1,7 +1,7 @@
 // Run:  node --test server/portfolio-forms-worker.test.mjs      (Node 20+; no packages needed)
 // Uses a throwaway in-memory RSA key (a fake service account, never a real credential).
 import test, { beforeEach } from 'node:test'; import assert from 'node:assert/strict'; import { generateKeyPairSync, createVerify } from 'node:crypto';
-import worker, { safeEq, LIMITS, _reset, utcDay, RL } from './portfolio-forms-worker.js';
+import worker, { safeEq, LIMITS, _reset, utcDay, RL, uidFor } from './portfolio-forms-worker.js';
 const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
 const SA = { client_email: 'portfolio-form-signer@demo-proj.iam.gserviceaccount.com', project_id: 'demo-proj', private_key: privateKey.export({ type: 'pkcs8', format: 'pem' }) };
 const env = { SA_JSON: JSON.stringify(SA), CH_SECRET: 'test-secret-'.repeat(5), ALLOWED_ORIGINS: 'https://me.github.io,https://www.example.com' };
@@ -28,6 +28,23 @@ test('right code returns a verifiable RS256 token: claim form=meeting, uid m_+16
   const p = JSON.parse(Buffer.from(b, 'base64url')); assert.equal(p.iss, SA.client_email); assert.equal(p.sub, SA.client_email); assert.equal(p.claims.form, 'meeting'); assert.equal(p.uid, j.uid);
   assert.match(p.uid, /^m_[A-Za-z0-9_-]{16}$/); assert.equal(p.exp - p.iat, 600); assert.equal(JSON.parse(Buffer.from(h, 'base64url')).alg, 'RS256');
   assert.ok(!j.uid.includes(c.challenge.split('.')[0])); assert.match(p.uid, /^m_[A-Za-z0-9_-]{8,40}$/, 'must satisfy the rules regex'); });
+test('F-02: the same solved challenge gives the SAME uid on another Worker instance (state reset), so the database allows one request only', async () => {
+  const c = await chal(), body = { challenge: c.challenge, code: c.code };
+  const a = await (await call('/v1/verify', 'POST', body)).json();
+  _reset();                                                                    // another instance / a restart: the in-memory "used" mark is gone
+  const r2 = await call('/v1/verify', 'POST', body); assert.equal(r2.status, 200); const b = await r2.json();
+  assert.equal(a.uid, b.uid);
+  const claim = t => JSON.parse(Buffer.from(t.split('.')[1], 'base64url')).uid; assert.equal(claim(a.token), claim(b.token)); });
+test('F-02: on the same instance a solved challenge is still refused outright (the in-memory mark stays as a first line)', async () => {
+  const c = await chal(), body = { challenge: c.challenge, code: c.code }; assert.equal((await call('/v1/verify', 'POST', body)).status, 200); assert.equal((await call('/v1/verify', 'POST', body)).status, 429); });
+test('F-02: different challenges give different uids; the uid fits the rules shape and shows no trace of the nonce', async () => {
+  const seen = new Set(); for (let i = 0; i < 25; i++) { const c = await chal({ ip: '10.0.0.' + i }); const j = await (await call('/v1/verify', 'POST', { challenge: c.challenge, code: c.code }, { ip: '10.0.0.' + i })).json();
+    assert.match(j.uid, /^m_[A-Za-z0-9_-]{16}$/); assert.match(j.uid, /^m_[A-Za-z0-9_-]{8,40}$/); assert.ok(!j.uid.includes(c.challenge.split('.')[0])); seen.add(j.uid); }
+  assert.equal(seen.size, 25); });
+test('F-02: uidFor is stable for one (secret, nonce), differs with another secret or nonce, and is not the plain hash of the nonce', async () => {
+  const s1 = 'test-secret-'.repeat(5), s2 = 'other-secret-'.repeat(5), n = 'AAAAAAAAAAAAAAAA';
+  assert.equal(await uidFor(s1, n), await uidFor(s1, n)); assert.notEqual(await uidFor(s1, n), await uidFor(s2, n)); assert.notEqual(await uidFor(s1, n), await uidFor(s1, 'BBBBBBBBBBBBBBBB'));
+  assert.notEqual(await uidFor(s1, n), 'm_' + Buffer.from(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(n))).toString('base64url').slice(0, 16)); });
 test('two tokens never share a uid', async () => { const a = await (await solve({ ip: '2.2.2.2' })).json(), b = await (await solve({ ip: '3.3.3.3' })).json(); assert.notEqual(a.uid, b.uid); });
 test('wrong code: 401 with attempts left; the third wrong try locks the challenge even for the right code', async () => {
   const c = await chal(), bad = c.code === '000000' ? '111111' : '000000';
