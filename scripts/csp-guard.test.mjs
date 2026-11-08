@@ -75,6 +75,11 @@ test('the rest of the policy has not been loosened by this phase', () => {
   assert.deepEqual(policy['default-src'], ["'self'"]); assert.deepEqual(policy['object-src'], ["'none'"]); assert.deepEqual(policy['base-uri'], ["'self'"]); assert.deepEqual(policy['form-action'], ["'self'"]);
   assert.ok(!policy['script-src'].includes("'unsafe-inline'") && !policy['script-src'].includes("'unsafe-eval'") && !policy['script-src'].includes('https:'));
 });
+test("style-src has no 'unsafe-inline' (UI-1): inline styles are refused by the browser, in both pages", () => {
+  const sv = CSP.parse((fs.readFileSync(path.join(root, 'survey.html'), 'utf8').match(/<meta http-equiv="Content-Security-Policy" content="([^"]*)"/) || [])[1] || '');
+  for (const P of [policy, sv]) { const s = P['style-src'] || []; assert.ok(s.length > 0 && s[0] === "'self'"); assert.ok(!s.includes("'unsafe-inline'") && !s.includes("'unsafe-hashes'") && !s.includes('*') && !s.includes('https:') && !s.includes('data:')); }
+  assert.deepEqual(policy['style-src'], ["'self'", 'https://accounts.google.com/gsi/style']);
+});
 test('index.html has no duplicate element ids (a repeated id made the S2-C1 log write into the Clients page)', () => {
   const ids = [...html.matchAll(/\sid="([^"]+)"/g)].map(m => m[1]); const dup = [...new Set(ids.filter((x, i) => ids.indexOf(x) !== i))];
   assert.deepEqual(dup, []);
